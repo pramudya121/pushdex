@@ -20,6 +20,7 @@ export const SwapCard: React.FC = () => {
     amountIn,
     amountOut,
     slippage,
+    deadline,
     isLoading,
     isApproving,
     isSwapping,
@@ -32,6 +33,7 @@ export const SwapCard: React.FC = () => {
     setTokenIn,
     setTokenOut,
     setSlippage,
+    setDeadline,
     swapTokens,
     approve,
     swap,
@@ -135,8 +137,10 @@ export const SwapCard: React.FC = () => {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="glass-card w-80 p-4" align="end">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <h3 className="font-semibold">Transaction Settings</h3>
+                
+                {/* Slippage Settings */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Slippage Tolerance</span>
@@ -156,6 +160,18 @@ export const SwapCard: React.FC = () => {
                         {value}%
                       </Button>
                     ))}
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        value={slippage}
+                        onChange={(e) => setSlippage(parseFloat(e.target.value) || 0.5)}
+                        className="w-16 h-8 text-center text-sm bg-surface border-border"
+                        min={0.1}
+                        max={50}
+                        step={0.1}
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
                   </div>
                   <Slider
                     value={[slippage]}
@@ -165,6 +181,40 @@ export const SwapCard: React.FC = () => {
                     step={0.1}
                     className="mt-2"
                   />
+                </div>
+
+                {/* Deadline Settings */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Transaction Deadline</span>
+                    <span className="text-sm font-medium">{deadline} min</span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[10, 20, 30].map((value) => (
+                      <Button
+                        key={value}
+                        variant={deadline === value ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setDeadline(value)}
+                        className={cn(
+                          deadline === value && 'bg-gradient-pink'
+                        )}
+                      >
+                        {value}m
+                      </Button>
+                    ))}
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        value={deadline}
+                        onChange={(e) => setDeadline(parseInt(e.target.value) || 20)}
+                        className="w-16 h-8 text-center text-sm bg-surface border-border"
+                        min={1}
+                        max={120}
+                      />
+                      <span className="text-sm text-muted-foreground">min</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </PopoverContent>
