@@ -3,13 +3,12 @@ import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { useWallet } from '@/contexts/WalletContext';
-import { TOKEN_LIST, CONTRACTS } from '@/config/contracts';
+import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER } from '@/config/contracts';
 import { FACTORY_ABI } from '@/config/abis';
-import { getReadProvider, getTokenBalance, getPairContract, getTokenByAddress, formatAmount, shortenAddress } from '@/lib/dex';
+import { getReadProvider, getPairContract, getTokenByAddress, formatAmount, shortenAddress } from '@/lib/dex';
+import { getMultipleBalances } from '@/lib/multicall';
 import { Wallet, Loader2, ExternalLink, Copy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { BLOCK_EXPLORER } from '@/config/contracts';
 
 interface TokenBalance {
   symbol: string;
@@ -41,19 +40,27 @@ const Portfolio = () => {
       
       setIsLoading(true);
       try {
-        // Fetch token balances
-        const balancePromises = TOKEN_LIST.filter(t => t.address !== '0x0000000000000000000000000000000000000000').map(async (token) => {
-          const bal = await getTokenBalance(token.address, address);
-          return {
-            symbol: token.symbol,
-            name: token.name,
-            address: token.address,
-            balance: formatAmount(bal, token.decimals),
-          };
-        });
+        // Use multicall to fetch all token balances at once
+        const tokenAddresses = TOKEN_LIST
+          .filter(t => t.address !== ethers.ZeroAddress)
+          .map(t => t.address);
         
-        const balances = await Promise.all(balancePromises);
-        setTokenBalances(balances.filter(b => parseFloat(b.balance) > 0));
+        const balancesMap = await getMultipleBalances(tokenAddresses, address);
+        
+        const balances: TokenBalance[] = TOKEN_LIST
+          .filter(t => t.address !== ethers.ZeroAddress)
+          .map(token => {
+            const balanceRaw = balancesMap.get(token.address.toLowerCase()) || 0n;
+            return {
+              symbol: token.symbol,
+              name: token.name,
+              address: token.address,
+              balance: formatAmount(balanceRaw, token.decimals),
+            };
+          })
+          .filter(b => parseFloat(b.balance) > 0);
+        
+        setTokenBalances(balances);
         
         // Fetch LP positions
         const provider = getReadProvider();

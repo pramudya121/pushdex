@@ -1,6 +1,11 @@
 import { ethers } from 'ethers';
 import { CONTRACTS, TOKENS, TokenInfo, TOKEN_LIST, RPC_URL } from '@/config/contracts';
-import { ROUTER_ABI, FACTORY_ABI, ERC20_ABI, PAIR_ABI, WETH_ABI } from '@/config/abis';
+import { ROUTER_ABI, FACTORY_ABI, ERC20_ABI, PAIR_ABI, WETH_ABI, MULTICALL_ABI } from '@/config/abis';
+
+// Get Multicall contract instance
+export const getMulticallContract = (signerOrProvider: ethers.Signer | ethers.Provider) => {
+  return new ethers.Contract(CONTRACTS.MULTICALL, MULTICALL_ABI, signerOrProvider);
+};
 
 // Get read-only provider
 export const getReadProvider = () => {
