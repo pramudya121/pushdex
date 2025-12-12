@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, Search } from 'lucide-react';
@@ -61,9 +62,12 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
           <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto" />
         </button>
       </DialogTrigger>
-      <DialogContent className="glass-card border-border max-w-md">
+      <DialogContent className="glass-card border-border max-w-md" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Select Token</DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a token from the list below
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="relative">
