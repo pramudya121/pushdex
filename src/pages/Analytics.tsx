@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { CONTRACTS } from '@/config/contracts';
 import { FACTORY_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
+import { getMultiplePairReserves } from '@/lib/multicall';
 import { BarChart3, TrendingUp, Droplets, Activity, Loader2 } from 'lucide-react';
 
 interface AnalyticsData {
@@ -29,25 +30,39 @@ const Analytics = () => {
         const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
         
         const pairsLength = await factory.allPairsLength();
+        
+        // First get all pair addresses
+        const pairAddresses: string[] = [];
+        const pairPromises = [];
+        
+        for (let i = 0; i < Number(pairsLength); i++) {
+          pairPromises.push(factory.allPairs(i));
+        }
+        
+        const addresses = await Promise.all(pairPromises);
+        pairAddresses.push(...addresses);
+        
+        // Use multicall to get all reserves at once
+        const reservesMap = await getMultiplePairReserves(pairAddresses);
+        
         let totalTVL = 0;
         const pools: { name: string; tvl: number; volume24h: number }[] = [];
         
-        for (let i = 0; i < Number(pairsLength); i++) {
+        // Get token info for each pair
+        for (const pairAddress of pairAddresses) {
           try {
-            const pairAddress = await factory.allPairs(i);
             const pair = getPairContract(pairAddress, provider);
-            
-            const [token0, token1, reserves] = await Promise.all([
+            const [token0, token1] = await Promise.all([
               pair.token0(),
               pair.token1(),
-              pair.getReserves(),
             ]);
             
+            const reserves = reservesMap.get(pairAddress.toLowerCase());
             const token0Info = getTokenByAddress(token0);
             const token1Info = getTokenByAddress(token1);
             
-            const reserve0 = parseFloat(formatAmount(reserves[0], token0Info?.decimals || 18));
-            const reserve1 = parseFloat(formatAmount(reserves[1], token1Info?.decimals || 18));
+            const reserve0 = parseFloat(formatAmount(reserves?.reserve0 || 0n, token0Info?.decimals || 18));
+            const reserve1 = parseFloat(formatAmount(reserves?.reserve1 || 0n, token1Info?.decimals || 18));
             const tvl = reserve0 + reserve1;
             
             totalTVL += tvl;
@@ -57,7 +72,7 @@ const Analytics = () => {
               volume24h: Math.random() * 10000, // Placeholder - would need event indexing
             });
           } catch (error) {
-            console.error(`Error fetching pair ${i}:`, error);
+            console.error(`Error fetching pair ${pairAddress}:`, error);
           }
         }
         
@@ -82,24 +97,28 @@ const Analytics = () => {
       value: data?.totalPools || 0,
       icon: Droplets,
       suffix: '',
+      prefix: '',
     },
     {
       label: 'Total TVL',
       value: data?.totalTVL.toFixed(2) || '0',
       icon: TrendingUp,
       prefix: '~$',
+      suffix: '',
     },
     {
       label: 'Volume 24h',
       value: '0', // Would need event indexing
       icon: Activity,
       prefix: '~$',
+      suffix: '',
     },
     {
       label: 'Total Fees 24h',
       value: '0', // Would need event indexing
       icon: BarChart3,
       prefix: '~$',
+      suffix: '',
     },
   ];
 
