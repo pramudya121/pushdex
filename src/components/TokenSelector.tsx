@@ -46,9 +46,17 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 transition-all duration-200 min-w-[140px]">
-          <div className="w-6 h-6 rounded-full bg-gradient-pink flex items-center justify-center text-xs font-bold text-primary-foreground">
-            {selectedToken.symbol.charAt(0)}
-          </div>
+          {selectedToken.logo ? (
+            <img 
+              src={selectedToken.logo} 
+              alt={selectedToken.symbol} 
+              className="w-6 h-6 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-gradient-pink flex items-center justify-center text-xs font-bold text-primary-foreground">
+              {selectedToken.symbol.charAt(0)}
+            </div>
+          )}
           <span className="font-semibold">{selectedToken.symbol}</span>
           <ChevronDown className="w-4 h-4 text-muted-foreground ml-auto" />
         </button>
@@ -80,9 +88,17 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                     : 'hover:bg-surface border border-transparent'
                 )}
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-pink flex items-center justify-center text-sm font-bold text-primary-foreground">
-                  {token.symbol.charAt(0)}
-                </div>
+                {token.logo ? (
+                  <img 
+                    src={token.logo} 
+                    alt={token.symbol} 
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-pink flex items-center justify-center text-sm font-bold text-primary-foreground">
+                    {token.symbol.charAt(0)}
+                  </div>
+                )}
                 <div className="text-left">
                   <div className="font-semibold">{token.symbol}</div>
                   <div className="text-sm text-muted-foreground">{token.name}</div>

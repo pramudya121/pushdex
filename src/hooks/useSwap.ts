@@ -21,6 +21,7 @@ export interface SwapState {
   amountIn: string;
   amountOut: string;
   slippage: number;
+  deadline: number;
   isLoading: boolean;
   isApproving: boolean;
   isSwapping: boolean;
@@ -40,6 +41,7 @@ export const useSwap = () => {
     amountIn: '',
     amountOut: '',
     slippage: 0.5,
+    deadline: 20,
     isLoading: false,
     isApproving: false,
     isSwapping: false,
@@ -203,6 +205,11 @@ export const useSwap = () => {
     setState(prev => ({ ...prev, slippage }));
   }, []);
 
+  // Set deadline
+  const setDeadline = useCallback((deadline: number) => {
+    setState(prev => ({ ...prev, deadline }));
+  }, []);
+
   // Approve token
   const approve = useCallback(async () => {
     if (!signer || !address) {
@@ -259,7 +266,7 @@ export const useSwap = () => {
         parseAmount(state.amountOut, state.tokenOut.decimals),
         state.slippage
       );
-      const deadline = getDeadline(20);
+      const deadline = getDeadline(state.deadline);
 
       const isNativeIn = state.tokenIn.address === ethers.ZeroAddress;
       const isNativeOut = state.tokenOut.address === ethers.ZeroAddress;
@@ -332,6 +339,7 @@ export const useSwap = () => {
     setTokenIn,
     setTokenOut,
     setSlippage,
+    setDeadline,
     swapTokens,
     approve,
     swap,
