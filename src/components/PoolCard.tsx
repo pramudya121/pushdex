@@ -152,16 +152,16 @@ export const PoolCard: React.FC<PoolCardProps> = ({
       
       {/* Actions */}
       <div className="flex gap-2 mt-4">
-        <Link to="/liquidity" className="flex-1" onClick={(e) => e.stopPropagation()}>
+        <Link to={`/pools/${pairAddress}`} className="flex-1" onClick={(e) => e.stopPropagation()}>
           <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs">
-            <Droplets className="w-3.5 h-3.5" />
-            Add Liquidity
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            Details
           </Button>
         </Link>
-        <Link to="/" className="flex-1" onClick={(e) => e.stopPropagation()}>
+        <Link to="/liquidity" className="flex-1" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" className="w-full gap-1.5 text-xs bg-gradient-to-r from-primary to-accent hover:opacity-90">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            Swap
+            <Droplets className="w-3.5 h-3.5" />
+            Add Liquidity
           </Button>
         </Link>
       </div>
