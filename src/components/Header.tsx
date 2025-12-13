@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Swap', icon: ArrowLeftRight },
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
+  { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
 export const Header: React.FC = () => {

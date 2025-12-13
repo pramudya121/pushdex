@@ -7,9 +7,11 @@ import { WalletProvider } from "@/contexts/WalletContext";
 import Index from "./pages/Index";
 import Liquidity from "./pages/Liquidity";
 import Pools from "./pages/Pools";
+import PoolDetail from "./pages/PoolDetail";
 import Analytics from "./pages/Analytics";
 import Portfolio from "./pages/Portfolio";
 import CreatePool from "./pages/CreatePool";
+import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,8 +28,10 @@ const App = () => (
             <Route path="/liquidity" element={<Liquidity />} />
             <Route path="/pools" element={<Pools />} />
             <Route path="/pools/create" element={<CreatePool />} />
+            <Route path="/pools/:address" element={<PoolDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
