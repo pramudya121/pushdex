@@ -6,6 +6,8 @@ import { Header } from '@/components/Header';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { PoolCard } from '@/components/PoolCard';
 import { PriceChart } from '@/components/PriceChart';
+import { QuickStats } from '@/components/QuickStats';
+import { PriceAlertModal } from '@/components/PriceAlertModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,6 +15,7 @@ import { CONTRACTS } from '@/config/contracts';
 import { FACTORY_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
 import { getMultiplePairReserves } from '@/lib/multicall';
+import { useFavorites } from '@/hooks/useFavorites';
 import { 
   Loader2, 
   Droplets, 
@@ -23,7 +26,8 @@ import {
   LayoutGrid,
   LayoutList,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Star
 } from 'lucide-react';
 
 interface PoolInfo {
@@ -41,6 +45,7 @@ interface PoolInfo {
 
 type SortField = 'tvl' | 'volume24h' | 'apy';
 type ViewMode = 'grid' | 'list';
+type FilterMode = 'all' | 'favorites';
 
 const Pools = () => {
   const [pools, setPools] = useState<PoolInfo[]>([]);
@@ -50,6 +55,8 @@ const Pools = () => {
   const [sortDesc, setSortDesc] = useState(true);
   const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const { favoritePools, isFavoritePool } = useFavorites();
 
   const fetchPools = async () => {
     setIsLoading(true);
@@ -122,11 +129,17 @@ const Pools = () => {
 
   // Filter and sort pools
   const filteredPools = pools
-    .filter(pool => 
-      pool.token0Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pool.token1Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pool.pairAddress.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(pool => {
+      // Text search filter
+      const matchesSearch = pool.token0Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pool.token1Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pool.pairAddress.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Favorites filter
+      const matchesFavorites = filterMode === 'all' || isFavoritePool(pool.pairAddress);
+      
+      return matchesSearch && matchesFavorites;
+    })
     .sort((a, b) => {
       const multiplier = sortDesc ? -1 : 1;
       return (a[sortField] - b[sortField]) * multiplier;
@@ -163,6 +176,9 @@ const Pools = () => {
             </p>
           </div>
 
+          {/* Quick Stats */}
+          <QuickStats className="mb-6 animate-fade-in" />
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <div className="glass-card p-5 text-center">
@@ -191,6 +207,32 @@ const Pools = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-secondary/50 border-border/50 focus:border-primary/50"
                 />
+              </div>
+              
+              {/* Favorites Filter */}
+              <div className="flex bg-secondary/50 rounded-lg p-1 border border-border/50">
+                <button
+                  onClick={() => setFilterMode('all')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    filterMode === 'all' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilterMode('favorites')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    filterMode === 'favorites' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Star className="w-3.5 h-3.5" />
+                  Favorites
+                  {favoritePools.length > 0 && (
+                    <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                      {favoritePools.length}
+                    </span>
+                  )}
+                </button>
               </div>
               
               {/* View Toggle */}
@@ -381,6 +423,16 @@ const Pools = () => {
                     reserve0={selectedPool.reserve0}
                     reserve1={selectedPool.reserve1}
                   />
+                  
+                  {/* Price Alert Button */}
+                  <div className="mt-4 flex justify-center">
+                    <PriceAlertModal
+                      token0Symbol={selectedPool.token0Symbol}
+                      token1Symbol={selectedPool.token1Symbol}
+                      pairAddress={selectedPool.pairAddress}
+                      currentPrice={parseFloat(selectedPool.reserve0) / parseFloat(selectedPool.reserve1)}
+                    />
+                  </div>
                 </div>
               )}
               
