@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowUpRight, Droplets, TrendingUp, ExternalLink } from 'lucide-react';
+import { ArrowUpRight, Droplets, TrendingUp, ExternalLink, Star } from 'lucide-react';
 import { getTokenByAddress } from '@/lib/dex';
+import { useFavorites } from '@/hooks/useFavorites';
 
 interface PoolCardProps {
   pairAddress: string;
@@ -31,6 +32,9 @@ export const PoolCard: React.FC<PoolCardProps> = ({
 }) => {
   const token0Info = getTokenByAddress(token0);
   const token1Info = getTokenByAddress(token1);
+  const { isFavoritePool, toggleFavoritePool } = useFavorites();
+  
+  const isFavorite = isFavoritePool(pairAddress);
   
   // Calculate mock 24h stats
   const volume24h = tvl * (0.05 + Math.random() * 0.15);
@@ -81,15 +85,30 @@ export const PoolCard: React.FC<PoolCardProps> = ({
           </div>
         </div>
         
-        <a
-          href={`https://donut.push.network/address/${pairAddress}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-        >
-          <ExternalLink className="w-4 h-4 text-muted-foreground" />
-        </a>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavoritePool({ pairAddress, token0Symbol, token1Symbol });
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              isFavorite 
+                ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' 
+                : 'bg-secondary/50 hover:bg-secondary text-muted-foreground'
+            }`}
+          >
+            <Star className={`w-4 h-4 ${isFavorite ? 'fill-yellow-500' : ''}`} />
+          </button>
+          <a
+            href={`https://donut.push.network/address/${pairAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="p-2 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+          >
+            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          </a>
+        </div>
       </div>
       
       {/* Stats Grid */}
