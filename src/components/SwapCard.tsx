@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { TokenSelector } from '@/components/TokenSelector';
+import { ImportToken } from '@/components/ImportToken';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -10,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const SwapCard: React.FC = () => {
@@ -118,6 +119,18 @@ export const SwapCard: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold">Swap</h2>
         <div className="flex items-center gap-2">
+          <ImportToken
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground"
+                title="Import Token"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            }
+          />
           <Button
             variant="ghost"
             size="icon"
