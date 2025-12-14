@@ -11,6 +11,7 @@ import PoolDetail from "./pages/PoolDetail";
 import Analytics from "./pages/Analytics";
 import Portfolio from "./pages/Portfolio";
 import CreatePool from "./pages/CreatePool";
+import History from "./pages/History";
 import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/pools/:address" element={<PoolDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/history" element={<History />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

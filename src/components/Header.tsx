@@ -2,8 +2,9 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, History } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Swap', icon: ArrowLeftRight },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
+  { path: '/history', label: 'History', icon: History },
   { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
@@ -48,8 +50,11 @@ export const Header: React.FC = () => {
             })}
           </nav>
 
-          {/* Wallet */}
-          <WalletButton />
+          {/* Theme Toggle & Wallet */}
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <WalletButton />
+          </div>
         </div>
       </div>
 
