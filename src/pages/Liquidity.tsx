@@ -19,7 +19,6 @@ import {
   parseAmount,
   formatAmount,
   getDeadline,
-  getTokenByAddress,
 } from '@/lib/dex';
 import { toast } from 'sonner';
 import { Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
@@ -104,8 +103,6 @@ const Liquidity = () => {
   ): string => {
     if (!reserves || !inputAmount || parseFloat(inputAmount) === 0) return '';
     
-    const tokenAAddr = tokenA.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenA.address;
-    const tokenBAddr = tokenB.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenB.address;
     const inputAddr = inputToken.address === ethers.ZeroAddress ? CONTRACTS.WETH : inputToken.address;
     
     try {
@@ -130,7 +127,7 @@ const Liquidity = () => {
       console.error('Error calculating amount:', error);
       return '';
     }
-  }, [reserves, tokenA, tokenB]);
+  }, [reserves]);
 
   // Handle amount A change with auto-calculation
   const handleAmountAChange = useCallback((value: string) => {
@@ -409,43 +406,42 @@ const Liquidity = () => {
             {/* Main Liquidity Card */}
             <div className="lg:col-span-2">
               <div className="glass-card p-6 animate-scale-in">
-                <div className="flex items-center justify-between mb-6">
-                  <Tabs defaultValue="add" className="w-full">
-                    <div className="flex items-center justify-between mb-4">
-                      <TabsList>
-                        <TabsTrigger value="add" className="gap-2">
-                          <Plus className="w-4 h-4" />
-                          Add
-                        </TabsTrigger>
-                        <TabsTrigger value="remove" className="gap-2">
-                          <Minus className="w-4 h-4" />
-                          Remove
-                        </TabsTrigger>
-                      </TabsList>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
-                          <RefreshCw className="w-4 h-4" />
-                        </Button>
-                        <SlippageSettings
-                          slippage={slippage}
-                          deadline={deadline}
-                          onSlippageChange={setSlippage}
-                          onDeadlineChange={setDeadline}
-                        />
-                      </div>
+                <Tabs defaultValue="add" className="w-full">
+                  <div className="flex items-center justify-between mb-6">
+                    <TabsList>
+                      <TabsTrigger value="add" className="gap-2">
+                        <Plus className="w-4 h-4" />
+                        Add
+                      </TabsTrigger>
+                      <TabsTrigger value="remove" className="gap-2">
+                        <Minus className="w-4 h-4" />
+                        Remove
+                      </TabsTrigger>
+                    </TabsList>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
+                        <RefreshCw className="w-4 h-4" />
+                      </Button>
+                      <SlippageSettings
+                        slippage={slippage}
+                        deadline={deadline}
+                        onSlippageChange={setSlippage}
+                        onDeadlineChange={setDeadline}
+                      />
                     </div>
+                  </div>
 
                   <TabsContent value="add" className="space-y-4">
                     {/* New Pool Badge */}
                     {isNewPool && amountA && amountB && (
-                      <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-2 text-sm text-primary">
+                      <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-2 text-sm text-primary animate-fade-in">
                         <Sparkles className="w-4 h-4" />
                         You are creating a new liquidity pool!
                       </div>
                     )}
 
                     {/* Token A */}
-                    <div className="token-input">
+                    <div className="token-input transition-smooth">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-muted-foreground">Token A</span>
                         <div className="flex items-center gap-2 text-sm">
@@ -454,7 +450,7 @@ const Liquidity = () => {
                           </span>
                           <button
                             onClick={setMaxA}
-                            className="text-primary hover:text-primary/80 font-medium"
+                            className="text-primary hover:text-primary/80 font-medium transition-colors"
                           >
                             MAX
                           </button>
@@ -483,20 +479,13 @@ const Liquidity = () => {
 
                     {/* Price Rate Display */}
                     {priceRate && !isNewPool && (
-                      <div className="flex items-center justify-center gap-2 py-2">
+                      <div className="flex items-center justify-center gap-2 py-2 animate-fade-in">
                         <LinkIcon className="w-3 h-3 text-muted-foreground" />
                         <span className="text-sm text-muted-foreground">
                           1 {tokenA.symbol} = {priceRate.toFixed(6)} {tokenB.symbol}
                         </span>
                       </div>
                     )}
-                        <TokenSelector
-                          selectedToken={tokenA}
-                          onSelect={setTokenA}
-                          excludeToken={tokenB}
-                        />
-                      </div>
-                    </div>
 
                     <div className="flex justify-center">
                       <div className="p-2 rounded-xl bg-surface border border-border">
@@ -505,7 +494,7 @@ const Liquidity = () => {
                     </div>
 
                     {/* Token B */}
-                    <div className="token-input">
+                    <div className="token-input transition-smooth">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-muted-foreground">Token B</span>
                         <div className="flex items-center gap-2 text-sm">
@@ -514,7 +503,7 @@ const Liquidity = () => {
                           </span>
                           <button
                             onClick={setMaxB}
-                            className="text-primary hover:text-primary/80 font-medium"
+                            className="text-primary hover:text-primary/80 font-medium transition-colors"
                           >
                             MAX
                           </button>
@@ -539,17 +528,11 @@ const Liquidity = () => {
                           excludeToken={tokenA}
                         />
                       </div>
-                        <TokenSelector
-                          selectedToken={tokenB}
-                          onSelect={setTokenB}
-                          excludeToken={tokenA}
-                        />
-                      </div>
                     </div>
 
                     {/* Pool Info */}
                     {reserves && (
-                      <div className="p-4 rounded-xl bg-surface border border-border">
+                      <div className="p-4 rounded-xl bg-surface border border-border animate-fade-in">
                         <div className="flex items-center gap-2 mb-3">
                           <Info className="w-4 h-4 text-muted-foreground" />
                           <span className="text-sm font-medium">Pool Info</span>
@@ -569,12 +552,18 @@ const Liquidity = () => {
                       </div>
                     )}
 
+                    {/* Slippage Info */}
+                    <div className="p-3 rounded-xl bg-surface/50 border border-border/50 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Slippage Tolerance</span>
+                      <span className="font-medium text-primary">{slippage}%</span>
+                    </div>
+
                     {/* Approvals */}
                     {isConnected && isCorrectNetwork && (
                       <div className="space-y-2">
                         {needsApprovalA && tokenA.address !== ethers.ZeroAddress && (
                           <Button
-                            className="w-full"
+                            className="w-full transition-smooth hover-lift"
                             variant="outline"
                             onClick={() => handleApprove(tokenA)}
                             disabled={isLoading}
@@ -585,7 +574,7 @@ const Liquidity = () => {
                         )}
                         {needsApprovalB && tokenB.address !== ethers.ZeroAddress && (
                           <Button
-                            className="w-full"
+                            className="w-full transition-smooth hover-lift"
                             variant="outline"
                             onClick={() => handleApprove(tokenB)}
                             disabled={isLoading}
@@ -598,7 +587,7 @@ const Liquidity = () => {
                     )}
 
                     <Button
-                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90"
+                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90 transition-smooth hover-lift"
                       disabled={!isConnected || !isCorrectNetwork || !amountA || !amountB || needsApprovalA || needsApprovalB || isLoading}
                       onClick={isCorrectNetwork ? handleAddLiquidity : switchNetwork}
                     >
@@ -624,12 +613,12 @@ const Liquidity = () => {
                     </div>
 
                     {/* Remove Amount */}
-                    <div className="token-input">
+                    <div className="token-input transition-smooth">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-muted-foreground">Amount to remove</span>
                         <button
                           onClick={() => setRemoveAmount(lpBalance)}
-                          className="text-sm text-primary hover:text-primary/80 font-medium"
+                          className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
                         >
                           MAX
                         </button>
@@ -649,7 +638,7 @@ const Liquidity = () => {
                         <button
                           key={pct}
                           onClick={() => setRemoveAmount((parseFloat(lpBalance) * pct / 100).toString())}
-                          className="flex-1 py-2 rounded-lg bg-surface hover:bg-surface-hover border border-border text-sm font-medium transition-colors"
+                          className="flex-1 py-2 rounded-lg bg-surface hover:bg-surface-hover border border-border text-sm font-medium transition-smooth interactive"
                         >
                           {pct}%
                         </button>
@@ -657,7 +646,7 @@ const Liquidity = () => {
                     </div>
 
                     {pairAddress === null && (
-                      <div className="p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2 text-sm text-warning">
+                      <div className="p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2 text-sm text-warning animate-fade-in">
                         <AlertTriangle className="w-4 h-4" />
                         Pair does not exist
                       </div>
@@ -665,7 +654,7 @@ const Liquidity = () => {
 
                     {needsLPApproval && (
                       <Button
-                        className="w-full"
+                        className="w-full transition-smooth hover-lift"
                         variant="outline"
                         onClick={handleApproveLp}
                         disabled={isLoading}
@@ -676,7 +665,7 @@ const Liquidity = () => {
                     )}
 
                     <Button
-                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90"
+                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90 transition-smooth hover-lift"
                       disabled={!isConnected || !isCorrectNetwork || !removeAmount || needsLPApproval || !pairAddress || isLoading}
                       onClick={isCorrectNetwork ? handleRemoveLiquidity : switchNetwork}
                     >
