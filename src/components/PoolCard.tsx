@@ -14,6 +14,8 @@ interface PoolCardProps {
   reserve0: string;
   reserve1: string;
   tvl: number;
+  volume24h?: number;
+  apy?: number;
   onSelect?: () => void;
   isSelected?: boolean;
 }
@@ -27,6 +29,8 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   reserve0,
   reserve1,
   tvl,
+  volume24h: propVolume24h,
+  apy: propApy,
   onSelect,
   isSelected,
 }) => {
@@ -36,10 +40,10 @@ export const PoolCard: React.FC<PoolCardProps> = ({
   
   const isFavorite = isFavoritePool(pairAddress);
   
-  // Calculate mock 24h stats
-  const volume24h = tvl * (0.05 + Math.random() * 0.15);
+  // Use provided values or calculate mock stats
+  const volume24h = propVolume24h ?? tvl * (0.05 + Math.random() * 0.15);
   const fees24h = volume24h * 0.003;
-  const apy = ((fees24h * 365) / tvl) * 100;
+  const apy = propApy ?? ((fees24h * 365) / tvl) * 100;
 
   return (
     <div
