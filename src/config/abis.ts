@@ -450,7 +450,7 @@ export const MULTICALL_ABI = [
       { internalType: "uint256", name: "blockNumber", type: "uint256" },
       { internalType: "bytes[]", name: "returnData", type: "bytes[]" },
     ],
-    stateMutability: "nonpayable",
+    stateMutability: "view",
     type: "function",
   },
   {

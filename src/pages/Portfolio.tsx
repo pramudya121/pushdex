@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
+import { PortfolioChart } from '@/components/PortfolioChart';
+import { PortfolioValueChart } from '@/components/PortfolioValueChart';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/contexts/WalletContext';
 import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER } from '@/config/contracts';
-import { FACTORY_ABI } from '@/config/abis';
+import { FACTORY_ABI, PAIR_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount, shortenAddress } from '@/lib/dex';
-import { getMultipleBalances } from '@/lib/multicall';
+import { getMultipleBalances, getMultiplePairReserves } from '@/lib/multicall';
 import { 
   Wallet, 
   Loader2, 
@@ -19,7 +21,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   RefreshCcw,
-  Droplets
+  Droplets,
+  BarChart3,
+  Coins
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -43,6 +47,8 @@ interface LPPosition {
   balance: string;
   share: string;
   usdValue: number;
+  token0Amount: string;
+  token1Amount: string;
 }
 
 const Portfolio = () => {
@@ -51,6 +57,7 @@ const Portfolio = () => {
   const [lpPositions, setLpPositions] = useState<LPPosition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  const [nativeBalance, setNativeBalance] = useState(0);
 
   const fetchPortfolio = async () => {
     if (!address) {
@@ -60,6 +67,8 @@ const Portfolio = () => {
     
     setIsLoading(true);
     try {
+      const provider = getReadProvider();
+      
       // Use multicall to fetch all token balances at once
       const tokenAddresses = TOKEN_LIST
         .filter(t => t.address !== ethers.ZeroAddress)
@@ -67,13 +76,28 @@ const Portfolio = () => {
       
       const balancesMap = await getMultipleBalances(tokenAddresses, address);
       
-      let total = 0;
+      // Get native balance
+      const nativeBal = await provider.getBalance(address);
+      const nativeValue = parseFloat(ethers.formatEther(nativeBal));
+      setNativeBalance(nativeValue);
+      
+      let total = nativeValue * 1.5; // Mock USD price for native token
+      
       const balances: TokenBalance[] = TOKEN_LIST
         .filter(t => t.address !== ethers.ZeroAddress)
         .map(token => {
           const balanceRaw = balancesMap.get(token.address.toLowerCase()) || 0n;
           const balanceFormatted = formatAmount(balanceRaw, token.decimals);
-          const usdValue = parseFloat(balanceFormatted) * (Math.random() * 10 + 1); // Mock USD value
+          const balanceNum = parseFloat(balanceFormatted);
+          // Mock USD values based on token symbol
+          const mockPrices: Record<string, number> = {
+            'WPC': 1.5,
+            'ETH': 2300,
+            'BNB': 580,
+            'PSDX': 0.85,
+          };
+          const price = mockPrices[token.symbol] || 1;
+          const usdValue = balanceNum * price;
           const change24h = (Math.random() - 0.4) * 15;
           total += usdValue;
           return {
@@ -86,60 +110,88 @@ const Portfolio = () => {
             change24h,
           };
         })
-        .filter(b => parseFloat(b.balance) > 0);
+        .filter(b => parseFloat(b.balance) > 0.0001);
       
       setTokenBalances(balances);
       
       // Fetch LP positions
-      const provider = getReadProvider();
       const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
       const pairsLength = await factory.allPairsLength();
       
-      const lpPromises = [];
+      // Get all pair addresses first
+      const pairAddressPromises = [];
       for (let i = 0; i < Number(pairsLength); i++) {
-        lpPromises.push(
-          (async () => {
-            try {
-              const pairAddress = await factory.allPairs(i);
-              const pair = getPairContract(pairAddress, provider);
-              
-              const [userBalance, totalSupply, token0, token1] = await Promise.all([
-                pair.balanceOf(address),
-                pair.totalSupply(),
-                pair.token0(),
-                pair.token1(),
-              ]);
-              
-              if (userBalance === 0n) return null;
-              
-              const token0Info = getTokenByAddress(token0);
-              const token1Info = getTokenByAddress(token1);
-              const share = totalSupply > 0n ? (userBalance * 10000n / totalSupply) : 0n;
-              const usdValue = parseFloat(formatAmount(userBalance)) * (Math.random() * 20 + 5);
-              total += usdValue;
-              
-              return {
-                pairAddress,
-                token0Symbol: token0Info?.symbol || 'Unknown',
-                token1Symbol: token1Info?.symbol || 'Unknown',
-                token0Logo: token0Info?.logo || '',
-                token1Logo: token1Info?.logo || '',
-                balance: formatAmount(userBalance),
-                share: (Number(share) / 100).toFixed(2),
-                usdValue,
-              };
-            } catch (error) {
-              return null;
-            }
-          })()
-        );
+        pairAddressPromises.push(factory.allPairs(i));
       }
+      const pairAddresses = await Promise.all(pairAddressPromises);
+      
+      // Get reserves for all pairs
+      const reservesMap = await getMultiplePairReserves(pairAddresses);
+      
+      const lpPromises = pairAddresses.map(async (pairAddress) => {
+        try {
+          const pair = getPairContract(pairAddress, provider);
+          
+          const [userBalance, totalSupply, token0, token1] = await Promise.all([
+            pair.balanceOf(address),
+            pair.totalSupply(),
+            pair.token0(),
+            pair.token1(),
+          ]);
+          
+          if (userBalance === 0n) return null;
+          
+          const reserves = reservesMap.get(pairAddress.toLowerCase());
+          const token0Info = getTokenByAddress(token0);
+          const token1Info = getTokenByAddress(token1);
+          
+          const share = totalSupply > 0n ? (userBalance * 10000n / totalSupply) : 0n;
+          const sharePercent = Number(share) / 100;
+          
+          // Calculate user's share of reserves
+          const reserve0 = reserves?.reserve0 || 0n;
+          const reserve1 = reserves?.reserve1 || 0n;
+          const userReserve0 = (reserve0 * userBalance) / (totalSupply || 1n);
+          const userReserve1 = (reserve1 * userBalance) / (totalSupply || 1n);
+          
+          const token0Amount = formatAmount(userReserve0, token0Info?.decimals || 18);
+          const token1Amount = formatAmount(userReserve1, token1Info?.decimals || 18);
+          
+          // Calculate USD value based on reserves
+          const mockPrices: Record<string, number> = {
+            'WPC': 1.5,
+            'ETH': 2300,
+            'BNB': 580,
+            'PSDX': 0.85,
+          };
+          const price0 = mockPrices[token0Info?.symbol || ''] || 1;
+          const price1 = mockPrices[token1Info?.symbol || ''] || 1;
+          const usdValue = parseFloat(token0Amount) * price0 + parseFloat(token1Amount) * price1;
+          total += usdValue;
+          
+          return {
+            pairAddress,
+            token0Symbol: token0Info?.symbol || 'Unknown',
+            token1Symbol: token1Info?.symbol || 'Unknown',
+            token0Logo: token0Info?.logo || '',
+            token1Logo: token1Info?.logo || '',
+            balance: formatAmount(userBalance),
+            share: sharePercent.toFixed(2),
+            usdValue,
+            token0Amount,
+            token1Amount,
+          };
+        } catch (error) {
+          return null;
+        }
+      });
       
       const positions = await Promise.all(lpPromises);
       setLpPositions(positions.filter((p): p is LPPosition => p !== null));
-      setTotalValue(total + parseFloat(balance) * 1.5); // Add native balance
+      setTotalValue(total);
     } catch (error) {
       console.error('Error fetching portfolio:', error);
+      toast.error('Failed to fetch portfolio data');
     } finally {
       setIsLoading(false);
     }
@@ -148,6 +200,47 @@ const Portfolio = () => {
   useEffect(() => {
     fetchPortfolio();
   }, [address]);
+
+  // Prepare chart data
+  const tokenChartData = useMemo(() => {
+    const data = tokenBalances
+      .filter(t => t.usdValue > 0)
+      .map(t => ({
+        name: t.symbol,
+        value: t.usdValue,
+        color: '',
+      }));
+    
+    // Add native token
+    if (nativeBalance > 0) {
+      data.unshift({
+        name: 'PC',
+        value: nativeBalance * 1.5,
+        color: '',
+      });
+    }
+    
+    return data.sort((a, b) => b.value - a.value);
+  }, [tokenBalances, nativeBalance]);
+
+  const lpChartData = useMemo(() => {
+    return lpPositions
+      .filter(lp => lp.usdValue > 0)
+      .map(lp => ({
+        name: `${lp.token0Symbol}/${lp.token1Symbol}`,
+        value: lp.usdValue,
+        color: '',
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [lpPositions]);
+
+  const tokenValue = useMemo(() => {
+    return tokenBalances.reduce((sum, t) => sum + t.usdValue, 0) + (nativeBalance * 1.5);
+  }, [tokenBalances, nativeBalance]);
+
+  const lpValue = useMemo(() => {
+    return lpPositions.reduce((sum, lp) => sum + lp.usdValue, 0);
+  }, [lpPositions]);
 
   const copyAddress = () => {
     if (address) {
@@ -185,7 +278,7 @@ const Portfolio = () => {
       <Header />
       
       <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8 animate-fade-in">
             <h1 className="text-3xl font-bold mb-2">
               <span className="gradient-text">Portfolio</span>
@@ -203,12 +296,11 @@ const Portfolio = () => {
               </div>
             </div>
           ) : (
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Main Content */}
-              <div className="lg:col-span-2 space-y-6 animate-fade-in">
-                {/* Portfolio Overview */}
-                <div className="glass-card p-6">
-                  <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+            <div className="space-y-6">
+              {/* Portfolio Overview Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">
+                <div className="glass-card p-6 md:col-span-2">
+                  <div className="flex items-center justify-between mb-4">
                     <div>
                       <div className="text-sm text-muted-foreground mb-1">Total Portfolio Value</div>
                       <div className="text-4xl font-bold gradient-text">
@@ -243,153 +335,244 @@ const Portfolio = () => {
                     </div>
                     <div className="ml-auto flex items-center gap-2">
                       <img src="/tokens/pc.png" alt="PC" className="w-6 h-6 rounded-full" />
-                      <span className="font-bold">{parseFloat(balance).toFixed(4)} PC</span>
+                      <span className="font-bold">{nativeBalance.toFixed(4)} PC</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Token Balances */}
+                
                 <div className="glass-card p-6">
-                  <div className="flex items-center gap-2 mb-6">
-                    <PieChart className="w-5 h-5 text-primary" />
-                    <h2 className="text-xl font-bold">Token Balances</h2>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Coins className="w-5 h-5 text-primary" />
+                    <span className="text-sm text-muted-foreground">Token Holdings</span>
                   </div>
-                  {tokenBalances.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <PieChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No token balances found</p>
-                      <Link to="/" className="text-primary hover:underline text-sm mt-2 inline-block">
-                        Start trading →
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {tokenBalances.map((token) => (
-                        <div
-                          key={token.address}
-                          className="flex items-center justify-between p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all hover:border-primary/30"
-                        >
-                          <div className="flex items-center gap-3">
-                            <img src={token.logo} alt={token.symbol} className="w-10 h-10 rounded-full" />
-                            <div>
-                              <div className="font-semibold">{token.symbol}</div>
-                              <div className="text-sm text-muted-foreground">{token.name}</div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-semibold">{parseFloat(token.balance).toFixed(4)}</div>
-                            <div className="flex items-center justify-end gap-2 text-sm">
-                              <span className="text-muted-foreground">${token.usdValue.toFixed(2)}</span>
-                              <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                {Math.abs(token.change24h).toFixed(2)}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-2xl font-bold">
+                    ${tokenValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {tokenBalances.length + (nativeBalance > 0 ? 1 : 0)} tokens
+                  </div>
                 </div>
-
-                {/* LP Positions */}
+                
                 <div className="glass-card p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <Droplets className="w-5 h-5 text-primary" />
-                      <h2 className="text-xl font-bold">Liquidity Positions</h2>
-                    </div>
-                    <Link to="/liquidity">
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <TrendingUp className="w-4 h-4" />
-                        Add Liquidity
-                      </Button>
-                    </Link>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Droplets className="w-5 h-5 text-accent" />
+                    <span className="text-sm text-muted-foreground">LP Positions</span>
                   </div>
-                  {lpPositions.length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Droplets className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No liquidity positions found</p>
-                      <Link to="/liquidity" className="text-primary hover:underline text-sm mt-2 inline-block">
-                        Add liquidity to earn fees →
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {lpPositions.map((position) => (
-                        <div
-                          key={position.pairAddress}
-                          className="p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all hover:border-primary/30"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="flex -space-x-2">
-                                <img src={position.token0Logo} alt={position.token0Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
-                                <img src={position.token1Logo} alt={position.token1Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
-                              </div>
-                              <div>
-                                <div className="font-semibold">
-                                  {position.token0Symbol}/{position.token1Symbol}
-                                </div>
-                                <div className="text-sm text-muted-foreground">
-                                  Pool share: {position.share}%
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-semibold">{parseFloat(position.balance).toFixed(6)} LP</div>
-                              <div className="text-sm text-muted-foreground">~${position.usdValue.toFixed(2)}</div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Link to="/liquidity" className="flex-1">
-                              <Button variant="outline" size="sm" className="w-full">
-                                Manage
-                              </Button>
-                            </Link>
-                            <a
-                              href={`${BLOCK_EXPLORER}/address/${position.pairAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button variant="ghost" size="sm">
-                                <ExternalLink className="w-4 h-4" />
-                              </Button>
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-2xl font-bold">
+                    ${lpValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {lpPositions.length} positions
+                  </div>
                 </div>
               </div>
 
-              {/* Sidebar */}
-              <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                <WrapUnwrap />
-                
-                {/* Quick Actions */}
+              {/* Charts Section */}
+              <div className="grid md:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                 <div className="glass-card p-6">
-                  <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
-                    <Link to="/" className="block">
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <ArrowUpRight className="w-4 h-4" />
-                        Swap Tokens
-                      </Button>
-                    </Link>
-                    <Link to="/liquidity" className="block">
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <Droplets className="w-4 h-4" />
-                        Add Liquidity
-                      </Button>
-                    </Link>
-                    <Link to="/pools" className="block">
-                      <Button variant="outline" className="w-full justify-start gap-2">
-                        <PieChart className="w-4 h-4" />
-                        View Pools
-                      </Button>
-                    </Link>
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">Portfolio History (30d)</h3>
+                  </div>
+                  <PortfolioValueChart />
+                </div>
+                
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <PieChart className="w-5 h-5 text-primary" />
+                    <h3 className="font-semibold">Token Allocation</h3>
+                  </div>
+                  <PortfolioChart data={tokenChartData} />
+                </div>
+                
+                <div className="glass-card p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <PieChart className="w-5 h-5 text-accent" />
+                    <h3 className="font-semibold">LP Allocation</h3>
+                  </div>
+                  <PortfolioChart data={lpChartData} />
+                </div>
+              </div>
+
+              {/* Main Content Grid */}
+              <div className="grid lg:grid-cols-3 gap-6">
+                {/* Left Column - Token Balances & LP Positions */}
+                <div className="lg:col-span-2 space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  {/* Token Balances */}
+                  <div className="glass-card p-6">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Coins className="w-5 h-5 text-primary" />
+                      <h2 className="text-xl font-bold">Token Balances</h2>
+                    </div>
+                    {tokenBalances.length === 0 && nativeBalance <= 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <PieChart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No token balances found</p>
+                        <Link to="/" className="text-primary hover:underline text-sm mt-2 inline-block">
+                          Start trading →
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Native Token */}
+                        {nativeBalance > 0 && (
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all hover:border-primary/30">
+                            <div className="flex items-center gap-3">
+                              <img src="/tokens/pc.png" alt="PC" className="w-10 h-10 rounded-full" />
+                              <div>
+                                <div className="font-semibold">PC</div>
+                                <div className="text-sm text-muted-foreground">Push Coin (Native)</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold">{nativeBalance.toFixed(4)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                ${(nativeBalance * 1.5).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {tokenBalances.map((token) => (
+                          <div
+                            key={token.address}
+                            className="flex items-center justify-between p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all hover:border-primary/30"
+                          >
+                            <div className="flex items-center gap-3">
+                              <img src={token.logo} alt={token.symbol} className="w-10 h-10 rounded-full" />
+                              <div>
+                                <div className="font-semibold">{token.symbol}</div>
+                                <div className="text-sm text-muted-foreground">{token.name}</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-semibold">{parseFloat(token.balance).toFixed(4)}</div>
+                              <div className="flex items-center justify-end gap-2 text-sm">
+                                <span className="text-muted-foreground">${token.usdValue.toFixed(2)}</span>
+                                <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                  {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                                  {Math.abs(token.change24h).toFixed(2)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* LP Positions */}
+                  <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-2">
+                        <Droplets className="w-5 h-5 text-primary" />
+                        <h2 className="text-xl font-bold">Liquidity Positions</h2>
+                      </div>
+                      <Link to="/liquidity">
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <TrendingUp className="w-4 h-4" />
+                          Add Liquidity
+                        </Button>
+                      </Link>
+                    </div>
+                    {lpPositions.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Droplets className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No liquidity positions found</p>
+                        <Link to="/liquidity" className="text-primary hover:underline text-sm mt-2 inline-block">
+                          Add liquidity to earn fees →
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {lpPositions.map((position) => (
+                          <div
+                            key={position.pairAddress}
+                            className="p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all hover:border-primary/30"
+                          >
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex -space-x-2">
+                                  <img src={position.token0Logo} alt={position.token0Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
+                                  <img src={position.token1Logo} alt={position.token1Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold">
+                                    {position.token0Symbol}/{position.token1Symbol}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground">
+                                    Pool share: {position.share}%
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">${position.usdValue.toFixed(2)}</div>
+                                <div className="text-sm text-muted-foreground">{parseFloat(position.balance).toFixed(6)} LP</div>
+                              </div>
+                            </div>
+                            
+                            {/* Pooled Assets */}
+                            <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-background/50 mb-3">
+                              <div className="flex items-center gap-2">
+                                <img src={position.token0Logo} alt={position.token0Symbol} className="w-5 h-5 rounded-full" />
+                                <span className="text-sm">{parseFloat(position.token0Amount).toFixed(4)} {position.token0Symbol}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <img src={position.token1Logo} alt={position.token1Symbol} className="w-5 h-5 rounded-full" />
+                                <span className="text-sm">{parseFloat(position.token1Amount).toFixed(4)} {position.token1Symbol}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Link to="/liquidity" className="flex-1">
+                                <Button variant="outline" size="sm" className="w-full">
+                                  Manage
+                                </Button>
+                              </Link>
+                              <a
+                                href={`${BLOCK_EXPLORER}/address/${position.pairAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button variant="ghost" size="sm">
+                                  <ExternalLink className="w-4 h-4" />
+                                </Button>
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                  <WrapUnwrap />
+                  
+                  {/* Quick Actions */}
+                  <div className="glass-card p-6">
+                    <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+                    <div className="space-y-3">
+                      <Link to="/" className="block">
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <ArrowUpRight className="w-4 h-4" />
+                          Swap Tokens
+                        </Button>
+                      </Link>
+                      <Link to="/liquidity" className="block">
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <Droplets className="w-4 h-4" />
+                          Add Liquidity
+                        </Button>
+                      </Link>
+                      <Link to="/pools" className="block">
+                        <Button variant="outline" className="w-full justify-start gap-2">
+                          <PieChart className="w-4 h-4" />
+                          View Pools
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
