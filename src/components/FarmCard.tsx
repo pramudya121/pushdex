@@ -8,7 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PoolInfo } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { 
-  Leaf, 
   TrendingUp, 
   Coins, 
   ArrowDownToLine, 
@@ -17,17 +16,31 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { BLOCK_EXPLORER } from '@/config/contracts';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FarmCardProps {
   pool: PoolInfo;
   rewardTokenSymbol: string;
+  rewardTokenLogo: string;
   onStake: (pid: number, amount: string) => Promise<boolean>;
   onUnstake: (pid: number, amount: string) => Promise<boolean>;
   onHarvest: (pid: number) => Promise<boolean>;
+  onEmergencyWithdraw: (pid: number) => Promise<boolean>;
   getLpBalance: (lpToken: string) => Promise<string>;
   isStaking: boolean;
   isUnstaking: boolean;
@@ -37,9 +50,11 @@ interface FarmCardProps {
 export const FarmCard: React.FC<FarmCardProps> = ({
   pool,
   rewardTokenSymbol,
+  rewardTokenLogo,
   onStake,
   onUnstake,
   onHarvest,
+  onEmergencyWithdraw,
   getLpBalance,
   isStaking,
   isUnstaking,
@@ -51,19 +66,21 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   const [unstakeAmount, setUnstakeAmount] = useState('');
   const [lpBalance, setLpBalance] = useState('0');
   const [activeTab, setActiveTab] = useState('stake');
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
   useEffect(() => {
     const fetchBalance = async () => {
+      if (!isConnected) return;
+      setIsLoadingBalance(true);
       const balance = await getLpBalance(pool.lpToken);
       setLpBalance(balance);
+      setIsLoadingBalance(false);
     };
-    if (isConnected) {
-      fetchBalance();
-    }
-  }, [pool.lpToken, getLpBalance, isConnected]);
+    fetchBalance();
+  }, [pool.lpToken, getLpBalance, isConnected, isExpanded]);
 
   const handleStake = async () => {
-    if (!stakeAmount) return;
+    if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
     const success = await onStake(pool.pid, stakeAmount);
     if (success) {
       setStakeAmount('');
@@ -73,7 +90,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   };
 
   const handleUnstake = async () => {
-    if (!unstakeAmount) return;
+    if (!unstakeAmount || parseFloat(unstakeAmount) <= 0) return;
     const success = await onUnstake(pool.pid, unstakeAmount);
     if (success) {
       setUnstakeAmount('');
@@ -89,6 +106,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   const totalStakedFormatted = ethers.formatEther(pool.totalStaked);
   const hasStaked = pool.userStaked > BigInt(0);
   const hasPendingRewards = pool.userPendingReward > BigInt(0);
+  const hasLpBalance = parseFloat(lpBalance) > 0;
 
   return (
     <Card className="glass-card-hover overflow-hidden group">
@@ -98,23 +116,36 @@ export const FarmCard: React.FC<FarmCardProps> = ({
           <div className="flex items-center gap-3">
             {/* Token Icons */}
             <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-primary/30">
-                <Leaf className="w-6 h-6 text-primary" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-accent flex items-center justify-center border-2 border-card">
-                <Sparkles className="w-3 h-3 text-accent-foreground" />
+              <div className="flex -space-x-3">
+                <img 
+                  src={pool.token0Logo} 
+                  alt={pool.token0Symbol}
+                  className="w-10 h-10 rounded-full border-2 border-card bg-muted"
+                  onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                />
+                <img 
+                  src={pool.token1Logo} 
+                  alt={pool.token1Symbol}
+                  className="w-10 h-10 rounded-full border-2 border-card bg-muted"
+                  onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                />
               </div>
             </div>
             
             <div>
               <h3 className="font-bold text-lg text-foreground">{pool.lpSymbol}</h3>
-              <p className="text-sm text-muted-foreground">Pool #{pool.pid}</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Pool #{pool.pid}</span>
+                <span>•</span>
+                <span className="text-primary font-medium">{pool.multiplier}</span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1">
             {hasStaked && (
               <Badge variant="secondary" className="bg-success/20 text-success border-success/30">
+                <Zap className="w-3 h-3 mr-1" />
                 Farming
               </Badge>
             )}
@@ -127,31 +158,31 @@ export const FarmCard: React.FC<FarmCardProps> = ({
 
       <CardContent className="space-y-4">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="glass-card p-3 rounded-xl">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <TrendingUp className="w-4 h-4" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/30 p-3 rounded-xl">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <TrendingUp className="w-3 h-3" />
               <span>APR</span>
             </div>
-            <p className="text-xl font-bold gradient-text">
+            <p className="text-lg font-bold gradient-text">
               {pool.apr > 0 ? `${pool.apr.toFixed(2)}%` : 'TBD'}
             </p>
           </div>
           
-          <div className="glass-card p-3 rounded-xl">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Coins className="w-4 h-4" />
+          <div className="bg-muted/30 p-3 rounded-xl">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <Coins className="w-3 h-3" />
               <span>Total Staked</span>
             </div>
-            <p className="text-xl font-bold text-foreground">
-              {parseFloat(totalStakedFormatted).toFixed(4)}
+            <p className="text-lg font-bold text-foreground">
+              {parseFloat(totalStakedFormatted).toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
         {/* User Info */}
         {isConnected && (
-          <div className="bg-muted/30 rounded-xl p-4 space-y-3">
+          <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Your Staked</span>
               <span className="font-semibold text-foreground">
@@ -159,10 +190,18 @@ export const FarmCard: React.FC<FarmCardProps> = ({
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Pending Rewards</span>
-              <span className="font-semibold text-primary">
-                {parseFloat(pendingRewardFormatted).toFixed(6)} {rewardTokenSymbol}
-              </span>
+              <span className="text-sm text-muted-foreground">Earned</span>
+              <div className="flex items-center gap-2">
+                <img 
+                  src={rewardTokenLogo} 
+                  alt={rewardTokenSymbol}
+                  className="w-5 h-5 rounded-full"
+                  onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                />
+                <span className="font-semibold text-primary">
+                  {parseFloat(pendingRewardFormatted).toFixed(6)} {rewardTokenSymbol}
+                </span>
+              </div>
             </div>
             
             {hasPendingRewards && (
@@ -225,7 +264,13 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                 <TabsContent value="stake" className="space-y-3 mt-4">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Available LP</span>
-                    <span className="text-foreground">{parseFloat(lpBalance).toFixed(6)}</span>
+                    <span className="text-foreground">
+                      {isLoadingBalance ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        parseFloat(lpBalance).toFixed(6)
+                      )}
+                    </span>
                   </div>
                   <div className="relative">
                     <Input
@@ -240,13 +285,14 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
                       onClick={() => setStakeAmount(lpBalance)}
+                      disabled={!hasLpBalance}
                     >
                       MAX
                     </Button>
                   </div>
                   <Button
                     onClick={handleStake}
-                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0}
+                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > parseFloat(lpBalance)}
                     className="w-full bg-primary hover:bg-primary/90"
                   >
                     {isStaking ? (
@@ -261,6 +307,11 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       </>
                     )}
                   </Button>
+                  {!hasLpBalance && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      You need LP tokens to stake. Add liquidity first.
+                    </p>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="unstake" className="space-y-3 mt-4">
@@ -281,13 +332,14 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
                       onClick={() => setUnstakeAmount(userStakedFormatted)}
+                      disabled={!hasStaked}
                     >
                       MAX
                     </Button>
                   </div>
                   <Button
                     onClick={handleUnstake}
-                    disabled={isUnstaking || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+                    disabled={isUnstaking || !unstakeAmount || parseFloat(unstakeAmount) <= 0 || parseFloat(unstakeAmount) > parseFloat(userStakedFormatted)}
                     className="w-full bg-destructive hover:bg-destructive/90"
                   >
                     {isUnstaking ? (
@@ -310,17 +362,48 @@ export const FarmCard: React.FC<FarmCardProps> = ({
               </div>
             )}
 
-            {/* Contract Link */}
-            <div className="pt-2 border-t border-border/50">
-              <a
-                href={`${BLOCK_EXPLORER}/address/${pool.lpToken}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                View LP Contract
-                <ExternalLink className="w-3 h-3" />
-              </a>
+            {/* Emergency Withdraw & Contract Links */}
+            <div className="pt-2 border-t border-border/50 space-y-2">
+              <div className="flex items-center justify-between">
+                <a
+                  href={`${BLOCK_EXPLORER}/address/${pool.lpToken}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  View LP Contract
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+
+                {hasStaked && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Emergency
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Emergency Withdraw</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will withdraw your staked LP tokens without claiming rewards. 
+                          You will lose all pending rewards. Only use this if normal unstaking fails.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => onEmergencyWithdraw(pool.pid)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Emergency Withdraw
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
             </div>
           </div>
         )}

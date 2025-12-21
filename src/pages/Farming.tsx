@@ -2,12 +2,13 @@ import React from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { FarmCard } from '@/components/FarmCard';
-import { useFarming } from '@/hooks/useFarming';
+import { useFarming, UserLPPosition } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Leaf, 
   Sparkles, 
@@ -16,29 +17,90 @@ import {
   RefreshCw,
   Wallet,
   ExternalLink,
-  Loader2,
   TreeDeciduous,
-  Sprout
+  Sprout,
+  AlertCircle,
+  Layers,
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
 import { Link } from 'react-router-dom';
 
+// Component for user's LP positions that can be staked
+const UserLPCard: React.FC<{
+  position: UserLPPosition;
+  onStake?: (lpToken: string, farmPid: number) => void;
+}> = ({ position, onStake }) => {
+  const balanceFormatted = ethers.formatEther(position.balance);
+
+  return (
+    <Card className="glass-card hover:border-primary/30 transition-all">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-2">
+              <img 
+                src={position.token0Logo} 
+                alt={position.token0Symbol}
+                className="w-8 h-8 rounded-full border-2 border-card bg-muted"
+                onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+              />
+              <img 
+                src={position.token1Logo} 
+                alt={position.token1Symbol}
+                className="w-8 h-8 rounded-full border-2 border-card bg-muted"
+                onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+              />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{position.lpSymbol}</p>
+              <p className="text-sm text-muted-foreground">
+                {parseFloat(balanceFormatted).toFixed(6)} LP
+              </p>
+            </div>
+          </div>
+          
+          {position.isStakeable && position.farmPid !== undefined ? (
+            <Link to="/farming" onClick={() => onStake?.(position.lpToken, position.farmPid!)}>
+              <Button size="sm" className="bg-primary hover:bg-primary/90">
+                <Zap className="w-4 h-4 mr-1" />
+                Stake
+              </Button>
+            </Link>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground">
+              Not Stakeable
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const Farming: React.FC = () => {
   const { isConnected, connect } = useWallet();
   const {
     pools,
+    userLPPositions,
     rewardTokenSymbol,
+    rewardTokenLogo,
     rewardPerBlock,
     isLoading,
+    error,
     stake,
     unstake,
     harvest,
+    harvestAll,
+    emergencyWithdraw,
     getLpBalance,
     refreshPools,
     isStaking,
     isUnstaking,
     isHarvesting,
+    isHarvestingAll,
   } = useFarming();
 
   // Calculate total stats
@@ -47,6 +109,8 @@ const Farming: React.FC = () => {
   const avgApr = pools.length > 0 
     ? pools.reduce((acc, pool) => acc + pool.apr, 0) / pools.length 
     : 0;
+  const hasPendingRewards = totalPendingRewards > BigInt(0);
+  const stakeableLPs = userLPPositions.filter(p => p.isStakeable);
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -69,6 +133,14 @@ const Farming: React.FC = () => {
             Harvest your yield anytime.
           </p>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive" className="mb-8">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -122,7 +194,16 @@ const Farming: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-warning" />
+                  {rewardTokenLogo ? (
+                    <img 
+                      src={rewardTokenLogo} 
+                      alt={rewardTokenSymbol}
+                      className="w-6 h-6 rounded-full"
+                      onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                    />
+                  ) : (
+                    <Sparkles className="w-6 h-6 text-warning" />
+                  )}
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pending Rewards</p>
@@ -140,11 +221,25 @@ const Farming: React.FC = () => {
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="py-2 px-4">
               <Sprout className="w-4 h-4 mr-2" />
-              Reward: {rewardPerBlock > 0 ? ethers.formatEther(rewardPerBlock) : '0'} {rewardTokenSymbol}/block
+              Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
             </Badge>
           </div>
           
           <div className="flex items-center gap-2">
+            {isConnected && hasPendingRewards && (
+              <Button
+                onClick={harvestAll}
+                disabled={isHarvestingAll}
+                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+              >
+                {isHarvestingAll ? (
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 mr-2" />
+                )}
+                Harvest All
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -185,6 +280,25 @@ const Farming: React.FC = () => {
           </Card>
         )}
 
+        {/* User's Available LP Tokens */}
+        {isConnected && stakeableLPs.length > 0 && (
+          <Card className="glass-card mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-primary" />
+                Your LP Tokens Ready to Stake
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {stakeableLPs.map((position) => (
+                  <UserLPCard key={position.lpToken} position={position} />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Farm Cards */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -211,9 +325,11 @@ const Farming: React.FC = () => {
                 key={pool.pid}
                 pool={pool}
                 rewardTokenSymbol={rewardTokenSymbol}
+                rewardTokenLogo={rewardTokenLogo}
                 onStake={stake}
                 onUnstake={unstake}
                 onHarvest={harvest}
+                onEmergencyWithdraw={emergencyWithdraw}
                 getLpBalance={getLpBalance}
                 isStaking={isStaking}
                 isUnstaking={isUnstaking}
@@ -232,6 +348,7 @@ const Farming: React.FC = () => {
                 </p>
                 <Link to="/liquidity">
                   <Button className="bg-primary hover:bg-primary/90">
+                    <ArrowRight className="w-4 h-4 mr-2" />
                     Add Liquidity
                   </Button>
                 </Link>
