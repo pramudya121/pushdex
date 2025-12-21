@@ -35,6 +35,7 @@ const Staking: React.FC = () => {
     unstake,
     claimRewards,
     getTokenBalance,
+    getRemainingLockTime,
     refreshPools,
     isStaking,
     isUnstaking,
@@ -182,14 +183,16 @@ const Staking: React.FC = () => {
           </Card>
         )}
 
-        {/* Coming Soon Notice */}
-        <Alert className="mb-8 border-primary/30 bg-primary/5">
-          <Shield className="h-4 w-4 text-primary" />
-          <AlertDescription className="text-foreground">
-            <strong>Coming Soon:</strong> Single token staking contract is under development. 
-            You can explore the UI and connect your wallet. Full functionality will be enabled after contract deployment.
-          </AlertDescription>
-        </Alert>
+        {/* Info Notice */}
+        {pools.length === 0 && !isLoading && (
+          <Alert className="mb-8 border-primary/30 bg-primary/5">
+            <Shield className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-foreground">
+              <strong>No Staking Pools:</strong> There are currently no active staking pools. 
+              Pools will appear here once they are added to the staking contract.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Staking Cards */}
         {isLoading ? (
@@ -220,6 +223,7 @@ const Staking: React.FC = () => {
                 onUnstake={unstake}
                 onClaim={claimRewards}
                 getTokenBalance={getTokenBalance}
+                getRemainingLockTime={getRemainingLockTime}
                 isStaking={isStaking}
                 isUnstaking={isUnstaking}
                 isClaiming={isClaiming}
