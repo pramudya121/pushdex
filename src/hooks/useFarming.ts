@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '@/contexts/WalletContext';
-import { CONTRACTS } from '@/config/contracts';
-import { FARMING_ABI, ERC20_ABI, PAIR_ABI } from '@/config/abis';
+import { CONTRACTS, TOKEN_LIST, RPC_URL } from '@/config/contracts';
+import { FARMING_ABI, ERC20_ABI, PAIR_ABI, FACTORY_ABI } from '@/config/abis';
 import { toast } from 'sonner';
 
 export interface PoolInfo {
@@ -15,36 +15,69 @@ export interface PoolInfo {
   token1Symbol: string;
   token0Address: string;
   token1Address: string;
+  token0Logo: string;
+  token1Logo: string;
   lpSymbol: string;
   userStaked: bigint;
   userPendingReward: bigint;
   totalStaked: bigint;
   apr: number;
+  multiplier: string;
+}
+
+export interface UserLPPosition {
+  lpToken: string;
+  lpSymbol: string;
+  balance: bigint;
+  token0Symbol: string;
+  token1Symbol: string;
+  token0Logo: string;
+  token1Logo: string;
+  token0Address: string;
+  token1Address: string;
+  isStakeable: boolean;
+  farmPid?: number;
 }
 
 export interface FarmingState {
   pools: PoolInfo[];
+  userLPPositions: UserLPPosition[];
   rewardToken: string;
   rewardTokenSymbol: string;
+  rewardTokenLogo: string;
   rewardPerBlock: bigint;
   totalAllocPoint: bigint;
+  startBlock: bigint;
   isLoading: boolean;
+  error: string | null;
 }
+
+const getProvider = () => new ethers.JsonRpcProvider(RPC_URL);
+
+const getTokenLogo = (address: string): string => {
+  const token = TOKEN_LIST.find(t => t.address.toLowerCase() === address.toLowerCase());
+  return token?.logo || '/tokens/pc.png';
+};
 
 export const useFarming = () => {
   const { signer, address, isConnected } = useWallet();
   const [state, setState] = useState<FarmingState>({
     pools: [],
+    userLPPositions: [],
     rewardToken: '',
     rewardTokenSymbol: '',
+    rewardTokenLogo: '',
     rewardPerBlock: BigInt(0),
     totalAllocPoint: BigInt(0),
+    startBlock: BigInt(0),
     isLoading: true,
+    error: null,
   });
 
   const [isStaking, setIsStaking] = useState(false);
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isHarvesting, setIsHarvesting] = useState(false);
+  const [isHarvestingAll, setIsHarvestingAll] = useState(false);
 
   const getFarmingContract = useCallback(() => {
     if (!signer) return null;
@@ -52,34 +85,123 @@ export const useFarming = () => {
   }, [signer]);
 
   const getReadOnlyContract = useCallback(() => {
-    const provider = new ethers.JsonRpcProvider('https://evm.donut.rpc.push.org');
+    const provider = getProvider();
     return new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
   }, []);
 
+  // Fetch all user LP positions from factory
+  const fetchUserLPPositions = useCallback(async (farmPoolAddresses: string[]): Promise<UserLPPosition[]> => {
+    if (!address) return [];
+
+    try {
+      const provider = getProvider();
+      const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
+      
+      const pairsLength = await factory.allPairsLength();
+      const positions: UserLPPosition[] = [];
+
+      for (let i = 0; i < Number(pairsLength); i++) {
+        try {
+          const pairAddress = await factory.allPairs(i);
+          const pairContract = new ethers.Contract(pairAddress, PAIR_ABI, provider);
+          
+          const balance = await pairContract.balanceOf(address);
+          
+          if (balance > BigInt(0)) {
+            const [token0, token1] = await Promise.all([
+              pairContract.token0(),
+              pairContract.token1(),
+            ]);
+
+            const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
+            const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
+
+            const [token0Symbol, token1Symbol] = await Promise.all([
+              token0Contract.symbol().catch(() => 'Unknown'),
+              token1Contract.symbol().catch(() => 'Unknown'),
+            ]);
+
+            const farmPidIndex = farmPoolAddresses.findIndex(
+              addr => addr.toLowerCase() === pairAddress.toLowerCase()
+            );
+
+            positions.push({
+              lpToken: pairAddress,
+              lpSymbol: `${token0Symbol}-${token1Symbol} LP`,
+              balance,
+              token0Symbol,
+              token1Symbol,
+              token0Logo: getTokenLogo(token0),
+              token1Logo: getTokenLogo(token1),
+              token0Address: token0,
+              token1Address: token1,
+              isStakeable: farmPidIndex >= 0,
+              farmPid: farmPidIndex >= 0 ? farmPidIndex : undefined,
+            });
+          }
+        } catch (e) {
+          console.log(`Error fetching pair ${i}:`, e);
+        }
+      }
+
+      return positions;
+    } catch (error) {
+      console.error('Error fetching user LP positions:', error);
+      return [];
+    }
+  }, [address]);
+
   const fetchPools = useCallback(async () => {
     try {
-      setState(prev => ({ ...prev, isLoading: true }));
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
       
       const contract = getReadOnlyContract();
-      const provider = new ethers.JsonRpcProvider('https://evm.donut.rpc.push.org');
+      const provider = getProvider();
       
-      const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint] = await Promise.all([
-        contract.poolLength(),
-        contract.rewardToken(),
-        contract.rewardPerBlock(),
-        contract.totalAllocPoint(),
-      ]);
+      // Fetch basic farm info with error handling
+      let poolLength: bigint;
+      let rewardToken: string;
+      let rewardPerBlock: bigint;
+      let totalAllocPoint: bigint;
+      let startBlock: bigint;
 
-      // Get reward token symbol
-      const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
-      const rewardTokenSymbol = await rewardTokenContract.symbol();
+      try {
+        [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock] = await Promise.all([
+          contract.poolLength(),
+          contract.rewardToken(),
+          contract.rewardPerBlock(),
+          contract.totalAllocPoint(),
+          contract.startBlock(),
+        ]);
+      } catch (e) {
+        console.error('Error fetching farm info:', e);
+        setState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: 'Failed to fetch farming contract data. Please try again.' 
+        }));
+        return;
+      }
+
+      // Get reward token info
+      let rewardTokenSymbol = 'REWARD';
+      let rewardTokenLogo = '/tokens/pc.png';
+      try {
+        const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+        rewardTokenSymbol = await rewardTokenContract.symbol();
+        rewardTokenLogo = getTokenLogo(rewardToken);
+      } catch (e) {
+        console.log('Error fetching reward token symbol:', e);
+      }
 
       const pools: PoolInfo[] = [];
+      const farmPoolAddresses: string[] = [];
       
       for (let i = 0; i < Number(poolLength); i++) {
         try {
           const poolInfo = await contract.poolInfo(i);
           const lpTokenAddress = poolInfo[0];
+          farmPoolAddresses.push(lpTokenAddress);
           
           // Get LP token info
           const lpContract = new ethers.Contract(lpTokenAddress, PAIR_ABI, provider);
@@ -95,8 +217,8 @@ export const useFarming = () => {
           const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
           
           const [token0Symbol, token1Symbol] = await Promise.all([
-            token0Contract.symbol(),
-            token1Contract.symbol(),
+            token0Contract.symbol().catch(() => 'Unknown'),
+            token1Contract.symbol().catch(() => 'Unknown'),
           ]);
 
           let userStaked = BigInt(0);
@@ -112,10 +234,17 @@ export const useFarming = () => {
             }
           }
 
-          // Calculate APR (simplified estimate)
+          // Calculate APR (simplified)
           const poolAllocPoint = poolInfo[1];
+          const multiplier = totalAllocPoint > 0 
+            ? `${(Number(poolAllocPoint) / Number(totalAllocPoint) * 100).toFixed(0)}x`
+            : '0x';
+          
+          // APR calculation: (rewardPerBlock * blocksPerYear * poolWeight) / totalStaked * 100
+          // Assuming ~3 seconds per block on Push testnet
+          const blocksPerYear = 31536000 / 3;
           const apr = totalAllocPoint > 0 && totalStaked > 0 
-            ? (Number(rewardPerBlock) * Number(poolAllocPoint) * 31536000 / Number(totalAllocPoint) / Number(totalStaked)) * 100
+            ? (Number(rewardPerBlock) * Number(poolAllocPoint) * blocksPerYear / Number(totalAllocPoint) / Number(totalStaked)) * 100
             : 0;
 
           pools.push({
@@ -128,30 +257,44 @@ export const useFarming = () => {
             token1Symbol,
             token0Address: token0,
             token1Address: token1,
+            token0Logo: getTokenLogo(token0),
+            token1Logo: getTokenLogo(token1),
             lpSymbol: `${token0Symbol}-${token1Symbol} LP`,
             userStaked,
             userPendingReward,
             totalStaked,
-            apr: isFinite(apr) ? apr : 0,
+            apr: isFinite(apr) ? Math.min(apr, 99999) : 0,
+            multiplier,
           });
         } catch (e) {
           console.log(`Error fetching pool ${i}:`, e);
         }
       }
 
+      // Fetch user LP positions
+      const userLPPositions = await fetchUserLPPositions(farmPoolAddresses);
+
       setState({
         pools,
+        userLPPositions,
         rewardToken,
         rewardTokenSymbol,
+        rewardTokenLogo,
         rewardPerBlock,
         totalAllocPoint,
+        startBlock,
         isLoading: false,
+        error: null,
       });
     } catch (error) {
       console.error('Error fetching farming pools:', error);
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ 
+        ...prev, 
+        isLoading: false,
+        error: 'Failed to load farming data. Please refresh.'
+      }));
     }
-  }, [getReadOnlyContract, isConnected, address]);
+  }, [getReadOnlyContract, isConnected, address, fetchUserLPPositions]);
 
   const stake = useCallback(async (pid: number, amount: string) => {
     if (!signer || !address) {
@@ -254,6 +397,46 @@ export const useFarming = () => {
     }
   }, [signer, address, getFarmingContract, fetchPools]);
 
+  const harvestAll = useCallback(async () => {
+    if (!signer || !address) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    const poolsWithRewards = state.pools.filter(p => p.userPendingReward > BigInt(0));
+    if (poolsWithRewards.length === 0) {
+      toast.info('No pending rewards to harvest');
+      return false;
+    }
+
+    try {
+      setIsHarvestingAll(true);
+      const contract = getFarmingContract();
+      if (!contract) throw new Error('Contract not available');
+
+      toast.info(`Harvesting rewards from ${poolsWithRewards.length} pools...`);
+
+      for (const pool of poolsWithRewards) {
+        try {
+          const tx = await contract.deposit(pool.pid, 0);
+          await tx.wait();
+        } catch (e) {
+          console.error(`Failed to harvest pool ${pool.pid}:`, e);
+        }
+      }
+      
+      toast.success('Successfully harvested all rewards!');
+      await fetchPools();
+      return true;
+    } catch (error: any) {
+      console.error('Harvest all error:', error);
+      toast.error(error.reason || error.message || 'Failed to harvest all');
+      return false;
+    } finally {
+      setIsHarvestingAll(false);
+    }
+  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
+
   const emergencyWithdraw = useCallback(async (pid: number) => {
     if (!signer || !address) {
       toast.error('Please connect your wallet');
@@ -279,17 +462,18 @@ export const useFarming = () => {
   }, [signer, address, getFarmingContract, fetchPools]);
 
   const getLpBalance = useCallback(async (lpToken: string): Promise<string> => {
-    if (!signer || !address) return '0';
+    if (!address) return '0';
     
     try {
-      const lpContract = new ethers.Contract(lpToken, ERC20_ABI, signer);
+      const provider = getProvider();
+      const lpContract = new ethers.Contract(lpToken, ERC20_ABI, provider);
       const balance = await lpContract.balanceOf(address);
       return ethers.formatEther(balance);
     } catch (error) {
       console.error('Error getting LP balance:', error);
       return '0';
     }
-  }, [signer, address]);
+  }, [address]);
 
   useEffect(() => {
     fetchPools();
@@ -302,11 +486,13 @@ export const useFarming = () => {
     stake,
     unstake,
     harvest,
+    harvestAll,
     emergencyWithdraw,
     getLpBalance,
     refreshPools: fetchPools,
     isStaking,
     isUnstaking,
     isHarvesting,
+    isHarvestingAll,
   };
 };
