@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { FarmCard } from '@/components/FarmCard';
+import { FarmingCountdown } from '@/components/FarmingCountdown';
 import { useFarming, UserLPPosition } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,8 @@ import {
   AlertCircle,
   Layers,
   ArrowRight,
-  Zap
+  Zap,
+  ChevronRight
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
@@ -88,6 +90,7 @@ const Farming: React.FC = () => {
     rewardTokenSymbol,
     rewardTokenLogo,
     rewardPerBlock,
+    startBlock,
     isLoading,
     error,
     stake,
@@ -133,6 +136,11 @@ const Farming: React.FC = () => {
             Harvest your yield anytime.
           </p>
         </div>
+
+        {/* Countdown Timer */}
+        {startBlock > BigInt(0) && (
+          <FarmingCountdown startBlock={startBlock} className="mb-8" />
+        )}
 
         {/* Error Alert */}
         {error && (
@@ -219,6 +227,13 @@ const Farming: React.FC = () => {
         {/* Action Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
+            <Link to="/staking">
+              <Button variant="outline" size="sm">
+                <Coins className="w-4 h-4 mr-2" />
+                Single Staking
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
             <Badge variant="outline" className="py-2 px-4">
               <Sprout className="w-4 h-4 mr-2" />
               Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
