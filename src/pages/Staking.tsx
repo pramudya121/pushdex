@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { StakeCard } from '@/components/StakeCard';
@@ -20,10 +20,21 @@ import {
   Shield,
   Zap,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  ExternalLink,
+  Filter,
+  ArrowUpDown
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { Link } from 'react-router-dom';
+import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Staking: React.FC = () => {
   const { isConnected, connect } = useWallet();
@@ -42,11 +53,29 @@ const Staking: React.FC = () => {
     isClaiming,
   } = useStaking();
 
+  const [sortBy, setSortBy] = useState<'apr' | 'tvl' | 'lock'>('apr');
+  const [filterActive, setFilterActive] = useState<'all' | 'active' | 'staked'>('all');
+
   // Calculate stats
   const totalUserStaked = pools.reduce((acc, pool) => acc + pool.userStaked, BigInt(0));
   const totalPendingRewards = pools.reduce((acc, pool) => acc + pool.userPendingReward, BigInt(0));
   const highestApr = pools.length > 0 ? Math.max(...pools.map(p => p.apr)) : 0;
   const activePools = pools.filter(p => p.isActive).length;
+  const totalTVL = pools.reduce((acc, pool) => acc + pool.totalStaked, BigInt(0));
+
+  // Filter and sort pools
+  const filteredPools = pools
+    .filter(pool => {
+      if (filterActive === 'active') return pool.isActive;
+      if (filterActive === 'staked') return pool.userStaked > BigInt(0);
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'apr') return b.apr - a.apr;
+      if (sortBy === 'tvl') return Number(b.totalStaked - a.totalStaked);
+      if (sortBy === 'lock') return a.lockPeriodDays - b.lockPeriodDays;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -78,7 +107,7 @@ const Staking: React.FC = () => {
         )}
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <Card className="glass-card">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -88,6 +117,22 @@ const Staking: React.FC = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Active Pools</p>
                   <p className="text-2xl font-bold text-foreground">{activePools}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <Coins className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total TVL</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {parseFloat(ethers.formatEther(totalTVL)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -152,17 +197,62 @@ const Staking: React.FC = () => {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
+            <Link to="/admin">
+              <Button variant="outline" size="sm">
+                <Shield className="w-4 h-4 mr-2" />
+                Admin
+              </Button>
+            </Link>
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshPools}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Filter */}
+            <Select value={filterActive} onValueChange={(v) => setFilterActive(v as any)}>
+              <SelectTrigger className="w-[130px] bg-muted/50">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Pools</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="staked">My Stakes</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Sort */}
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+              <SelectTrigger className="w-[130px] bg-muted/50">
+                <ArrowUpDown className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="apr">Highest APR</SelectItem>
+                <SelectItem value="tvl">Highest TVL</SelectItem>
+                <SelectItem value="lock">Shortest Lock</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshPools}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            <a
+              href={`${BLOCK_EXPLORER}/address/${CONTRACTS.STAKING}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline" size="sm">
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Contract
+              </Button>
+            </a>
+          </div>
         </div>
 
         {/* Connect Wallet Message */}
@@ -213,9 +303,9 @@ const Staking: React.FC = () => {
               </Card>
             ))}
           </div>
-        ) : pools.length > 0 ? (
+        ) : filteredPools.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {pools.map((pool) => (
+            {filteredPools.map((pool) => (
               <StakeCard
                 key={pool.id}
                 pool={pool}
@@ -230,6 +320,21 @@ const Staking: React.FC = () => {
               />
             ))}
           </div>
+        ) : pools.length > 0 ? (
+          <Card className="glass-card">
+            <CardContent className="py-16">
+              <div className="text-center">
+                <Filter className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                <h3 className="text-xl font-semibold mb-2">No Matching Pools</h3>
+                <p className="text-muted-foreground mb-4">
+                  No pools match your current filters. Try adjusting the filter settings.
+                </p>
+                <Button variant="outline" onClick={() => setFilterActive('all')}>
+                  Show All Pools
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <Card className="glass-card">
             <CardContent className="py-16">

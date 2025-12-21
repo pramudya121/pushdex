@@ -15,6 +15,7 @@ import History from "./pages/History";
 import Farming from "./pages/Farming";
 import Staking from "./pages/Staking";
 import Docs from "./pages/Docs";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,8 @@ const App = () => (
             <Route path="/farming" element={<Farming />} />
             <Route path="/staking" element={<Staking />} />
             <Route path="/docs" element={<Docs />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="*" element={<NotFound />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
