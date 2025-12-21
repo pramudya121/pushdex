@@ -150,18 +150,36 @@ const Admin: React.FC = () => {
             const poolInfo = await farmingContract.poolInfo(i);
             const lpAddress = poolInfo[0];
             
-            // Get LP token info
-            const lpContract = new ethers.Contract(lpAddress, ERC20_ABI, provider);
-            const [token0Symbol, token1Symbol] = await Promise.all([
-              lpContract.token0?.().then(async (t0: string) => {
-                const t0Contract = new ethers.Contract(t0, ERC20_ABI, provider);
-                return t0Contract.symbol();
-              }).catch(() => 'Token0'),
-              lpContract.token1?.().then(async (t1: string) => {
-                const t1Contract = new ethers.Contract(t1, ERC20_ABI, provider);
-                return t1Contract.symbol();
-              }).catch(() => 'Token1'),
+            // Get LP token info using PAIR_ABI for token0/token1
+            const PAIR_ABI_MINI = [
+              'function token0() view returns (address)',
+              'function token1() view returns (address)',
+              'function balanceOf(address) view returns (uint256)',
+            ];
+            const lpContract = new ethers.Contract(lpAddress, PAIR_ABI_MINI, provider);
+            
+            const [token0, token1] = await Promise.all([
+              lpContract.token0(),
+              lpContract.token1(),
             ]);
+            
+            // Get token symbols from TOKEN_LIST first, then from contract
+            const getSymbolFromList = (addr: string) => {
+              const token = TOKEN_LIST.find(t => t.address.toLowerCase() === addr.toLowerCase());
+              return token?.symbol || null;
+            };
+            
+            let token0Symbol = getSymbolFromList(token0);
+            let token1Symbol = getSymbolFromList(token1);
+            
+            if (!token0Symbol || !token1Symbol) {
+              const [t0Symbol, t1Symbol] = await Promise.all([
+                token0Symbol ? Promise.resolve(token0Symbol) : new ethers.Contract(token0, ERC20_ABI, provider).symbol().catch(() => 'Unknown'),
+                token1Symbol ? Promise.resolve(token1Symbol) : new ethers.Contract(token1, ERC20_ABI, provider).symbol().catch(() => 'Unknown'),
+              ]);
+              token0Symbol = t0Symbol;
+              token1Symbol = t1Symbol;
+            }
             
             const totalStaked = await lpContract.balanceOf(CONTRACTS.FARMING);
             
@@ -441,8 +459,8 @@ const Admin: React.FC = () => {
                           <SelectValue placeholder="Select token" />
                         </SelectTrigger>
                         <SelectContent>
-                          {TOKEN_LIST.filter(t => !('isNative' in t && t.isNative)).map((token) => (
-                            <SelectItem key={token.address} value={token.address}>
+                          {TOKEN_LIST.map((token) => (
+                            <SelectItem key={token.address || 'native'} value={token.address || 'native'}>
                               <div className="flex items-center gap-2">
                                 <img src={token.logo} alt={token.symbol} className="w-5 h-5 rounded-full" />
                                 {token.symbol}

@@ -59,6 +59,11 @@ const getTokenLogo = (address: string): string => {
   return token?.logo || '/tokens/pc.png';
 };
 
+const getTokenSymbol = (address: string): string | null => {
+  const token = TOKEN_LIST.find(t => t.address.toLowerCase() === address.toLowerCase());
+  return token?.symbol || null;
+};
+
 export const useFarming = () => {
   const { signer, address, isConnected } = useWallet();
   const [state, setState] = useState<FarmingState>({
@@ -116,9 +121,13 @@ export const useFarming = () => {
             const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
             const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
 
+            // Try to get symbol from TOKEN_LIST first, then from contract
+            const token0SymbolFromList = getTokenSymbol(token0);
+            const token1SymbolFromList = getTokenSymbol(token1);
+            
             const [token0Symbol, token1Symbol] = await Promise.all([
-              token0Contract.symbol().catch(() => 'Unknown'),
-              token1Contract.symbol().catch(() => 'Unknown'),
+              token0SymbolFromList ? Promise.resolve(token0SymbolFromList) : token0Contract.symbol().catch(() => 'Unknown'),
+              token1SymbolFromList ? Promise.resolve(token1SymbolFromList) : token1Contract.symbol().catch(() => 'Unknown'),
             ]);
 
             const farmPidIndex = farmPoolAddresses.findIndex(
@@ -216,9 +225,13 @@ export const useFarming = () => {
           const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
           const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
           
+          // Try to get symbol from TOKEN_LIST first, then from contract
+          const token0SymbolFromList = getTokenSymbol(token0);
+          const token1SymbolFromList = getTokenSymbol(token1);
+          
           const [token0Symbol, token1Symbol] = await Promise.all([
-            token0Contract.symbol().catch(() => 'Unknown'),
-            token1Contract.symbol().catch(() => 'Unknown'),
+            token0SymbolFromList ? Promise.resolve(token0SymbolFromList) : token0Contract.symbol().catch(() => 'Unknown'),
+            token1SymbolFromList ? Promise.resolve(token1SymbolFromList) : token1Contract.symbol().catch(() => 'Unknown'),
           ]);
 
           let userStaked = BigInt(0);
