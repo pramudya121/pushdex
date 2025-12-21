@@ -4,12 +4,13 @@ import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, History } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, History, Leaf } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Swap', icon: ArrowLeftRight },
   { path: '/liquidity', label: 'Liquidity', icon: Droplets },
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
+  { path: '/farming', label: 'Farming', icon: Leaf },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
   { path: '/history', label: 'History', icon: History },
