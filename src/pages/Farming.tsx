@@ -234,6 +234,12 @@ const Farming: React.FC = () => {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
+            <Link to="/admin">
+              <Button variant="outline" size="sm">
+                <Zap className="w-4 h-4 mr-2" />
+                Admin
+              </Button>
+            </Link>
             <Badge variant="outline" className="py-2 px-4">
               <Sprout className="w-4 h-4 mr-2" />
               Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
