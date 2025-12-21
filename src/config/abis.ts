@@ -619,3 +619,119 @@ export const FARMING_ABI = [
     type: "event",
   },
 ] as const;
+
+// Staking ABI
+export const STAKING_ABI = [
+  {
+    inputs: [],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "_token", type: "address" },
+      { internalType: "uint256", name: "_apr", type: "uint256" },
+      { internalType: "uint256", name: "_lockPeriod", type: "uint256" },
+      { internalType: "uint256", name: "_minStake", type: "uint256" },
+    ],
+    name: "addPool",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "owner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "pid", type: "uint256" },
+      { internalType: "address", name: "userAddr", type: "address" },
+    ],
+    name: "pendingReward",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "pools",
+    outputs: [
+      { internalType: "contract IERC20", name: "token", type: "address" },
+      { internalType: "uint256", name: "apr", type: "uint256" },
+      { internalType: "uint256", name: "lockPeriod", type: "uint256" },
+      { internalType: "uint256", name: "minStake", type: "uint256" },
+      { internalType: "uint256", name: "totalStaked", type: "uint256" },
+      { internalType: "bool", name: "active", type: "bool" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "renounceOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "pid", type: "uint256" },
+      { internalType: "bool", name: "status", type: "bool" },
+    ],
+    name: "setPoolStatus",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "pid", type: "uint256" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "stake",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "pid", type: "uint256" }],
+    name: "unstake",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "", type: "uint256" },
+      { internalType: "address", name: "", type: "address" },
+    ],
+    name: "userStakes",
+    outputs: [
+      { internalType: "uint256", name: "amount", type: "uint256" },
+      { internalType: "uint256", name: "startTime", type: "uint256" },
+      { internalType: "uint256", name: "rewardClaimed", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "previousOwner", type: "address" },
+      { indexed: true, internalType: "address", name: "newOwner", type: "address" },
+    ],
+    name: "OwnershipTransferred",
+    type: "event",
+  },
+] as const;

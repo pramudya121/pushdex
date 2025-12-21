@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '@/contexts/WalletContext';
 import { CONTRACTS, TOKEN_LIST, RPC_URL } from '@/config/contracts';
-import { ERC20_ABI } from '@/config/abis';
+import { STAKING_ABI, ERC20_ABI } from '@/config/abis';
 import { toast } from 'sonner';
 
 export interface StakingPoolInfo {
@@ -16,79 +16,32 @@ export interface StakingPoolInfo {
   totalStaked: bigint;
   userStaked: bigint;
   userPendingReward: bigint;
-  lockPeriod: number; // in days
+  userStartTime: bigint;
+  lockPeriod: number; // in seconds from contract
+  lockPeriodDays: number; // converted to days
   minStake: bigint;
   isActive: boolean;
+  canUnstake: boolean; // whether lock period has passed
 }
 
 export interface StakingState {
   pools: StakingPoolInfo[];
   isLoading: boolean;
   error: string | null;
+  poolCount: number;
 }
 
 const getProvider = () => new ethers.JsonRpcProvider(RPC_URL);
 
-const getTokenLogo = (address: string): string => {
+const getTokenInfo = (address: string) => {
   const token = TOKEN_LIST.find(t => t.address.toLowerCase() === address.toLowerCase());
-  return token?.logo || '/tokens/pc.png';
+  return {
+    symbol: token?.symbol || 'Unknown',
+    name: token?.name || 'Unknown Token',
+    logo: token?.logo || '/tokens/pc.png',
+    decimals: token?.decimals || 18,
+  };
 };
-
-// Mock staking pools for demo - replace with actual contract integration
-const MOCK_STAKING_POOLS: Omit<StakingPoolInfo, 'userStaked' | 'userPendingReward'>[] = [
-  {
-    id: 0,
-    tokenAddress: '0x2Bf9ae7D36f6D057fC84d7f3165E9EB870f2e2e7', // PSDX
-    tokenSymbol: 'PSDX',
-    tokenName: 'PushDex Token',
-    tokenLogo: '/tokens/psdx.png',
-    tokenDecimals: 18,
-    apr: 45.5,
-    totalStaked: ethers.parseEther('125000'),
-    lockPeriod: 0,
-    minStake: ethers.parseEther('100'),
-    isActive: true,
-  },
-  {
-    id: 1,
-    tokenAddress: '0x5b0AE944A4Ee6241a5A638C440A0dCD42411bD3C', // WPC
-    tokenSymbol: 'WPC',
-    tokenName: 'Wrapped Push Coin',
-    tokenLogo: '/tokens/wpc.png',
-    tokenDecimals: 18,
-    apr: 32.0,
-    totalStaked: ethers.parseEther('85000'),
-    lockPeriod: 7,
-    minStake: ethers.parseEther('50'),
-    isActive: true,
-  },
-  {
-    id: 2,
-    tokenAddress: '0x70af1341F5D5c60F913F6a21C669586C38592510', // ETH
-    tokenSymbol: 'ETH',
-    tokenName: 'Ethereum',
-    tokenLogo: '/tokens/eth.png',
-    tokenDecimals: 18,
-    apr: 18.5,
-    totalStaked: ethers.parseEther('500'),
-    lockPeriod: 30,
-    minStake: ethers.parseEther('0.1'),
-    isActive: true,
-  },
-  {
-    id: 3,
-    tokenAddress: '0x68F2458954032952d2ddd5D8Ee1d671e6E93Ae6C', // BNB
-    tokenSymbol: 'BNB',
-    tokenName: 'Binance Coin',
-    tokenLogo: '/tokens/bnb.png',
-    tokenDecimals: 18,
-    apr: 25.0,
-    totalStaked: ethers.parseEther('2500'),
-    lockPeriod: 14,
-    minStake: ethers.parseEther('1'),
-    isActive: true,
-  },
-];
 
 export const useStaking = () => {
   const { signer, address, isConnected } = useWallet();
@@ -96,38 +49,122 @@ export const useStaking = () => {
     pools: [],
     isLoading: true,
     error: null,
+    poolCount: 0,
   });
 
   const [isStaking, setIsStaking] = useState(false);
   const [isUnstaking, setIsUnstaking] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
 
+  const getStakingContract = useCallback(() => {
+    if (!signer) return null;
+    return new ethers.Contract(CONTRACTS.STAKING, STAKING_ABI, signer);
+  }, [signer]);
+
+  const getReadOnlyContract = useCallback(() => {
+    const provider = getProvider();
+    return new ethers.Contract(CONTRACTS.STAKING, STAKING_ABI, provider);
+  }, []);
+
   const fetchPools = useCallback(async () => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
+      const contract = getReadOnlyContract();
       const provider = getProvider();
       const pools: StakingPoolInfo[] = [];
-
-      for (const mockPool of MOCK_STAKING_POOLS) {
-        let userStaked = BigInt(0);
-        let userPendingReward = BigInt(0);
-
-        // In a real implementation, we would fetch from staking contract
-        // For now, we simulate user data
-
-        pools.push({
-          ...mockPool,
-          tokenLogo: getTokenLogo(mockPool.tokenAddress),
-          userStaked,
-          userPendingReward,
-        });
+      
+      // The contract doesn't have a poolLength function, so we'll try to fetch pools until we get an error
+      let poolIndex = 0;
+      let hasMore = true;
+      
+      while (hasMore && poolIndex < 50) { // Max 50 pools to prevent infinite loop
+        try {
+          const poolData = await contract.pools(poolIndex);
+          const tokenAddress = poolData[0];
+          const apr = Number(poolData[1]);
+          const lockPeriod = Number(poolData[2]);
+          const minStake = poolData[3];
+          const totalStaked = poolData[4];
+          const isActive = poolData[5];
+          
+          // Get token info
+          const tokenInfo = getTokenInfo(tokenAddress);
+          
+          // Try to get symbol from contract if not in our list
+          let symbol = tokenInfo.symbol;
+          let name = tokenInfo.name;
+          if (symbol === 'Unknown') {
+            try {
+              const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+              symbol = await tokenContract.symbol();
+              name = await tokenContract.name();
+            } catch (e) {
+              console.log('Error fetching token info:', e);
+            }
+          }
+          
+          // Get user info if connected
+          let userStaked = BigInt(0);
+          let userPendingReward = BigInt(0);
+          let userStartTime = BigInt(0);
+          let canUnstake = true;
+          
+          if (isConnected && address) {
+            try {
+              const userStakeData = await contract.userStakes(poolIndex, address);
+              userStaked = userStakeData[0];
+              userStartTime = userStakeData[1];
+              
+              // Check pending reward
+              try {
+                userPendingReward = await contract.pendingReward(poolIndex, address);
+              } catch (e) {
+                console.log('Error fetching pending reward:', e);
+              }
+              
+              // Check if lock period has passed
+              if (userStaked > BigInt(0) && lockPeriod > 0) {
+                const currentTime = BigInt(Math.floor(Date.now() / 1000));
+                const unlockTime = userStartTime + BigInt(lockPeriod);
+                canUnstake = currentTime >= unlockTime;
+              }
+            } catch (e) {
+              console.log('Error fetching user stake info:', e);
+            }
+          }
+          
+          pools.push({
+            id: poolIndex,
+            tokenAddress,
+            tokenSymbol: symbol,
+            tokenName: name,
+            tokenLogo: tokenInfo.logo,
+            tokenDecimals: tokenInfo.decimals,
+            apr,
+            totalStaked,
+            userStaked,
+            userPendingReward,
+            userStartTime,
+            lockPeriod,
+            lockPeriodDays: Math.floor(lockPeriod / 86400), // Convert seconds to days
+            minStake,
+            isActive,
+            canUnstake,
+          });
+          
+          poolIndex++;
+        } catch (e: any) {
+          // If we get an error, assume no more pools
+          hasMore = false;
+        }
       }
 
       setState({
         pools,
         isLoading: false,
         error: null,
+        poolCount: pools.length,
       });
     } catch (error) {
       console.error('Error fetching staking pools:', error);
@@ -137,7 +174,7 @@ export const useStaking = () => {
         error: 'Failed to load staking pools',
       }));
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, getReadOnlyContract]);
 
   const getTokenBalance = useCallback(async (tokenAddress: string): Promise<string> => {
     if (!address) return '0';
@@ -161,30 +198,49 @@ export const useStaking = () => {
 
     try {
       setIsStaking(true);
+      const contract = getStakingContract();
+      if (!contract) throw new Error('Contract not available');
+
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
       const amountWei = ethers.parseEther(amount);
 
-      // In real implementation, approve and stake to contract
-      toast.info('Staking feature coming soon!');
-      toast.info(`Would stake ${amount} ${pool.tokenSymbol}`);
+      // Check minimum stake
+      if (amountWei < pool.minStake) {
+        toast.error(`Minimum stake is ${ethers.formatEther(pool.minStake)} ${pool.tokenSymbol}`);
+        return false;
+      }
+
+      // First approve token
+      const tokenContract = new ethers.Contract(pool.tokenAddress, ERC20_ABI, signer);
+      const allowance = await tokenContract.allowance(address, CONTRACTS.STAKING);
       
-      // Simulate success
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Staking contract integration pending');
+      if (allowance < amountWei) {
+        toast.info('Approving token...');
+        const approveTx = await tokenContract.approve(CONTRACTS.STAKING, ethers.MaxUint256);
+        await approveTx.wait();
+        toast.success('Token approved!');
+      }
+
+      // Stake
+      toast.info('Staking tokens...');
+      const tx = await contract.stake(poolId, amountWei);
+      await tx.wait();
       
+      toast.success(`Successfully staked ${amount} ${pool.tokenSymbol}!`);
+      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Stake error:', error);
-      toast.error(error.message || 'Failed to stake');
+      toast.error(error.reason || error.message || 'Failed to stake');
       return false;
     } finally {
       setIsStaking(false);
     }
-  }, [signer, address, state.pools]);
+  }, [signer, address, getStakingContract, state.pools, fetchPools]);
 
-  const unstake = useCallback(async (poolId: number, amount: string) => {
+  const unstake = useCallback(async (poolId: number) => {
     if (!signer || !address) {
       toast.error('Please connect your wallet');
       return false;
@@ -192,24 +248,34 @@ export const useStaking = () => {
 
     try {
       setIsUnstaking(true);
+      const contract = getStakingContract();
+      if (!contract) throw new Error('Contract not available');
+
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
-      toast.info('Unstaking feature coming soon!');
-      toast.info(`Would unstake ${amount} ${pool.tokenSymbol}`);
+      // Check lock period
+      if (!pool.canUnstake) {
+        const unlockTime = new Date(Number(pool.userStartTime + BigInt(pool.lockPeriod)) * 1000);
+        toast.error(`Tokens are locked until ${unlockTime.toLocaleString()}`);
+        return false;
+      }
+
+      toast.info('Unstaking tokens...');
+      const tx = await contract.unstake(poolId);
+      await tx.wait();
       
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Unstaking contract integration pending');
-      
+      toast.success(`Successfully unstaked ${pool.tokenSymbol}!`);
+      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Unstake error:', error);
-      toast.error(error.message || 'Failed to unstake');
+      toast.error(error.reason || error.message || 'Failed to unstake');
       return false;
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, state.pools]);
+  }, [signer, address, getStakingContract, state.pools, fetchPools]);
 
   const claimRewards = useCallback(async (poolId: number) => {
     if (!signer || !address) {
@@ -219,26 +285,58 @@ export const useStaking = () => {
 
     try {
       setIsClaiming(true);
+      const contract = getStakingContract();
+      if (!contract) throw new Error('Contract not available');
+
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
-      toast.info('Claim feature coming soon!');
+      // The contract uses unstake to claim rewards along with principal
+      // Since there's no separate claim function, we inform the user
+      toast.info('Rewards are claimed when you unstake. Unstaking now...');
       
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Claim contract integration pending');
+      const tx = await contract.unstake(poolId);
+      await tx.wait();
       
+      toast.success('Successfully claimed rewards and unstaked!');
+      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Claim error:', error);
-      toast.error(error.message || 'Failed to claim');
+      toast.error(error.reason || error.message || 'Failed to claim rewards');
       return false;
     } finally {
       setIsClaiming(false);
     }
-  }, [signer, address, state.pools]);
+  }, [signer, address, getStakingContract, state.pools, fetchPools]);
+
+  const getUnlockTime = useCallback((pool: StakingPoolInfo): Date | null => {
+    if (pool.userStaked === BigInt(0) || pool.lockPeriod === 0) return null;
+    return new Date(Number(pool.userStartTime + BigInt(pool.lockPeriod)) * 1000);
+  }, []);
+
+  const getRemainingLockTime = useCallback((pool: StakingPoolInfo): string => {
+    if (pool.userStaked === BigInt(0) || pool.lockPeriod === 0) return '';
+    
+    const unlockTime = Number(pool.userStartTime) + pool.lockPeriod;
+    const currentTime = Math.floor(Date.now() / 1000);
+    const remaining = unlockTime - currentTime;
+    
+    if (remaining <= 0) return 'Unlocked';
+    
+    const days = Math.floor(remaining / 86400);
+    const hours = Math.floor((remaining % 86400) / 3600);
+    const minutes = Math.floor((remaining % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h remaining`;
+    if (hours > 0) return `${hours}h ${minutes}m remaining`;
+    return `${minutes}m remaining`;
+  }, []);
 
   useEffect(() => {
     fetchPools();
+    const interval = setInterval(fetchPools, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, [fetchPools]);
 
   return {
@@ -247,6 +345,8 @@ export const useStaking = () => {
     unstake,
     claimRewards,
     getTokenBalance,
+    getUnlockTime,
+    getRemainingLockTime,
     refreshPools: fetchPools,
     isStaking,
     isUnstaking,

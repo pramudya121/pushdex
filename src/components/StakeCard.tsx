@@ -12,21 +12,23 @@ import {
   Coins, 
   ArrowDownToLine, 
   ArrowUpFromLine,
-  Sparkles,
   Loader2,
   ChevronDown,
   ChevronUp,
   Lock,
   Clock,
-  Gift
+  Gift,
+  Timer,
+  CheckCircle
 } from 'lucide-react';
 
 interface StakeCardProps {
   pool: StakingPoolInfo;
   onStake: (poolId: number, amount: string) => Promise<boolean>;
-  onUnstake: (poolId: number, amount: string) => Promise<boolean>;
+  onUnstake: (poolId: number) => Promise<boolean>;
   onClaim: (poolId: number) => Promise<boolean>;
   getTokenBalance: (tokenAddress: string) => Promise<string>;
+  getRemainingLockTime: (pool: StakingPoolInfo) => string;
   isStaking: boolean;
   isUnstaking: boolean;
   isClaiming: boolean;
@@ -38,6 +40,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   onUnstake,
   onClaim,
   getTokenBalance,
+  getRemainingLockTime,
   isStaking,
   isUnstaking,
   isClaiming,
@@ -45,10 +48,10 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   const { isConnected } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
-  const [unstakeAmount, setUnstakeAmount] = useState('');
   const [tokenBalance, setTokenBalance] = useState('0');
   const [activeTab, setActiveTab] = useState('stake');
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [remainingTime, setRemainingTime] = useState('');
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -63,6 +66,16 @@ export const StakeCard: React.FC<StakeCardProps> = ({
     }
   }, [pool.tokenAddress, getTokenBalance, isConnected, isExpanded]);
 
+  useEffect(() => {
+    // Update remaining time every second
+    const updateTime = () => {
+      setRemainingTime(getRemainingLockTime(pool));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [pool, getRemainingLockTime]);
+
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
     const success = await onStake(pool.id, stakeAmount);
@@ -72,11 +85,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   };
 
   const handleUnstake = async () => {
-    if (!unstakeAmount || parseFloat(unstakeAmount) <= 0) return;
-    const success = await onUnstake(pool.id, unstakeAmount);
-    if (success) {
-      setUnstakeAmount('');
-    }
+    await onUnstake(pool.id);
   };
 
   const handleClaim = async () => {
@@ -92,7 +101,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   const hasBalance = parseFloat(tokenBalance) > 0;
 
   return (
-    <Card className="glass-card-hover overflow-hidden group">
+    <Card className={`glass-card-hover overflow-hidden group ${!pool.isActive ? 'opacity-60' : ''}`}>
       {/* Header */}
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -105,7 +114,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                 className="w-12 h-12 rounded-full border-2 border-primary/30 bg-muted"
                 onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
               />
-              {pool.lockPeriod > 0 && (
+              {pool.lockPeriodDays > 0 && (
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-warning flex items-center justify-center border-2 border-card">
                   <Lock className="w-3 h-3 text-warning-foreground" />
                 </div>
@@ -119,6 +128,11 @@ export const StakeCard: React.FC<StakeCardProps> = ({
           </div>
 
           <div className="flex flex-col items-end gap-1">
+            {!pool.isActive && (
+              <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                Inactive
+              </Badge>
+            )}
             {hasStaked && (
               <Badge variant="secondary" className="bg-success/20 text-success border-success/30">
                 <Coins className="w-3 h-3 mr-1" />
@@ -126,7 +140,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
               </Badge>
             )}
             <Badge className="bg-primary/20 text-primary border-primary/30">
-              {pool.apr.toFixed(2)}% APR
+              {pool.apr}% APR
             </Badge>
           </div>
         </div>
@@ -149,7 +163,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
               <span>Lock</span>
             </div>
             <p className="text-lg font-bold text-foreground">
-              {pool.lockPeriod === 0 ? 'None' : `${pool.lockPeriod}d`}
+              {pool.lockPeriodDays === 0 ? 'None' : `${pool.lockPeriodDays}d`}
             </p>
           </div>
           
@@ -165,7 +179,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
         </div>
 
         {/* User Info */}
-        {isConnected && (
+        {isConnected && hasStaked && (
           <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Your Staked</span>
@@ -180,24 +194,22 @@ export const StakeCard: React.FC<StakeCardProps> = ({
               </span>
             </div>
             
-            {hasPendingRewards && (
-              <Button
-                onClick={handleClaim}
-                disabled={isClaiming}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
-              >
-                {isClaiming ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Claiming...
-                  </>
+            {/* Lock Status */}
+            {pool.lockPeriodDays > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Lock Status</span>
+                {pool.canUnstake ? (
+                  <span className="text-success flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" />
+                    Unlocked
+                  </span>
                 ) : (
-                  <>
-                    <Gift className="w-4 h-4 mr-2" />
-                    Claim Rewards
-                  </>
+                  <span className="text-warning flex items-center gap-1">
+                    <Timer className="w-4 h-4" />
+                    {remainingTime}
+                  </span>
                 )}
-              </Button>
+              </div>
             )}
           </div>
         )}
@@ -212,6 +224,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
           variant="ghost"
           className="w-full"
           onClick={() => setIsExpanded(!isExpanded)}
+          disabled={!pool.isActive}
         >
           {isExpanded ? (
             <>
@@ -271,6 +284,12 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                       MAX
                     </Button>
                   </div>
+                  {pool.lockPeriodDays > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 p-2 rounded-lg">
+                      <Lock className="w-3 h-3" />
+                      <span>Tokens will be locked for {pool.lockPeriodDays} days</span>
+                    </div>
+                  )}
                   <Button
                     onClick={handleStake}
                     disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0}
@@ -295,33 +314,29 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                     <span className="text-muted-foreground">Staked</span>
                     <span className="text-foreground">{parseFloat(userStakedFormatted).toFixed(4)} {pool.tokenSymbol}</span>
                   </div>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      placeholder="0.0"
-                      value={unstakeAmount}
-                      onChange={(e) => setUnstakeAmount(e.target.value)}
-                      className="pr-16 bg-muted/50 border-border/50"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
-                      onClick={() => setUnstakeAmount(userStakedFormatted)}
-                      disabled={!hasStaked}
-                    >
-                      MAX
-                    </Button>
-                  </div>
-                  {pool.lockPeriod > 0 && (
-                    <div className="flex items-center gap-2 text-xs text-warning">
-                      <Lock className="w-3 h-3" />
-                      <span>{pool.lockPeriod}-day lock period applies</span>
+                  
+                  {hasPendingRewards && (
+                    <div className="flex justify-between text-sm bg-primary/10 p-3 rounded-lg">
+                      <span className="text-muted-foreground">Rewards to claim</span>
+                      <span className="text-primary font-semibold">
+                        +{parseFloat(pendingRewardFormatted).toFixed(4)} {pool.tokenSymbol}
+                      </span>
                     </div>
                   )}
+                  
+                  {pool.lockPeriodDays > 0 && !pool.canUnstake && (
+                    <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 p-3 rounded-lg">
+                      <Timer className="w-4 h-4" />
+                      <div>
+                        <p className="font-medium">Tokens are locked</p>
+                        <p className="text-xs">{remainingTime}</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <Button
                     onClick={handleUnstake}
-                    disabled={isUnstaking || !unstakeAmount || parseFloat(unstakeAmount) <= 0}
+                    disabled={isUnstaking || !hasStaked || !pool.canUnstake}
                     className="w-full bg-destructive hover:bg-destructive/90"
                   >
                     {isUnstaking ? (
@@ -329,13 +344,22 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Unstaking...
                       </>
+                    ) : !pool.canUnstake ? (
+                      <>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Locked
+                      </>
                     ) : (
                       <>
                         <ArrowUpFromLine className="w-4 h-4 mr-2" />
-                        Unstake {pool.tokenSymbol}
+                        Unstake All + Claim
                       </>
                     )}
                   </Button>
+                  
+                  <p className="text-xs text-muted-foreground text-center">
+                    Unstaking will withdraw all staked tokens and claim pending rewards
+                  </p>
                 </TabsContent>
               </Tabs>
             ) : (
