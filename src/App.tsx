@@ -13,6 +13,7 @@ import Portfolio from "./pages/Portfolio";
 import CreatePool from "./pages/CreatePool";
 import History from "./pages/History";
 import Farming from "./pages/Farming";
+import Staking from "./pages/Staking";
 import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/history" element={<History />} />
             <Route path="/farming" element={<Farming />} />
+            <Route path="/staking" element={<Staking />} />
             <Route path="/docs" element={<Docs />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
