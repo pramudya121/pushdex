@@ -29,6 +29,7 @@ interface StakeCardProps {
   onClaim: (poolId: number) => Promise<boolean>;
   getTokenBalance: (tokenAddress: string) => Promise<string>;
   getRemainingLockTime: (pool: StakingPoolInfo) => string;
+  onRefresh: () => void;
   isStaking: boolean;
   isUnstaking: boolean;
   isClaiming: boolean;
@@ -41,6 +42,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   onClaim,
   getTokenBalance,
   getRemainingLockTime,
+  onRefresh,
   isStaking,
   isUnstaking,
   isClaiming,
@@ -81,15 +83,22 @@ export const StakeCard: React.FC<StakeCardProps> = ({
     const success = await onStake(pool.id, stakeAmount);
     if (success) {
       setStakeAmount('');
+      onRefresh();
     }
   };
 
   const handleUnstake = async () => {
-    await onUnstake(pool.id);
+    const success = await onUnstake(pool.id);
+    if (success) {
+      onRefresh();
+    }
   };
 
   const handleClaim = async () => {
-    await onClaim(pool.id);
+    const success = await onClaim(pool.id);
+    if (success) {
+      onRefresh();
+    }
   };
 
   const userStakedFormatted = ethers.formatEther(pool.userStaked);

@@ -352,6 +352,7 @@ const Farming: React.FC = () => {
                 onHarvest={harvest}
                 onEmergencyWithdraw={emergencyWithdraw}
                 getLpBalance={getLpBalance}
+                onRefresh={refreshPools}
                 isStaking={isStaking}
                 isUnstaking={isUnstaking}
                 isHarvesting={isHarvesting}

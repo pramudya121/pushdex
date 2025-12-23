@@ -192,15 +192,18 @@ export const useFarming = () => {
         return;
       }
 
-      // Get reward token info
-      let rewardTokenSymbol = 'REWARD';
-      let rewardTokenLogo = '/tokens/pc.png';
-      try {
-        const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
-        rewardTokenSymbol = await rewardTokenContract.symbol();
-        rewardTokenLogo = getTokenLogo(rewardToken);
-      } catch (e) {
-        console.log('Error fetching reward token symbol:', e);
+      // Get reward token info - try TOKEN_LIST first
+      let rewardTokenSymbol = getTokenSymbol(rewardToken) || 'REWARD';
+      let rewardTokenLogo = getTokenLogo(rewardToken);
+      
+      // Only call contract if not found in TOKEN_LIST
+      if (rewardTokenSymbol === 'REWARD') {
+        try {
+          const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+          rewardTokenSymbol = await rewardTokenContract.symbol();
+        } catch (e) {
+          console.log('Error fetching reward token symbol:', e);
+        }
       }
 
       const pools: PoolInfo[] = [];
@@ -342,7 +345,6 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully staked!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Stake error:', error);
@@ -351,7 +353,7 @@ export const useFarming = () => {
     } finally {
       setIsStaking(false);
     }
-  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
+  }, [signer, address, getFarmingContract, state.pools]);
 
   const unstake = useCallback(async (pid: number, amount: string) => {
     if (!signer || !address) {
@@ -371,7 +373,6 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully unstaked!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -380,7 +381,7 @@ export const useFarming = () => {
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, getFarmingContract, fetchPools]);
+  }, [signer, address, getFarmingContract]);
 
   const harvest = useCallback(async (pid: number) => {
     if (!signer || !address) {
@@ -399,7 +400,6 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully harvested rewards!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Harvest error:', error);
@@ -408,7 +408,7 @@ export const useFarming = () => {
     } finally {
       setIsHarvesting(false);
     }
-  }, [signer, address, getFarmingContract, fetchPools]);
+  }, [signer, address, getFarmingContract]);
 
   const harvestAll = useCallback(async () => {
     if (!signer || !address) {
@@ -439,7 +439,6 @@ export const useFarming = () => {
       }
       
       toast.success('Successfully harvested all rewards!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Harvest all error:', error);
@@ -448,7 +447,7 @@ export const useFarming = () => {
     } finally {
       setIsHarvestingAll(false);
     }
-  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
+  }, [signer, address, getFarmingContract, state.pools]);
 
   const emergencyWithdraw = useCallback(async (pid: number) => {
     if (!signer || !address) {
@@ -465,14 +464,13 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Emergency withdraw successful!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Emergency withdraw error:', error);
       toast.error(error.reason || error.message || 'Failed to emergency withdraw');
       return false;
     }
-  }, [signer, address, getFarmingContract, fetchPools]);
+  }, [signer, address, getFarmingContract]);
 
   const getLpBalance = useCallback(async (lpToken: string): Promise<string> => {
     if (!address) return '0';
@@ -490,9 +488,10 @@ export const useFarming = () => {
 
   useEffect(() => {
     fetchPools();
-    const interval = setInterval(fetchPools, 30000);
+    // Refresh every 60 seconds to reduce auto-refresh frequency
+    const interval = setInterval(fetchPools, 60000);
     return () => clearInterval(interval);
-  }, [fetchPools]);
+  }, [isConnected, address]);
 
   return {
     ...state,
