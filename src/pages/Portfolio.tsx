@@ -7,8 +7,8 @@ import { PortfolioChart } from '@/components/PortfolioChart';
 import { PortfolioValueChart } from '@/components/PortfolioValueChart';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/contexts/WalletContext';
-import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER } from '@/config/contracts';
-import { FACTORY_ABI, PAIR_ABI } from '@/config/abis';
+import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER, RPC_URL } from '@/config/contracts';
+import { FACTORY_ABI, PAIR_ABI, STAKING_ABI, FARMING_ABI, ERC20_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount, shortenAddress } from '@/lib/dex';
 import { getMultipleBalances, getMultiplePairReserves } from '@/lib/multicall';
 import { 
@@ -23,7 +23,9 @@ import {
   RefreshCcw,
   Droplets,
   BarChart3,
-  Coins
+  Coins,
+  Sprout,
+  Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -51,13 +53,47 @@ interface LPPosition {
   token1Amount: string;
 }
 
+interface StakingPosition {
+  poolId: number;
+  tokenSymbol: string;
+  tokenLogo: string;
+  stakedAmount: string;
+  pendingReward: string;
+  apr: number;
+  lockPeriodDays: number;
+  canUnstake: boolean;
+  usdValue: number;
+}
+
+interface FarmingPosition {
+  pid: number;
+  lpSymbol: string;
+  token0Logo: string;
+  token1Logo: string;
+  stakedAmount: string;
+  pendingReward: string;
+  rewardSymbol: string;
+  apr: number;
+  usdValue: number;
+}
+
 const Portfolio = () => {
   const { address, isConnected, balance } = useWallet();
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [lpPositions, setLpPositions] = useState<LPPosition[]>([]);
+  const [stakingPositions, setStakingPositions] = useState<StakingPosition[]>([]);
+  const [farmingPositions, setFarmingPositions] = useState<FarmingPosition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
   const [nativeBalance, setNativeBalance] = useState(0);
+
+  const getTokenInfo = (tokenAddress: string) => {
+    const token = TOKEN_LIST.find(t => t.address.toLowerCase() === tokenAddress.toLowerCase());
+    return {
+      symbol: token?.symbol || 'Unknown',
+      logo: token?.logo || '/tokens/pc.png',
+    };
+  };
 
   const fetchPortfolio = async () => {
     if (!address) {
@@ -89,7 +125,6 @@ const Portfolio = () => {
           const balanceRaw = balancesMap.get(token.address.toLowerCase()) || 0n;
           const balanceFormatted = formatAmount(balanceRaw, token.decimals);
           const balanceNum = parseFloat(balanceFormatted);
-          // Mock USD values based on token symbol
           const mockPrices: Record<string, number> = {
             'WPC': 1.5,
             'ETH': 2300,
@@ -114,18 +149,38 @@ const Portfolio = () => {
       
       setTokenBalances(balances);
       
-      // Fetch LP positions
+      // Fetch LP positions, staking, and farming in parallel
+      const [lpData, stakingData, farmingData] = await Promise.all([
+        fetchLPPositions(provider, address, total),
+        fetchStakingPositions(provider, address),
+        fetchFarmingPositions(provider, address),
+      ]);
+      
+      setLpPositions(lpData.positions);
+      setStakingPositions(stakingData.positions);
+      setFarmingPositions(farmingData.positions);
+      
+      total += lpData.totalValue + stakingData.totalValue + farmingData.totalValue;
+      setTotalValue(total);
+    } catch (error) {
+      console.error('Error fetching portfolio:', error);
+      toast.error('Failed to fetch portfolio data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchLPPositions = async (provider: ethers.JsonRpcProvider, userAddress: string, currentTotal: number) => {
+    let totalValue = 0;
+    try {
       const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
       const pairsLength = await factory.allPairsLength();
       
-      // Get all pair addresses first
       const pairAddressPromises = [];
       for (let i = 0; i < Number(pairsLength); i++) {
         pairAddressPromises.push(factory.allPairs(i));
       }
       const pairAddresses = await Promise.all(pairAddressPromises);
-      
-      // Get reserves for all pairs
       const reservesMap = await getMultiplePairReserves(pairAddresses);
       
       const lpPromises = pairAddresses.map(async (pairAddress) => {
@@ -133,7 +188,7 @@ const Portfolio = () => {
           const pair = getPairContract(pairAddress, provider);
           
           const [userBalance, totalSupply, token0, token1] = await Promise.all([
-            pair.balanceOf(address),
+            pair.balanceOf(userAddress),
             pair.totalSupply(),
             pair.token0(),
             pair.token1(),
@@ -148,7 +203,6 @@ const Portfolio = () => {
           const share = totalSupply > 0n ? (userBalance * 10000n / totalSupply) : 0n;
           const sharePercent = Number(share) / 100;
           
-          // Calculate user's share of reserves
           const reserve0 = reserves?.reserve0 || 0n;
           const reserve1 = reserves?.reserve1 || 0n;
           const userReserve0 = (reserve0 * userBalance) / (totalSupply || 1n);
@@ -157,17 +211,13 @@ const Portfolio = () => {
           const token0Amount = formatAmount(userReserve0, token0Info?.decimals || 18);
           const token1Amount = formatAmount(userReserve1, token1Info?.decimals || 18);
           
-          // Calculate USD value based on reserves
           const mockPrices: Record<string, number> = {
-            'WPC': 1.5,
-            'ETH': 2300,
-            'BNB': 580,
-            'PSDX': 0.85,
+            'WPC': 1.5, 'ETH': 2300, 'BNB': 580, 'PSDX': 0.85,
           };
           const price0 = mockPrices[token0Info?.symbol || ''] || 1;
           const price1 = mockPrices[token1Info?.symbol || ''] || 1;
           const usdValue = parseFloat(token0Amount) * price0 + parseFloat(token1Amount) * price1;
-          total += usdValue;
+          totalValue += usdValue;
           
           return {
             pairAddress,
@@ -181,20 +231,141 @@ const Portfolio = () => {
             token0Amount,
             token1Amount,
           };
-        } catch (error) {
+        } catch {
           return null;
         }
       });
       
       const positions = await Promise.all(lpPromises);
-      setLpPositions(positions.filter((p): p is LPPosition => p !== null));
-      setTotalValue(total);
-    } catch (error) {
-      console.error('Error fetching portfolio:', error);
-      toast.error('Failed to fetch portfolio data');
-    } finally {
-      setIsLoading(false);
+      return { positions: positions.filter((p): p is LPPosition => p !== null), totalValue };
+    } catch {
+      return { positions: [], totalValue: 0 };
     }
+  };
+
+  const fetchStakingPositions = async (provider: ethers.JsonRpcProvider, userAddress: string) => {
+    const positions: StakingPosition[] = [];
+    let totalValue = 0;
+    
+    try {
+      const stakingContract = new ethers.Contract(CONTRACTS.STAKING, STAKING_ABI, provider);
+      
+      // Find pools with user stakes
+      for (let i = 0; i < 20; i++) {
+        try {
+          const poolData = await stakingContract.pools(i);
+          const userStakeData = await stakingContract.userStakes(i, userAddress);
+          const userStaked = userStakeData[0];
+          
+          if (userStaked > BigInt(0)) {
+            const tokenAddress = poolData[0];
+            const apr = Number(poolData[1]);
+            const lockPeriod = Number(poolData[2]);
+            const tokenInfo = getTokenInfo(tokenAddress);
+            
+            let pendingReward = BigInt(0);
+            try {
+              pendingReward = await stakingContract.pendingReward(i, userAddress);
+            } catch {}
+            
+            const currentTime = BigInt(Math.floor(Date.now() / 1000));
+            const unlockTime = userStakeData[1] + BigInt(lockPeriod);
+            const canUnstake = lockPeriod === 0 || currentTime >= unlockTime;
+            
+            const stakedFormatted = ethers.formatEther(userStaked);
+            const mockPrices: Record<string, number> = {
+              'PC': 1.5, 'WPC': 1.5, 'ETH': 2300, 'BNB': 580, 'PSDX': 0.85,
+            };
+            const price = mockPrices[tokenInfo.symbol] || 1;
+            const usdValue = parseFloat(stakedFormatted) * price;
+            totalValue += usdValue;
+            
+            positions.push({
+              poolId: i,
+              tokenSymbol: tokenInfo.symbol,
+              tokenLogo: tokenInfo.logo,
+              stakedAmount: stakedFormatted,
+              pendingReward: ethers.formatEther(pendingReward),
+              apr,
+              lockPeriodDays: Math.floor(lockPeriod / 86400),
+              canUnstake,
+              usdValue,
+            });
+          }
+        } catch {
+          break; // No more pools
+        }
+      }
+    } catch {
+      // Staking contract not available
+    }
+    
+    return { positions, totalValue };
+  };
+
+  const fetchFarmingPositions = async (provider: ethers.JsonRpcProvider, userAddress: string) => {
+    const positions: FarmingPosition[] = [];
+    let totalValue = 0;
+    
+    try {
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
+      
+      const [poolLength, rewardToken] = await Promise.all([
+        farmingContract.poolLength(),
+        farmingContract.rewardToken(),
+      ]);
+      
+      const rewardInfo = getTokenInfo(rewardToken);
+      
+      for (let i = 0; i < Number(poolLength); i++) {
+        try {
+          const userInfo = await farmingContract.userInfo(i, userAddress);
+          const userStaked = userInfo[0];
+          
+          if (userStaked > BigInt(0)) {
+            const poolInfo = await farmingContract.poolInfo(i);
+            const lpToken = poolInfo[0];
+            
+            const lpContract = new ethers.Contract(lpToken, PAIR_ABI, provider);
+            const [token0, token1] = await Promise.all([
+              lpContract.token0(),
+              lpContract.token1(),
+            ]);
+            
+            const token0Info = getTokenInfo(token0);
+            const token1Info = getTokenInfo(token1);
+            
+            let pendingReward = BigInt(0);
+            try {
+              pendingReward = await farmingContract.pendingReward(i, userAddress);
+            } catch {}
+            
+            const stakedFormatted = ethers.formatEther(userStaked);
+            // Estimate LP value (simplified)
+            const usdValue = parseFloat(stakedFormatted) * 10; // Rough estimate
+            totalValue += usdValue;
+            
+            positions.push({
+              pid: i,
+              lpSymbol: `${token0Info.symbol}-${token1Info.symbol} LP`,
+              token0Logo: token0Info.logo,
+              token1Logo: token1Info.logo,
+              stakedAmount: stakedFormatted,
+              pendingReward: ethers.formatEther(pendingReward),
+              rewardSymbol: rewardInfo.symbol,
+              apr: 0, // Would need more calculation
+              usdValue,
+            });
+          }
+        } catch {
+          // Skip this pool
+        }
+      }
+    } catch {
+      // Farming contract not available
+    }
+    
+    return { positions, totalValue };
   };
 
   useEffect(() => {
@@ -241,6 +412,14 @@ const Portfolio = () => {
   const lpValue = useMemo(() => {
     return lpPositions.reduce((sum, lp) => sum + lp.usdValue, 0);
   }, [lpPositions]);
+
+  const stakingValue = useMemo(() => {
+    return stakingPositions.reduce((sum, s) => sum + s.usdValue, 0);
+  }, [stakingPositions]);
+
+  const farmingValue = useMemo(() => {
+    return farmingPositions.reduce((sum, f) => sum + f.usdValue, 0);
+  }, [farmingPositions]);
 
   const copyAddress = () => {
     if (address) {
@@ -298,12 +477,12 @@ const Portfolio = () => {
           ) : (
             <div className="space-y-6">
               {/* Portfolio Overview Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in">
-                <div className="glass-card p-6 md:col-span-2">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 animate-fade-in">
+                <div className="glass-card p-6 col-span-2 md:col-span-2">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <div className="text-sm text-muted-foreground mb-1">Total Portfolio Value</div>
-                      <div className="text-4xl font-bold gradient-text">
+                      <div className="text-3xl md:text-4xl font-bold gradient-text">
                         ${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </div>
                     </div>
@@ -340,29 +519,42 @@ const Portfolio = () => {
                   </div>
                 </div>
                 
-                <div className="glass-card p-6">
+                <div className="glass-card p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Coins className="w-5 h-5 text-primary" />
-                    <span className="text-sm text-muted-foreground">Token Holdings</span>
+                    <Coins className="w-4 h-4 text-primary" />
+                    <span className="text-xs text-muted-foreground">Tokens</span>
                   </div>
-                  <div className="text-2xl font-bold">
-                    ${tokenValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  <div className="text-xl font-bold">
+                    ${tokenValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <div className="text-xs text-muted-foreground">
                     {tokenBalances.length + (nativeBalance > 0 ? 1 : 0)} tokens
                   </div>
                 </div>
                 
-                <div className="glass-card p-6">
+                <div className="glass-card p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Droplets className="w-5 h-5 text-accent" />
-                    <span className="text-sm text-muted-foreground">LP Positions</span>
+                    <Lock className="w-4 h-4 text-warning" />
+                    <span className="text-xs text-muted-foreground">Staking</span>
                   </div>
-                  <div className="text-2xl font-bold">
-                    ${lpValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  <div className="text-xl font-bold">
+                    ${stakingValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {lpPositions.length} positions
+                  <div className="text-xs text-muted-foreground">
+                    {stakingPositions.length} pools
+                  </div>
+                </div>
+                
+                <div className="glass-card p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sprout className="w-4 h-4 text-success" />
+                    <span className="text-xs text-muted-foreground">Farming</span>
+                  </div>
+                  <div className="text-xl font-bold">
+                    ${farmingValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {farmingPositions.length} farms
                   </div>
                 </div>
               </div>
@@ -544,6 +736,77 @@ const Portfolio = () => {
                       </div>
                     )}
                   </div>
+
+                  {/* Staking Positions */}
+                  {stakingPositions.length > 0 && (
+                    <div className="glass-card p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-5 h-5 text-warning" />
+                          <h2 className="text-xl font-bold">Staking Positions</h2>
+                        </div>
+                        <Link to="/staking">
+                          <Button variant="outline" size="sm">Manage</Button>
+                        </Link>
+                      </div>
+                      <div className="space-y-3">
+                        {stakingPositions.map((pos) => (
+                          <div key={pos.poolId} className="p-4 rounded-xl bg-surface border border-border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <img src={pos.tokenLogo} alt={pos.tokenSymbol} className="w-10 h-10 rounded-full" />
+                                <div>
+                                  <div className="font-semibold">{pos.tokenSymbol}</div>
+                                  <div className="text-sm text-muted-foreground">{pos.apr}% APR</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold">{parseFloat(pos.stakedAmount).toFixed(4)}</div>
+                                <div className="text-sm text-primary">+{parseFloat(pos.pendingReward).toFixed(4)} earned</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Farming Positions */}
+                  {farmingPositions.length > 0 && (
+                    <div className="glass-card p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-2">
+                          <Sprout className="w-5 h-5 text-success" />
+                          <h2 className="text-xl font-bold">Farming Positions</h2>
+                        </div>
+                        <Link to="/farming">
+                          <Button variant="outline" size="sm">Manage</Button>
+                        </Link>
+                      </div>
+                      <div className="space-y-3">
+                        {farmingPositions.map((pos) => (
+                          <div key={pos.pid} className="p-4 rounded-xl bg-surface border border-border">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="flex -space-x-2">
+                                  <img src={pos.token0Logo} className="w-8 h-8 rounded-full border-2 border-background" />
+                                  <img src={pos.token1Logo} className="w-8 h-8 rounded-full border-2 border-background" />
+                                </div>
+                                <div>
+                                  <div className="font-semibold">{pos.lpSymbol}</div>
+                                  <div className="text-sm text-muted-foreground">{parseFloat(pos.stakedAmount).toFixed(4)} LP</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-primary">+{parseFloat(pos.pendingReward).toFixed(4)}</div>
+                                <div className="text-sm text-muted-foreground">{pos.rewardSymbol} earned</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sidebar */}

@@ -72,15 +72,31 @@ export const useStaking = () => {
       
       const contract = getReadOnlyContract();
       const provider = getProvider();
-      const pools: StakingPoolInfo[] = [];
       
-      // The contract doesn't have a poolLength function, so we'll try to fetch pools until we get an error
+      // First, quickly discover how many pools exist
+      const poolIndices: number[] = [];
       let poolIndex = 0;
       let hasMore = true;
       
-      while (hasMore && poolIndex < 50) { // Max 50 pools to prevent infinite loop
+      while (hasMore && poolIndex < 50) {
         try {
-          const poolData = await contract.pools(poolIndex);
+          await contract.pools(poolIndex);
+          poolIndices.push(poolIndex);
+          poolIndex++;
+        } catch {
+          hasMore = false;
+        }
+      }
+      
+      if (poolIndices.length === 0) {
+        setState({ pools: [], isLoading: false, error: null, poolCount: 0 });
+        return;
+      }
+      
+      // Fetch all pools data in parallel
+      const poolDataPromises = poolIndices.map(async (idx) => {
+        try {
+          const poolData = await contract.pools(idx);
           const tokenAddress = poolData[0];
           const apr = Number(poolData[1]);
           const lockPeriod = Number(poolData[2]);
@@ -88,19 +104,20 @@ export const useStaking = () => {
           const totalStaked = poolData[4];
           const isActive = poolData[5];
           
-          // Get token info
           const tokenInfo = getTokenInfo(tokenAddress);
-          
-          // Try to get symbol from contract if not in our list
           let symbol = tokenInfo.symbol;
           let name = tokenInfo.name;
-          if (symbol === 'Unknown') {
+          
+          // Only call contract if token not in our list
+          if (symbol === 'Unknown' && tokenAddress !== '0x0000000000000000000000000000000000000000') {
             try {
               const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-              symbol = await tokenContract.symbol();
-              name = await tokenContract.name();
-            } catch (e) {
-              console.log('Error fetching token info:', e);
+              [symbol, name] = await Promise.all([
+                tokenContract.symbol(),
+                tokenContract.name()
+              ]);
+            } catch {
+              // Keep defaults
             }
           }
           
@@ -112,30 +129,26 @@ export const useStaking = () => {
           
           if (isConnected && address) {
             try {
-              const userStakeData = await contract.userStakes(poolIndex, address);
+              const [userStakeData, pendingReward] = await Promise.all([
+                contract.userStakes(idx, address),
+                contract.pendingReward(idx, address).catch(() => BigInt(0))
+              ]);
               userStaked = userStakeData[0];
               userStartTime = userStakeData[1];
+              userPendingReward = pendingReward;
               
-              // Check pending reward
-              try {
-                userPendingReward = await contract.pendingReward(poolIndex, address);
-              } catch (e) {
-                console.log('Error fetching pending reward:', e);
-              }
-              
-              // Check if lock period has passed
               if (userStaked > BigInt(0) && lockPeriod > 0) {
                 const currentTime = BigInt(Math.floor(Date.now() / 1000));
                 const unlockTime = userStartTime + BigInt(lockPeriod);
                 canUnstake = currentTime >= unlockTime;
               }
-            } catch (e) {
-              console.log('Error fetching user stake info:', e);
+            } catch {
+              // Keep defaults
             }
           }
           
-          pools.push({
-            id: poolIndex,
+          return {
+            id: idx,
             tokenAddress,
             tokenSymbol: symbol,
             tokenName: name,
@@ -147,18 +160,18 @@ export const useStaking = () => {
             userPendingReward,
             userStartTime,
             lockPeriod,
-            lockPeriodDays: Math.floor(lockPeriod / 86400), // Convert seconds to days
+            lockPeriodDays: Math.floor(lockPeriod / 86400),
             minStake,
             isActive,
             canUnstake,
-          });
-          
-          poolIndex++;
-        } catch (e: any) {
-          // If we get an error, assume no more pools
-          hasMore = false;
+          };
+        } catch {
+          return null;
         }
-      }
+      });
+      
+      const poolResults = await Promise.all(poolDataPromises);
+      const pools: StakingPoolInfo[] = poolResults.filter((p) => p !== null) as StakingPoolInfo[];
 
       setState({
         pools,
