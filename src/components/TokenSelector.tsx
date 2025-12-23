@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TOKEN_LIST, TokenInfo } from '@/config/contracts';
+import React, { useState, useEffect, useCallback } from 'react';
+import { TOKEN_LIST, TokenInfo, RPC_URL } from '@/config/contracts';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useWallet } from '@/contexts/WalletContext';
+import { ethers } from 'ethers';
 
 interface TokenSelectorProps {
   selectedToken: TokenInfo;
@@ -18,6 +20,11 @@ interface TokenSelectorProps {
   excludeToken?: TokenInfo;
   label?: string;
 }
+
+const ERC20_ABI = [
+  'function balanceOf(address account) view returns (uint256)',
+  'function decimals() view returns (uint8)',
+];
 
 export const TokenSelector: React.FC<TokenSelectorProps> = ({
   selectedToken,
@@ -27,6 +34,61 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [balances, setBalances] = useState<Record<string, string>>({});
+  const [loadingBalances, setLoadingBalances] = useState(false);
+  const { address, isConnected } = useWallet();
+
+  const fetchBalances = useCallback(async () => {
+    if (!address || !isConnected) {
+      setBalances({});
+      return;
+    }
+
+    setLoadingBalances(true);
+    try {
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const balanceMap: Record<string, string> = {};
+
+      // Fetch all balances in parallel
+      const balancePromises = TOKEN_LIST.map(async (token) => {
+        try {
+          let balance: bigint;
+          
+          if (token.address === '0x0000000000000000000000000000000000000000' || (token as any).isNative) {
+            // Native token (PC)
+            balance = await provider.getBalance(address);
+          } else {
+            // ERC20 token
+            const contract = new ethers.Contract(token.address, ERC20_ABI, provider);
+            balance = await contract.balanceOf(address);
+          }
+          
+          const formatted = ethers.formatUnits(balance, token.decimals);
+          // Format to 4 decimal places
+          const num = parseFloat(formatted);
+          balanceMap[token.address || token.symbol] = num > 0 ? 
+            (num < 0.0001 ? '<0.0001' : num.toFixed(4)) : '0';
+        } catch (error) {
+          console.error(`Error fetching balance for ${token.symbol}:`, error);
+          balanceMap[token.address || token.symbol] = '0';
+        }
+      });
+
+      await Promise.all(balancePromises);
+      setBalances(balanceMap);
+    } catch (error) {
+      console.error('Error fetching balances:', error);
+    } finally {
+      setLoadingBalances(false);
+    }
+  }, [address, isConnected]);
+
+  // Fetch balances when dialog opens
+  useEffect(() => {
+    if (isOpen && isConnected) {
+      fetchBalances();
+    }
+  }, [isOpen, isConnected, fetchBalances]);
 
   const filteredTokens = TOKEN_LIST.filter((token) => {
     if (excludeToken && token.address === excludeToken.address) return false;
@@ -42,6 +104,8 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
     setIsOpen(false);
     setSearch('');
   };
+
+  const getTokenKey = (token: TokenInfo) => token.address || token.symbol;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -83,7 +147,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
           <div className="max-h-[300px] overflow-y-auto space-y-1">
             {filteredTokens.map((token) => (
               <button
-                key={token.address || token.symbol}
+                key={getTokenKey(token)}
                 onClick={() => handleSelect(token)}
                 className={cn(
                   'w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200',
@@ -103,9 +167,21 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                     {token.symbol.charAt(0)}
                   </div>
                 )}
-                <div className="text-left">
+                <div className="text-left flex-1">
                   <div className="font-semibold">{token.symbol}</div>
                   <div className="text-sm text-muted-foreground">{token.name}</div>
+                </div>
+                {/* Balance display */}
+                <div className="text-right">
+                  {loadingBalances ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  ) : isConnected ? (
+                    <span className="text-sm text-muted-foreground">
+                      {balances[getTokenKey(token)] || '0'}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">-</span>
+                  )}
                 </div>
               </button>
             ))}
