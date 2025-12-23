@@ -42,6 +42,7 @@ interface FarmCardProps {
   onHarvest: (pid: number) => Promise<boolean>;
   onEmergencyWithdraw: (pid: number) => Promise<boolean>;
   getLpBalance: (lpToken: string) => Promise<string>;
+  onRefresh: () => void;
   isStaking: boolean;
   isUnstaking: boolean;
   isHarvesting: boolean;
@@ -56,6 +57,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   onHarvest,
   onEmergencyWithdraw,
   getLpBalance,
+  onRefresh,
   isStaking,
   isUnstaking,
   isHarvesting,
@@ -84,6 +86,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
     const success = await onStake(pool.pid, stakeAmount);
     if (success) {
       setStakeAmount('');
+      onRefresh();
       const balance = await getLpBalance(pool.lpToken);
       setLpBalance(balance);
     }
@@ -94,11 +97,15 @@ export const FarmCard: React.FC<FarmCardProps> = ({
     const success = await onUnstake(pool.pid, unstakeAmount);
     if (success) {
       setUnstakeAmount('');
+      onRefresh();
     }
   };
 
   const handleHarvest = async () => {
-    await onHarvest(pool.pid);
+    const success = await onHarvest(pool.pid);
+    if (success) {
+      onRefresh();
+    }
   };
 
   const userStakedFormatted = ethers.formatEther(pool.userStaked);

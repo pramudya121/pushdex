@@ -181,6 +181,13 @@ export const useStaking = () => {
     
     try {
       const provider = getProvider();
+      
+      // Check if it's native token (PC)
+      if (tokenAddress === '0x0000000000000000000000000000000000000000') {
+        const balance = await provider.getBalance(address);
+        return ethers.formatEther(balance);
+      }
+      
       const tokenContract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
       const balance = await tokenContract.balanceOf(address);
       return ethers.formatEther(balance);
@@ -204,6 +211,12 @@ export const useStaking = () => {
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
+      // Check if user already staking
+      if (pool.userStaked > BigInt(0)) {
+        toast.error('You are already staking in this pool. Unstake first before staking again.');
+        return false;
+      }
+
       const amountWei = ethers.parseEther(amount);
 
       // Check minimum stake
@@ -212,33 +225,44 @@ export const useStaking = () => {
         return false;
       }
 
-      // First approve token
-      const tokenContract = new ethers.Contract(pool.tokenAddress, ERC20_ABI, signer);
-      const allowance = await tokenContract.allowance(address, CONTRACTS.STAKING);
-      
-      if (allowance < amountWei) {
-        toast.info('Approving token...');
-        const approveTx = await tokenContract.approve(CONTRACTS.STAKING, ethers.MaxUint256);
-        await approveTx.wait();
-        toast.success('Token approved!');
+      // Check if it's native token (PC)
+      const isNativeToken = pool.tokenAddress === '0x0000000000000000000000000000000000000000';
+
+      if (!isNativeToken) {
+        // Approve ERC20 token
+        const tokenContract = new ethers.Contract(pool.tokenAddress, ERC20_ABI, signer);
+        const allowance = await tokenContract.allowance(address, CONTRACTS.STAKING);
+        
+        if (allowance < amountWei) {
+          toast.info('Approving token...');
+          const approveTx = await tokenContract.approve(CONTRACTS.STAKING, ethers.MaxUint256);
+          await approveTx.wait();
+          toast.success('Token approved!');
+        }
       }
 
       // Stake
       toast.info('Staking tokens...');
-      const tx = await contract.stake(poolId, amountWei);
+      const tx = isNativeToken 
+        ? await contract.stake(poolId, amountWei, { value: amountWei })
+        : await contract.stake(poolId, amountWei);
       await tx.wait();
       
       toast.success(`Successfully staked ${amount} ${pool.tokenSymbol}!`);
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Stake error:', error);
-      toast.error(error.reason || error.message || 'Failed to stake');
+      const errorMessage = error.reason || error.message || 'Failed to stake';
+      if (errorMessage.includes('Already staking')) {
+        toast.error('You are already staking in this pool. Unstake first before staking again.');
+      } else {
+        toast.error(errorMessage);
+      }
       return false;
     } finally {
       setIsStaking(false);
     }
-  }, [signer, address, getStakingContract, state.pools, fetchPools]);
+  }, [signer, address, getStakingContract, state.pools]);
 
   const unstake = useCallback(async (poolId: number) => {
     if (!signer || !address) {
@@ -266,7 +290,6 @@ export const useStaking = () => {
       await tx.wait();
       
       toast.success(`Successfully unstaked ${pool.tokenSymbol}!`);
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -275,7 +298,7 @@ export const useStaking = () => {
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, getStakingContract, state.pools, fetchPools]);
+  }, [signer, address, getStakingContract, state.pools]);
 
   const claimRewards = useCallback(async (poolId: number) => {
     if (!signer || !address) {
@@ -292,14 +315,12 @@ export const useStaking = () => {
       if (!pool) throw new Error('Pool not found');
 
       // The contract uses unstake to claim rewards along with principal
-      // Since there's no separate claim function, we inform the user
       toast.info('Rewards are claimed when you unstake. Unstaking now...');
       
       const tx = await contract.unstake(poolId);
       await tx.wait();
       
       toast.success('Successfully claimed rewards and unstaked!');
-      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Claim error:', error);
@@ -308,7 +329,7 @@ export const useStaking = () => {
     } finally {
       setIsClaiming(false);
     }
-  }, [signer, address, getStakingContract, state.pools, fetchPools]);
+  }, [signer, address, getStakingContract, state.pools]);
 
   const getUnlockTime = useCallback((pool: StakingPoolInfo): Date | null => {
     if (pool.userStaked === BigInt(0) || pool.lockPeriod === 0) return null;
@@ -335,9 +356,10 @@ export const useStaking = () => {
 
   useEffect(() => {
     fetchPools();
-    const interval = setInterval(fetchPools, 30000); // Refresh every 30 seconds
+    // Refresh every 60 seconds to reduce auto-refresh frequency
+    const interval = setInterval(fetchPools, 60000);
     return () => clearInterval(interval);
-  }, [fetchPools]);
+  }, [isConnected, address]);
 
   return {
     ...state,

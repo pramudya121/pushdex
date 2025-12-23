@@ -314,6 +314,7 @@ const Staking: React.FC = () => {
                 onClaim={claimRewards}
                 getTokenBalance={getTokenBalance}
                 getRemainingLockTime={getRemainingLockTime}
+                onRefresh={refreshPools}
                 isStaking={isStaking}
                 isUnstaking={isUnstaking}
                 isClaiming={isClaiming}
