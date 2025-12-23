@@ -192,85 +192,88 @@ export const useFarming = () => {
         return;
       }
 
-      // Get reward token info - try TOKEN_LIST first
+      // Get reward token info
       let rewardTokenSymbol = getTokenSymbol(rewardToken) || 'REWARD';
       let rewardTokenLogo = getTokenLogo(rewardToken);
       
-      // Only call contract if not found in TOKEN_LIST
       if (rewardTokenSymbol === 'REWARD') {
         try {
           const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
           rewardTokenSymbol = await rewardTokenContract.symbol();
-        } catch (e) {
-          console.log('Error fetching reward token symbol:', e);
+        } catch {
+          // Keep default
         }
       }
 
-      const pools: PoolInfo[] = [];
       const farmPoolAddresses: string[] = [];
       
-      for (let i = 0; i < Number(poolLength); i++) {
+      // Fetch all pool info in parallel
+      const poolPromises = Array.from({ length: Number(poolLength) }, async (_, i) => {
         try {
           const poolInfo = await contract.poolInfo(i);
           const lpTokenAddress = poolInfo[0];
-          farmPoolAddresses.push(lpTokenAddress);
+          farmPoolAddresses[i] = lpTokenAddress;
           
-          // Get LP token info
           const lpContract = new ethers.Contract(lpTokenAddress, PAIR_ABI, provider);
           
-          const [token0, token1, totalStaked] = await Promise.all([
+          const [token0, token1, lpTotalStaked] = await Promise.all([
             lpContract.token0(),
             lpContract.token1(),
             lpContract.balanceOf(CONTRACTS.FARMING),
           ]);
 
-          // Get token symbols
-          const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
-          const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
-          
-          // Try to get symbol from TOKEN_LIST first, then from contract
+          // Get token symbols in parallel
           const token0SymbolFromList = getTokenSymbol(token0);
           const token1SymbolFromList = getTokenSymbol(token1);
           
-          const [token0Symbol, token1Symbol] = await Promise.all([
-            token0SymbolFromList ? Promise.resolve(token0SymbolFromList) : token0Contract.symbol().catch(() => 'Unknown'),
-            token1SymbolFromList ? Promise.resolve(token1SymbolFromList) : token1Contract.symbol().catch(() => 'Unknown'),
-          ]);
+          let token0Symbol = token0SymbolFromList;
+          let token1Symbol = token1SymbolFromList;
+          
+          if (!token0Symbol || !token1Symbol) {
+            const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
+            const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
+            const [s0, s1] = await Promise.all([
+              token0Symbol ? Promise.resolve(token0Symbol) : token0Contract.symbol().catch(() => 'Unknown'),
+              token1Symbol ? Promise.resolve(token1Symbol) : token1Contract.symbol().catch(() => 'Unknown'),
+            ]);
+            token0Symbol = s0;
+            token1Symbol = s1;
+          }
 
           let userStaked = BigInt(0);
           let userPendingReward = BigInt(0);
 
           if (isConnected && address) {
             try {
-              const userInfo = await contract.userInfo(i, address);
+              const [userInfo, pending] = await Promise.all([
+                contract.userInfo(i, address),
+                contract.pendingReward(i, address).catch(() => BigInt(0))
+              ]);
               userStaked = userInfo[0];
-              userPendingReward = await contract.pendingReward(i, address);
-            } catch (e) {
-              console.log('Error fetching user info:', e);
+              userPendingReward = pending;
+            } catch {
+              // Keep defaults
             }
           }
 
-          // Calculate APR (simplified)
           const poolAllocPoint = poolInfo[1];
           const multiplier = totalAllocPoint > 0 
             ? `${(Number(poolAllocPoint) / Number(totalAllocPoint) * 100).toFixed(0)}x`
             : '0x';
           
-          // APR calculation: (rewardPerBlock * blocksPerYear * poolWeight) / totalStaked * 100
-          // Assuming ~3 seconds per block on Push testnet
           const blocksPerYear = 31536000 / 3;
-          const apr = totalAllocPoint > 0 && totalStaked > 0 
-            ? (Number(rewardPerBlock) * Number(poolAllocPoint) * blocksPerYear / Number(totalAllocPoint) / Number(totalStaked)) * 100
+          const apr = totalAllocPoint > 0 && lpTotalStaked > 0 
+            ? (Number(rewardPerBlock) * Number(poolAllocPoint) * blocksPerYear / Number(totalAllocPoint) / Number(lpTotalStaked)) * 100
             : 0;
 
-          pools.push({
+          return {
             pid: i,
             lpToken: lpTokenAddress,
             allocPoint: poolInfo[1],
             lastRewardBlock: poolInfo[2],
             accRewardPerShare: poolInfo[3],
-            token0Symbol,
-            token1Symbol,
+            token0Symbol: token0Symbol || 'Unknown',
+            token1Symbol: token1Symbol || 'Unknown',
             token0Address: token0,
             token1Address: token1,
             token0Logo: getTokenLogo(token0),
@@ -278,17 +281,21 @@ export const useFarming = () => {
             lpSymbol: `${token0Symbol}-${token1Symbol} LP`,
             userStaked,
             userPendingReward,
-            totalStaked,
+            totalStaked: lpTotalStaked,
             apr: isFinite(apr) ? Math.min(apr, 99999) : 0,
             multiplier,
-          });
+          };
         } catch (e) {
           console.log(`Error fetching pool ${i}:`, e);
+          return null;
         }
-      }
+      });
+      
+      const poolResults = await Promise.all(poolPromises);
+      const pools: PoolInfo[] = poolResults.filter((p): p is PoolInfo => p !== null);
 
       // Fetch user LP positions
-      const userLPPositions = await fetchUserLPPositions(farmPoolAddresses);
+      const userLPPositions = await fetchUserLPPositions(farmPoolAddresses.filter(Boolean));
 
       setState({
         pools,
