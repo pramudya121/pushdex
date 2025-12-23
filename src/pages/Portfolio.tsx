@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
@@ -25,7 +25,8 @@ import {
   BarChart3,
   Coins,
   Sprout,
-  Lock
+  Lock,
+  Gift
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -78,12 +79,13 @@ interface FarmingPosition {
 }
 
 const Portfolio = () => {
-  const { address, isConnected, balance } = useWallet();
+  const { address, isConnected, balance, signer, isCorrectNetwork, switchNetwork } = useWallet();
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [lpPositions, setLpPositions] = useState<LPPosition[]>([]);
   const [stakingPositions, setStakingPositions] = useState<StakingPosition[]>([]);
   const [farmingPositions, setFarmingPositions] = useState<FarmingPosition[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHarvesting, setIsHarvesting] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
   const [nativeBalance, setNativeBalance] = useState(0);
 
@@ -368,6 +370,83 @@ const Portfolio = () => {
     return { positions, totalValue };
   };
 
+  // Calculate total pending rewards
+  const totalPendingRewards = useMemo(() => {
+    const stakingRewards = stakingPositions.reduce((sum, pos) => sum + parseFloat(pos.pendingReward), 0);
+    const farmingRewards = farmingPositions.reduce((sum, pos) => sum + parseFloat(pos.pendingReward), 0);
+    return stakingRewards + farmingRewards;
+  }, [stakingPositions, farmingPositions]);
+
+  // Harvest all rewards from staking and farming
+  const harvestAll = useCallback(async () => {
+    if (!signer || !address) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    if (!isCorrectNetwork) {
+      const switched = await switchNetwork();
+      if (!switched) return;
+    }
+
+    setIsHarvesting(true);
+    const toastId = toast.loading('Harvesting all rewards...');
+    
+    try {
+      const stakingContract = new ethers.Contract(CONTRACTS.STAKING, STAKING_ABI, signer);
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
+      
+      const txPromises: Promise<any>[] = [];
+      
+      // Claim staking rewards (using unstake with 0 or claimReward if available)
+      for (const pos of stakingPositions) {
+        if (parseFloat(pos.pendingReward) > 0) {
+          try {
+            // Try claimReward first
+            const tx = stakingContract.claimReward(pos.poolId);
+            txPromises.push(tx);
+          } catch {
+            // If claimReward doesn't exist, we can't harvest without unstaking
+            console.log(`Staking pool ${pos.poolId} requires unstake to claim rewards`);
+          }
+        }
+      }
+      
+      // Harvest farming rewards (deposit 0 to claim)
+      for (const pos of farmingPositions) {
+        if (parseFloat(pos.pendingReward) > 0) {
+          const tx = farmingContract.deposit(pos.pid, 0);
+          txPromises.push(tx);
+        }
+      }
+      
+      if (txPromises.length === 0) {
+        toast.dismiss(toastId);
+        toast.info('No pending rewards to harvest');
+        setIsHarvesting(false);
+        return;
+      }
+      
+      // Wait for all transactions to be sent
+      const txs = await Promise.all(txPromises);
+      
+      // Wait for all transactions to be confirmed
+      await Promise.all(txs.map(tx => tx.wait()));
+      
+      toast.dismiss(toastId);
+      toast.success(`Successfully harvested rewards from ${txs.length} pools!`);
+      
+      // Refresh portfolio data
+      fetchPortfolio();
+    } catch (error: any) {
+      console.error('Harvest all error:', error);
+      toast.dismiss(toastId);
+      toast.error(error.reason || error.message || 'Failed to harvest rewards');
+    } finally {
+      setIsHarvesting(false);
+    }
+  }, [signer, address, isCorrectNetwork, switchNetwork, stakingPositions, farmingPositions]);
+
   useEffect(() => {
     fetchPortfolio();
   }, [address]);
@@ -476,6 +555,42 @@ const Portfolio = () => {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Harvest All Button - Show if there are pending rewards */}
+              {totalPendingRewards > 0 && (
+                <div className="glass-card p-4 animate-fade-in border-primary/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-xl bg-primary/10">
+                        <Gift className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Total Pending Rewards</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {totalPendingRewards.toFixed(4)} tokens
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={harvestAll}
+                      disabled={isHarvesting}
+                      className="gap-2 bg-primary hover:bg-primary/90"
+                    >
+                      {isHarvesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Harvesting...
+                        </>
+                      ) : (
+                        <>
+                          <Gift className="w-4 h-4" />
+                          Harvest All
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Portfolio Overview Cards */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 animate-fade-in">
                 <div className="glass-card p-6 col-span-2 md:col-span-2">
