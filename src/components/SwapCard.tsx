@@ -308,25 +308,58 @@ export const SwapCard: React.FC = () => {
 
       {/* Price Info */}
       {amountIn && amountOut && !error && (
-        <div className="mt-4 p-3 rounded-xl bg-surface border border-border space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Rate</span>
-            <span>
-              1 {tokenIn.symbol} = {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Price Impact</span>
-            <span className={cn(
-              priceImpact > 3 && 'text-warning',
-              priceImpact > 5 && 'text-destructive'
-            )}>
-              {priceImpact > 0 ? `~${priceImpact.toFixed(2)}%` : '-'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Slippage</span>
-            <span>{slippage}%</span>
+        <div className="mt-4 space-y-2">
+          {/* High Price Impact Warning */}
+          {priceImpact > 5 && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/30">
+              <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">High Price Impact!</p>
+                <p className="text-xs text-destructive/80">This trade will move the price significantly. Consider trading a smaller amount.</p>
+              </div>
+            </div>
+          )}
+          
+          {priceImpact > 3 && priceImpact <= 5 && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-warning/10 border border-warning/30">
+              <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
+              <p className="text-xs text-warning">Price impact is high ({priceImpact.toFixed(2)}%). Proceed with caution.</p>
+            </div>
+          )}
+          
+          <div className="p-3 rounded-xl bg-surface border border-border space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Rate</span>
+              <span>
+                1 {tokenIn.symbol} = {(parseFloat(amountOut) / parseFloat(amountIn)).toFixed(6)} {tokenOut.symbol}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Price Impact</span>
+              <span className={cn(
+                'font-medium',
+                priceImpact <= 1 && 'text-success',
+                priceImpact > 1 && priceImpact <= 3 && 'text-foreground',
+                priceImpact > 3 && priceImpact <= 5 && 'text-warning',
+                priceImpact > 5 && 'text-destructive'
+              )}>
+                {priceImpact > 0 ? `~${priceImpact.toFixed(2)}%` : '-'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Minimum Received</span>
+              <span>
+                {(parseFloat(amountOut) * (1 - slippage / 100)).toFixed(6)} {tokenOut.symbol}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Slippage Tolerance</span>
+              <span>{slippage}%</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Trading Fee</span>
+              <span>0.3%</span>
+            </div>
           </div>
         </div>
       )}
