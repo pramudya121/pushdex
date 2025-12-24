@@ -189,37 +189,55 @@ export const StakeCard: React.FC<StakeCardProps> = ({
 
         {/* User Info */}
         {isConnected && hasStaked && (
-          <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Your Staked</span>
-              <span className="font-semibold text-foreground">
-                {parseFloat(userStakedFormatted).toFixed(4)} {pool.tokenSymbol}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Earned</span>
-              <span className="font-semibold text-primary">
-                {parseFloat(pendingRewardFormatted).toFixed(4)} {pool.tokenSymbol}
-              </span>
-            </div>
+          <div className="space-y-3">
+            {/* Unlock Notification */}
+            {pool.lockPeriodDays > 0 && pool.canUnstake && (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-success/10 border border-success/30 animate-pulse">
+                <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-success" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-success">Lock Period Ended!</p>
+                  <p className="text-xs text-success/80">Your tokens are now available for withdrawal</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  onClick={() => {
+                    setIsExpanded(true);
+                    setActiveTab('unstake');
+                  }}
+                  className="bg-success hover:bg-success/90 text-success-foreground"
+                >
+                  Unstake Now
+                </Button>
+              </div>
+            )}
             
-            {/* Lock Status */}
-            {pool.lockPeriodDays > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Lock Status</span>
-                {pool.canUnstake ? (
-                  <span className="text-success flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4" />
-                    Unlocked
-                  </span>
-                ) : (
+            <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Your Staked</span>
+                <span className="font-semibold text-foreground">
+                  {parseFloat(userStakedFormatted).toFixed(4)} {pool.tokenSymbol}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Earned</span>
+                <span className="font-semibold text-primary">
+                  {parseFloat(pendingRewardFormatted).toFixed(4)} {pool.tokenSymbol}
+                </span>
+              </div>
+              
+              {/* Lock Status */}
+              {pool.lockPeriodDays > 0 && !pool.canUnstake && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Lock Status</span>
                   <span className="text-warning flex items-center gap-1">
                     <Timer className="w-4 h-4" />
                     {remainingTime}
                   </span>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
