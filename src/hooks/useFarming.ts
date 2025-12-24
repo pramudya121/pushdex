@@ -352,6 +352,10 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully staked!');
+      
+      // Update pool data immediately after successful stake
+      await fetchPools();
+      
       return true;
     } catch (error: any) {
       console.error('Stake error:', error);
@@ -360,7 +364,7 @@ export const useFarming = () => {
     } finally {
       setIsStaking(false);
     }
-  }, [signer, address, getFarmingContract, state.pools]);
+  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
 
   const unstake = useCallback(async (pid: number, amount: string) => {
     if (!signer || !address) {
@@ -380,6 +384,10 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully unstaked!');
+      
+      // Update pool data immediately after successful unstake
+      await fetchPools();
+      
       return true;
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -388,7 +396,7 @@ export const useFarming = () => {
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, getFarmingContract]);
+  }, [signer, address, getFarmingContract, fetchPools]);
 
   const harvest = useCallback(async (pid: number) => {
     if (!signer || !address) {
@@ -407,6 +415,10 @@ export const useFarming = () => {
       await tx.wait();
       
       toast.success('Successfully harvested rewards!');
+      
+      // Update pool data immediately after successful harvest
+      await fetchPools();
+      
       return true;
     } catch (error: any) {
       console.error('Harvest error:', error);
@@ -415,7 +427,7 @@ export const useFarming = () => {
     } finally {
       setIsHarvesting(false);
     }
-  }, [signer, address, getFarmingContract]);
+  }, [signer, address, getFarmingContract, fetchPools]);
 
   const harvestAll = useCallback(async () => {
     if (!signer || !address) {
@@ -495,9 +507,7 @@ export const useFarming = () => {
 
   useEffect(() => {
     fetchPools();
-    // Refresh every 60 seconds to reduce auto-refresh frequency
-    const interval = setInterval(fetchPools, 60000);
-    return () => clearInterval(interval);
+    // No auto-refresh - data updates after transactions
   }, [isConnected, address]);
 
   return {
