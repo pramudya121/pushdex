@@ -334,32 +334,80 @@ export const useFarming = () => {
       if (!pool) throw new Error('Pool not found');
 
       const amountWei = ethers.parseEther(amount);
+      
+      // Check if amount is valid
+      if (amountWei <= BigInt(0)) {
+        toast.error('Please enter a valid amount');
+        return false;
+      }
 
-      // First approve LP token
+      // Create LP contract instance
       const lpContract = new ethers.Contract(pool.lpToken, ERC20_ABI, signer);
+      
+      // Check user's LP balance first
+      const lpBalance = await lpContract.balanceOf(address);
+      if (lpBalance < amountWei) {
+        toast.error('Insufficient LP token balance');
+        return false;
+      }
+
+      // Check and handle approval
       const allowance = await lpContract.allowance(address, CONTRACTS.FARMING);
       
       if (allowance < amountWei) {
         toast.info('Approving LP token...');
-        const approveTx = await lpContract.approve(CONTRACTS.FARMING, ethers.MaxUint256);
-        await approveTx.wait();
-        toast.success('LP token approved!');
+        try {
+          const approveTx = await lpContract.approve(CONTRACTS.FARMING, ethers.MaxUint256);
+          await approveTx.wait();
+          toast.success('LP token approved!');
+        } catch (approveError: any) {
+          console.error('Approve error:', approveError);
+          toast.error('Failed to approve LP token');
+          return false;
+        }
       }
 
-      // Deposit
+      // Wait a moment for approval to be confirmed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Deposit with manual gas limit to avoid estimateGas issues
       toast.info('Staking LP tokens...');
-      const tx = await contract.deposit(pid, amountWei);
-      await tx.wait();
-      
-      toast.success('Successfully staked!');
-      
-      // Update pool data immediately after successful stake
-      await fetchPools();
-      
-      return true;
+      try {
+        const tx = await contract.deposit(pid, amountWei, {
+          gasLimit: 300000n // Set manual gas limit
+        });
+        await tx.wait();
+        
+        toast.success('Successfully staked!');
+        
+        // Update pool data immediately after successful stake
+        await fetchPools();
+        
+        return true;
+      } catch (depositError: any) {
+        console.error('Deposit error:', depositError);
+        
+        // Parse specific error messages
+        const errorMessage = depositError.message || depositError.reason || '';
+        
+        if (errorMessage.includes('execution reverted')) {
+          // Try to get more specific error
+          if (errorMessage.includes('insufficient')) {
+            toast.error('Insufficient LP balance in wallet');
+          } else if (errorMessage.includes('allowance')) {
+            toast.error('Please approve LP token first');
+          } else {
+            toast.error('Transaction failed. Please check your LP balance and try again.');
+          }
+        } else {
+          toast.error(depositError.reason || 'Failed to stake LP tokens');
+        }
+        return false;
+      }
     } catch (error: any) {
       console.error('Stake error:', error);
-      toast.error(error.reason || error.message || 'Failed to stake');
+      const errorMsg = error.reason || error.message || 'Failed to stake';
+      toast.error(errorMsg.length > 100 ? 'Transaction failed. Please try again.' : errorMsg);
       return false;
     } finally {
       setIsStaking(false);
