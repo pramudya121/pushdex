@@ -262,8 +262,15 @@ export const useStaking = () => {
       
       return true;
     } catch (error: any) {
-      console.error('Stake error:', error);
-      toast.error(error.reason || error.message || 'Failed to stake');
+      // Handle "Already staking" error from contract
+      const errorMessage = error.reason || error.message || '';
+      if (errorMessage.includes('Already staking')) {
+        toast.error('You already have an active stake in this pool. Unstake first to stake a different amount.');
+      } else if (errorMessage.includes('unknown custom error')) {
+        toast.error('Transaction failed. You may already have an active stake in this pool.');
+      } else {
+        toast.error(errorMessage || 'Failed to stake');
+      }
       return false;
     } finally {
       setIsStaking(false);

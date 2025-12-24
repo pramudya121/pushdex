@@ -265,6 +265,17 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                 </TabsList>
 
                 <TabsContent value="stake" className="space-y-3 mt-4">
+                  {/* Warning if already staking */}
+                  {hasStaked && (
+                    <div className="flex items-center gap-2 text-sm text-warning bg-warning/10 p-3 rounded-lg border border-warning/30">
+                      <Lock className="w-4 h-4 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">Already staking in this pool</p>
+                        <p className="text-xs text-warning/80">Unstake first to stake a different amount</p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Available</span>
                     <span className="text-foreground">
@@ -282,18 +293,19 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                       value={stakeAmount}
                       onChange={(e) => setStakeAmount(e.target.value)}
                       className="pr-16 bg-muted/50 border-border/50"
+                      disabled={hasStaked}
                     />
                     <Button
                       variant="ghost"
                       size="sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
                       onClick={() => setStakeAmount(tokenBalance)}
-                      disabled={!hasBalance}
+                      disabled={!hasBalance || hasStaked}
                     >
                       MAX
                     </Button>
                   </div>
-                  {pool.lockPeriodDays > 0 && (
+                  {pool.lockPeriodDays > 0 && !hasStaked && (
                     <div className="flex items-center gap-2 text-xs text-warning bg-warning/10 p-2 rounded-lg">
                       <Lock className="w-3 h-3" />
                       <span>Tokens will be locked for {pool.lockPeriodDays} days</span>
@@ -301,13 +313,18 @@ export const StakeCard: React.FC<StakeCardProps> = ({
                   )}
                   <Button
                     onClick={handleStake}
-                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0}
+                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0 || hasStaked}
                     className="w-full bg-primary hover:bg-primary/90"
                   >
                     {isStaking ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Staking...
+                      </>
+                    ) : hasStaked ? (
+                      <>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Already Staking
                       </>
                     ) : (
                       <>
