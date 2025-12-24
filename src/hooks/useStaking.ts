@@ -224,12 +224,6 @@ export const useStaking = () => {
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
-      // Check if user already staking
-      if (pool.userStaked > BigInt(0)) {
-        toast.error('You are already staking in this pool. Unstake first before staking again.');
-        return false;
-      }
-
       const amountWei = ethers.parseEther(amount);
 
       // Check minimum stake
@@ -262,20 +256,19 @@ export const useStaking = () => {
       await tx.wait();
       
       toast.success(`Successfully staked ${amount} ${pool.tokenSymbol}!`);
+      
+      // Update pool data immediately after successful stake
+      await fetchPools();
+      
       return true;
     } catch (error: any) {
       console.error('Stake error:', error);
-      const errorMessage = error.reason || error.message || 'Failed to stake';
-      if (errorMessage.includes('Already staking')) {
-        toast.error('You are already staking in this pool. Unstake first before staking again.');
-      } else {
-        toast.error(errorMessage);
-      }
+      toast.error(error.reason || error.message || 'Failed to stake');
       return false;
     } finally {
       setIsStaking(false);
     }
-  }, [signer, address, getStakingContract, state.pools]);
+  }, [signer, address, getStakingContract, state.pools, fetchPools]);
 
   const unstake = useCallback(async (poolId: number) => {
     if (!signer || !address) {
@@ -303,6 +296,10 @@ export const useStaking = () => {
       await tx.wait();
       
       toast.success(`Successfully unstaked ${pool.tokenSymbol}!`);
+      
+      // Update pool data immediately after successful unstake
+      await fetchPools();
+      
       return true;
     } catch (error: any) {
       console.error('Unstake error:', error);
@@ -311,7 +308,7 @@ export const useStaking = () => {
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, getStakingContract, state.pools]);
+  }, [signer, address, getStakingContract, state.pools, fetchPools]);
 
   const claimRewards = useCallback(async (poolId: number) => {
     if (!signer || !address) {
@@ -369,9 +366,7 @@ export const useStaking = () => {
 
   useEffect(() => {
     fetchPools();
-    // Refresh every 60 seconds to reduce auto-refresh frequency
-    const interval = setInterval(fetchPools, 60000);
-    return () => clearInterval(interval);
+    // No auto-refresh - data updates after transactions
   }, [isConnected, address]);
 
   return {
