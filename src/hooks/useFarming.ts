@@ -426,25 +426,58 @@ export const useFarming = () => {
       if (!contract) throw new Error('Contract not available');
 
       const amountWei = ethers.parseEther(amount);
+      
+      // Check if amount is valid
+      if (amountWei <= BigInt(0)) {
+        toast.error('Please enter a valid amount');
+        return false;
+      }
+
+      // Check user's staked balance first
+      const pool = state.pools.find(p => p.pid === pid);
+      if (pool && pool.userStaked < amountWei) {
+        toast.error('Insufficient staked LP balance');
+        return false;
+      }
 
       toast.info('Unstaking LP tokens...');
-      const tx = await contract.withdraw(pid, amountWei);
-      await tx.wait();
-      
-      toast.success('Successfully unstaked!');
-      
-      // Update pool data immediately after successful unstake
-      await fetchPools();
-      
-      return true;
+      try {
+        const tx = await contract.withdraw(pid, amountWei, {
+          gasLimit: 300000n // Set manual gas limit to avoid estimateGas issues
+        });
+        await tx.wait();
+        
+        toast.success('Successfully unstaked!');
+        
+        // Update pool data immediately after successful unstake
+        await fetchPools();
+        
+        return true;
+      } catch (withdrawError: any) {
+        console.error('Withdraw error:', withdrawError);
+        
+        const errorMessage = withdrawError.message || withdrawError.reason || '';
+        
+        if (errorMessage.includes('execution reverted')) {
+          if (errorMessage.includes('insufficient') || errorMessage.includes('exceed')) {
+            toast.error('Insufficient staked LP balance');
+          } else {
+            toast.error('Transaction failed. Please check your staked amount and try again.');
+          }
+        } else {
+          toast.error(withdrawError.reason || 'Failed to unstake LP tokens');
+        }
+        return false;
+      }
     } catch (error: any) {
       console.error('Unstake error:', error);
-      toast.error(error.reason || error.message || 'Failed to unstake');
+      const errorMsg = error.reason || error.message || 'Failed to unstake';
+      toast.error(errorMsg.length > 100 ? 'Transaction failed. Please try again.' : errorMsg);
       return false;
     } finally {
       setIsUnstaking(false);
     }
-  }, [signer, address, getFarmingContract, fetchPools]);
+  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
 
   const harvest = useCallback(async (pid: number) => {
     if (!signer || !address) {
