@@ -284,7 +284,7 @@ export const useSwap = () => {
           path,
           address,
           deadline,
-          { value: amountIn }
+          { value: amountIn, gasLimit: 300000n }
         );
       } else if (isNativeOut) {
         // Swap tokens for native PC
@@ -293,7 +293,8 @@ export const useSwap = () => {
           amountOutMin,
           path,
           address,
-          deadline
+          deadline,
+          { gasLimit: 300000n }
         );
       } else {
         // Swap tokens for tokens
@@ -302,7 +303,8 @@ export const useSwap = () => {
           amountOutMin,
           path,
           address,
-          deadline
+          deadline,
+          { gasLimit: 300000n }
         );
       }
 
