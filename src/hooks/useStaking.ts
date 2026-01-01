@@ -248,11 +248,11 @@ export const useStaking = () => {
         }
       }
 
-      // Stake
+      // Stake with manual gas limit
       toast.info('Staking tokens...');
       const tx = isNativeToken 
-        ? await contract.stake(poolId, amountWei, { value: amountWei })
-        : await contract.stake(poolId, amountWei);
+        ? await contract.stake(poolId, amountWei, { value: amountWei, gasLimit: 300000n })
+        : await contract.stake(poolId, amountWei, { gasLimit: 300000n });
       await tx.wait();
       
       toast.success(`Successfully staked ${amount} ${pool.tokenSymbol}!`);
@@ -291,6 +291,12 @@ export const useStaking = () => {
       const pool = state.pools.find(p => p.id === poolId);
       if (!pool) throw new Error('Pool not found');
 
+      // Check if user has staked anything
+      if (pool.userStaked <= BigInt(0)) {
+        toast.error('No tokens staked in this pool');
+        return false;
+      }
+
       // Check lock period
       if (!pool.canUnstake) {
         const unlockTime = new Date(Number(pool.userStartTime + BigInt(pool.lockPeriod)) * 1000);
@@ -299,18 +305,40 @@ export const useStaking = () => {
       }
 
       toast.info('Unstaking tokens...');
-      const tx = await contract.unstake(poolId);
-      await tx.wait();
-      
-      toast.success(`Successfully unstaked ${pool.tokenSymbol}!`);
-      
-      // Update pool data immediately after successful unstake
-      await fetchPools();
-      
-      return true;
+      try {
+        const tx = await contract.unstake(poolId, {
+          gasLimit: 300000n // Set manual gas limit to avoid estimateGas issues
+        });
+        await tx.wait();
+        
+        toast.success(`Successfully unstaked ${pool.tokenSymbol}!`);
+        
+        // Update pool data immediately after successful unstake
+        await fetchPools();
+        
+        return true;
+      } catch (unstakeError: any) {
+        console.error('Unstake transaction error:', unstakeError);
+        
+        const errorMessage = unstakeError.message || unstakeError.reason || '';
+        
+        if (errorMessage.includes('execution reverted')) {
+          if (errorMessage.includes('No stake found')) {
+            toast.error('No active stake found in this pool');
+          } else if (errorMessage.includes('locked')) {
+            toast.error('Tokens are still locked');
+          } else {
+            toast.error('Transaction failed. Please check your stake status and try again.');
+          }
+        } else {
+          toast.error(unstakeError.reason || 'Failed to unstake tokens');
+        }
+        return false;
+      }
     } catch (error: any) {
       console.error('Unstake error:', error);
-      toast.error(error.reason || error.message || 'Failed to unstake');
+      const errorMsg = error.reason || error.message || 'Failed to unstake';
+      toast.error(errorMsg.length > 100 ? 'Transaction failed. Please try again.' : errorMsg);
       return false;
     } finally {
       setIsUnstaking(false);
@@ -373,7 +401,15 @@ export const useStaking = () => {
 
   useEffect(() => {
     fetchPools();
-    // No auto-refresh - data updates after transactions
+    
+    // Auto-refresh every 30 seconds to update pending rewards
+    const interval = setInterval(() => {
+      if (isConnected && address) {
+        fetchPools();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [isConnected, address]);
 
   return {

@@ -490,9 +490,11 @@ export const useFarming = () => {
       const contract = getFarmingContract();
       if (!contract) throw new Error('Contract not available');
 
-      // Deposit 0 to harvest rewards
+      // Deposit 0 to harvest rewards with manual gas limit
       toast.info('Harvesting rewards...');
-      const tx = await contract.deposit(pid, 0);
+      const tx = await contract.deposit(pid, 0, {
+        gasLimit: 300000n // Set manual gas limit
+      });
       await tx.wait();
       
       toast.success('Successfully harvested rewards!');
@@ -531,7 +533,9 @@ export const useFarming = () => {
 
       for (const pool of poolsWithRewards) {
         try {
-          const tx = await contract.deposit(pool.pid, 0);
+          const tx = await contract.deposit(pool.pid, 0, {
+            gasLimit: 300000n // Set manual gas limit
+          });
           await tx.wait();
         } catch (e) {
           console.error(`Failed to harvest pool ${pool.pid}:`, e);
@@ -588,7 +592,15 @@ export const useFarming = () => {
 
   useEffect(() => {
     fetchPools();
-    // No auto-refresh - data updates after transactions
+    
+    // Auto-refresh every 30 seconds to update pending rewards
+    const interval = setInterval(() => {
+      if (isConnected && address) {
+        fetchPools();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [isConnected, address]);
 
   return {
