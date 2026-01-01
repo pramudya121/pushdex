@@ -401,15 +401,6 @@ export const useStaking = () => {
 
   useEffect(() => {
     fetchPools();
-    
-    // Auto-refresh every 30 seconds to update pending rewards
-    const interval = setInterval(() => {
-      if (isConnected && address) {
-        fetchPools();
-      }
-    }, 30000);
-    
-    return () => clearInterval(interval);
   }, [isConnected, address]);
 
   return {

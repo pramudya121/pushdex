@@ -78,19 +78,19 @@ const PHASES = [
   {
     phase: 4,
     title: 'Analytics & Data',
-    status: 'in-progress',
+    status: 'completed',
     items: [
       { name: 'Pool analytics page', done: true },
       { name: 'TVL calculations', done: true },
-      { name: 'Volume tracking', done: false },
+      { name: 'Volume tracking', done: true },
       { name: 'Price charts', done: true },
-      { name: 'Transaction history', done: false },
+      { name: 'Transaction history', done: true },
     ]
   },
   {
     phase: 5,
     title: 'UX Polish',
-    status: 'in-progress',
+    status: 'completed',
     items: [
       { name: 'Responsive design', done: true },
       { name: 'Animations & transitions', done: true },
@@ -102,10 +102,10 @@ const PHASES = [
   {
     phase: 6,
     title: 'Finalization',
-    status: 'pending',
+    status: 'completed',
     items: [
-      { name: 'Security review', done: false },
-      { name: 'CI/CD pipeline', done: false },
+      { name: 'Security review', done: true },
+      { name: 'CI/CD pipeline', done: true },
       { name: 'Documentation', done: true },
       { name: 'Mainnet deployment', done: false },
     ]
