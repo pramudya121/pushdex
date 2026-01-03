@@ -46,6 +46,7 @@ interface FarmCardProps {
   isStaking: boolean;
   isUnstaking: boolean;
   isHarvesting: boolean;
+  hasEnoughRewards?: boolean;
 }
 
 export const FarmCard: React.FC<FarmCardProps> = ({
@@ -61,6 +62,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   isStaking,
   isUnstaking,
   isHarvesting,
+  hasEnoughRewards = true,
 }) => {
   const { isConnected } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -211,7 +213,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
               </div>
             </div>
             
-            {hasPendingRewards && (
+            {hasPendingRewards && hasEnoughRewards && (
               <Button
                 onClick={handleHarvest}
                 disabled={isHarvesting}
@@ -229,6 +231,15 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   </>
                 )}
               </Button>
+            )}
+            
+            {!hasEnoughRewards && hasStaked && (
+              <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg border border-destructive/30">
+                <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
+                <p className="text-xs text-destructive">
+                  Contract has insufficient rewards. Use Emergency Withdraw below.
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -299,7 +310,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   </div>
                   <Button
                     onClick={handleStake}
-                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > parseFloat(lpBalance)}
+                    disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > parseFloat(lpBalance) || !hasEnoughRewards}
                     className="w-full bg-primary hover:bg-primary/90"
                   >
                     {isStaking ? (
@@ -314,7 +325,12 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       </>
                     )}
                   </Button>
-                  {!hasLpBalance && (
+                  {!hasEnoughRewards && (
+                    <p className="text-xs text-destructive text-center">
+                      Staking disabled: Contract needs more reward tokens.
+                    </p>
+                  )}
+                  {!hasLpBalance && hasEnoughRewards && (
                     <p className="text-xs text-muted-foreground text-center">
                       You need LP tokens to stake. Add liquidity first.
                     </p>
