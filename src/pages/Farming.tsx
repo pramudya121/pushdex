@@ -93,12 +93,16 @@ const Farming: React.FC = () => {
     startBlock,
     isLoading,
     error,
+    contractRewardBalance,
+    hasEnoughRewards,
     stake,
     unstake,
     harvest,
     harvestAll,
     emergencyWithdraw,
     getLpBalance,
+    updatePool,
+    getContractRewardBalance,
     refreshPools,
     isStaking,
     isUnstaking,
@@ -114,6 +118,7 @@ const Farming: React.FC = () => {
     : 0;
   const hasPendingRewards = totalPendingRewards > BigInt(0);
   const stakeableLPs = userLPPositions.filter(p => p.isStakeable);
+  const rewardBalanceFormatted = parseFloat(ethers.formatEther(contractRewardBalance)).toFixed(4);
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -142,8 +147,21 @@ const Farming: React.FC = () => {
           <FarmingCountdown startBlock={startBlock} className="mb-8" />
         )}
 
+        {/* Reward Balance Warning */}
+        {!hasEnoughRewards && (
+          <Alert variant="destructive" className="mb-8">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Contract has insufficient reward tokens ({rewardBalanceFormatted} {rewardTokenSymbol}).</strong>
+              <br />
+              Staking, unstaking, and harvesting will fail until the admin funds the contract with more reward tokens.
+              Use "Emergency Withdraw" to withdraw your LP tokens without rewards.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Error Alert */}
-        {error && (
+        {error && hasEnoughRewards && (
           <Alert variant="destructive" className="mb-8">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
@@ -244,10 +262,14 @@ const Farming: React.FC = () => {
               <Sprout className="w-4 h-4 mr-2" />
               Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
             </Badge>
+            <Badge variant={hasEnoughRewards ? "outline" : "destructive"} className="py-2 px-4">
+              <Coins className="w-4 h-4 mr-2" />
+              Contract Balance: {rewardBalanceFormatted} {rewardTokenSymbol}
+            </Badge>
           </div>
           
           <div className="flex items-center gap-2">
-            {isConnected && hasPendingRewards && (
+            {isConnected && hasPendingRewards && hasEnoughRewards && (
               <Button
                 onClick={harvestAll}
                 disabled={isHarvestingAll}
@@ -356,6 +378,7 @@ const Farming: React.FC = () => {
                 isStaking={isStaking}
                 isUnstaking={isUnstaking}
                 isHarvesting={isHarvesting}
+                hasEnoughRewards={hasEnoughRewards}
               />
             ))}
           </div>

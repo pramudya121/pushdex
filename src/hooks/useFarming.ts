@@ -50,6 +50,8 @@ export interface FarmingState {
   startBlock: bigint;
   isLoading: boolean;
   error: string | null;
+  contractRewardBalance: bigint;
+  hasEnoughRewards: boolean;
 }
 
 const getProvider = () => new ethers.JsonRpcProvider(RPC_URL);
@@ -77,6 +79,8 @@ export const useFarming = () => {
     startBlock: BigInt(0),
     isLoading: true,
     error: null,
+    contractRewardBalance: BigInt(0),
+    hasEnoughRewards: false,
   });
 
   const [isStaking, setIsStaking] = useState(false);
@@ -192,18 +196,27 @@ export const useFarming = () => {
         return;
       }
 
-      // Get reward token info
+      // Get reward token info and balance in farming contract
       let rewardTokenSymbol = getTokenSymbol(rewardToken) || 'REWARD';
       let rewardTokenLogo = getTokenLogo(rewardToken);
+      let contractRewardBalance = BigInt(0);
       
-      if (rewardTokenSymbol === 'REWARD') {
-        try {
-          const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
-          rewardTokenSymbol = await rewardTokenContract.symbol();
-        } catch {
-          // Keep default
+      const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+      
+      try {
+        [contractRewardBalance] = await Promise.all([
+          rewardTokenContract.balanceOf(CONTRACTS.FARMING).catch(() => BigInt(0)),
+        ]);
+        
+        if (rewardTokenSymbol === 'REWARD') {
+          rewardTokenSymbol = await rewardTokenContract.symbol().catch(() => 'REWARD');
         }
+      } catch {
+        // Keep defaults
       }
+      
+      // Check if contract has enough rewards (at least 1 token)
+      const hasEnoughRewards = contractRewardBalance > ethers.parseEther('0.001');
 
       const farmPoolAddresses: string[] = [];
       
@@ -307,7 +320,9 @@ export const useFarming = () => {
         totalAllocPoint,
         startBlock,
         isLoading: false,
-        error: null,
+        error: !hasEnoughRewards ? 'Warning: Farming contract has insufficient reward tokens. Staking/unstaking may fail.' : null,
+        contractRewardBalance,
+        hasEnoughRewards,
       });
     } catch (error) {
       console.error('Error fetching farming pools:', error);
@@ -322,6 +337,12 @@ export const useFarming = () => {
   const stake = useCallback(async (pid: number, amount: string) => {
     if (!signer || !address) {
       toast.error('Please connect your wallet');
+      return false;
+    }
+
+    // Check if contract has enough rewards before proceeding
+    if (!state.hasEnoughRewards) {
+      toast.error('Farming contract has insufficient reward tokens. Please contact admin to fund the contract.');
       return false;
     }
 
@@ -707,6 +728,53 @@ export const useFarming = () => {
     }
   }, [address]);
 
+  // Update a specific pool (useful for admin or refreshing single pool)
+  const updatePool = useCallback(async (pid: number) => {
+    if (!signer) {
+      toast.error('Please connect your wallet');
+      return false;
+    }
+
+    try {
+      const contract = getFarmingContract();
+      if (!contract) throw new Error('Contract not available');
+
+      toast.info('Updating pool...');
+      const tx = await contract.updatePool(pid, {
+        gasLimit: 300000n
+      });
+      
+      await tx.wait();
+      toast.success('Pool updated successfully!');
+      await fetchPools();
+      return true;
+    } catch (error: any) {
+      console.error('Update pool error:', error);
+      const msg = error.message || '';
+      if (msg.includes('user rejected')) {
+        toast.error('Transaction was rejected');
+      } else {
+        toast.error('Failed to update pool');
+      }
+      return false;
+    }
+  }, [signer, getFarmingContract, fetchPools]);
+
+  // Check reward token balance in contract
+  const getContractRewardBalance = useCallback(async (): Promise<string> => {
+    try {
+      const provider = getProvider();
+      const contract = getReadOnlyContract();
+      const rewardToken = await contract.rewardToken();
+      const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+      const balance = await rewardTokenContract.balanceOf(CONTRACTS.FARMING);
+      return ethers.formatEther(balance);
+    } catch (error) {
+      console.error('Error getting contract reward balance:', error);
+      return '0';
+    }
+  }, [getReadOnlyContract]);
+
   useEffect(() => {
     fetchPools();
   }, [isConnected, address]);
@@ -719,6 +787,8 @@ export const useFarming = () => {
     harvestAll,
     emergencyWithdraw,
     getLpBalance,
+    updatePool,
+    getContractRewardBalance,
     refreshPools: fetchPools,
     isStaking,
     isUnstaking,
