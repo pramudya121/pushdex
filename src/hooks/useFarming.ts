@@ -333,11 +333,17 @@ export const useFarming = () => {
       const pool = state.pools.find(p => p.pid === pid);
       if (!pool) throw new Error('Pool not found');
 
-      const amountWei = ethers.parseEther(amount);
-      
-      // Check if amount is valid
-      if (amountWei <= BigInt(0)) {
+      // Validate and parse amount
+      const trimmedAmount = amount.trim();
+      if (!trimmedAmount || isNaN(parseFloat(trimmedAmount)) || parseFloat(trimmedAmount) <= 0) {
         toast.error('Please enter a valid amount');
+        return false;
+      }
+
+      const amountWei = ethers.parseEther(trimmedAmount);
+      
+      if (amountWei <= BigInt(0)) {
+        toast.error('Please enter a valid amount greater than 0');
         return false;
       }
 
@@ -346,13 +352,16 @@ export const useFarming = () => {
       
       // Check user's LP balance first
       const lpBalance = await lpContract.balanceOf(address);
+      console.log('LP Balance:', ethers.formatEther(lpBalance), 'Amount to stake:', trimmedAmount);
+      
       if (lpBalance < amountWei) {
-        toast.error('Insufficient LP token balance');
+        toast.error(`Insufficient LP token balance. You have ${ethers.formatEther(lpBalance)} LP`);
         return false;
       }
 
       // Check and handle approval
       const allowance = await lpContract.allowance(address, CONTRACTS.FARMING);
+      console.log('Current allowance:', ethers.formatEther(allowance));
       
       if (allowance < amountWei) {
         toast.info('Approving LP token...');
@@ -360,54 +369,73 @@ export const useFarming = () => {
           const approveTx = await lpContract.approve(CONTRACTS.FARMING, ethers.MaxUint256);
           await approveTx.wait();
           toast.success('LP token approved!');
+          
+          // Wait for approval to be confirmed on-chain
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (approveError: any) {
           console.error('Approve error:', approveError);
-          toast.error('Failed to approve LP token');
+          toast.error('Failed to approve LP token. Please try again.');
           return false;
         }
       }
 
-      // Wait a moment for approval to be confirmed
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Simulate transaction first using staticCall to check if it will succeed
+      toast.info('Checking transaction...');
+      try {
+        await contract.deposit.staticCall(pid, amountWei);
+        console.log('Static call succeeded, proceeding with transaction');
+      } catch (staticError: any) {
+        console.error('Static call failed:', staticError);
+        const reason = staticError.reason || staticError.message || '';
+        
+        // Provide specific error messages based on common issues
+        if (reason.includes('transfer amount exceeds balance')) {
+          toast.error('LP token transfer failed. Check your balance.');
+        } else if (reason.includes('transfer amount exceeds allowance')) {
+          toast.error('Approval issue. Please try again.');
+        } else if (reason.includes('revert')) {
+          toast.error('Transaction would fail. The contract may not have enough reward tokens or the pool may be inactive.');
+        } else {
+          toast.error(`Transaction simulation failed: ${reason.slice(0, 100)}`);
+        }
+        return false;
+      }
 
-      // Deposit with manual gas limit to avoid estimateGas issues
+      // Execute the actual deposit
       toast.info('Staking LP tokens...');
       try {
         const tx = await contract.deposit(pid, amountWei, {
-          gasLimit: 300000n // Set manual gas limit
+          gasLimit: 500000n // Increased gas limit for safety
         });
-        await tx.wait();
+        
+        toast.info('Transaction submitted. Waiting for confirmation...');
+        const receipt = await tx.wait();
+        
+        if (receipt.status === 0) {
+          toast.error('Transaction failed on-chain');
+          return false;
+        }
         
         toast.success('Successfully staked!');
-        
-        // Update pool data immediately after successful stake
         await fetchPools();
-        
         return true;
+        
       } catch (depositError: any) {
         console.error('Deposit error:', depositError);
-        
-        // Parse specific error messages
         const errorMessage = depositError.message || depositError.reason || '';
         
-        if (errorMessage.includes('execution reverted')) {
-          // Try to get more specific error
-          if (errorMessage.includes('insufficient')) {
-            toast.error('Insufficient LP balance in wallet');
-          } else if (errorMessage.includes('allowance')) {
-            toast.error('Please approve LP token first');
-          } else {
-            toast.error('Transaction failed. Please check your LP balance and try again.');
-          }
+        if (errorMessage.includes('user rejected')) {
+          toast.error('Transaction was rejected');
+        } else if (errorMessage.includes('insufficient funds')) {
+          toast.error('Insufficient gas for transaction');
         } else {
-          toast.error(depositError.reason || 'Failed to stake LP tokens');
+          toast.error('Staking failed. The farming contract may not have enough reward tokens to distribute.');
         }
         return false;
       }
     } catch (error: any) {
       console.error('Stake error:', error);
-      const errorMsg = error.reason || error.message || 'Failed to stake';
-      toast.error(errorMsg.length > 100 ? 'Transaction failed. Please try again.' : errorMsg);
+      toast.error('Failed to stake. Please try again.');
       return false;
     } finally {
       setIsStaking(false);
@@ -425,54 +453,87 @@ export const useFarming = () => {
       const contract = getFarmingContract();
       if (!contract) throw new Error('Contract not available');
 
-      const amountWei = ethers.parseEther(amount);
-      
-      // Check if amount is valid
-      if (amountWei <= BigInt(0)) {
+      // Validate and parse amount
+      const trimmedAmount = amount.trim();
+      if (!trimmedAmount || isNaN(parseFloat(trimmedAmount)) || parseFloat(trimmedAmount) <= 0) {
         toast.error('Please enter a valid amount');
         return false;
       }
 
-      // Check user's staked balance first
-      const pool = state.pools.find(p => p.pid === pid);
-      if (pool && pool.userStaked < amountWei) {
-        toast.error('Insufficient staked LP balance');
+      const amountWei = ethers.parseEther(trimmedAmount);
+      
+      if (amountWei <= BigInt(0)) {
+        toast.error('Please enter a valid amount greater than 0');
         return false;
       }
 
+      // Get fresh user info from contract to verify staked amount
+      const provider = getProvider();
+      const readContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
+      const userInfo = await readContract.userInfo(pid, address);
+      const actualStaked = userInfo[0]; // amount field
+      
+      console.log('Actual staked amount:', ethers.formatEther(actualStaked), 'Amount to unstake:', trimmedAmount);
+      
+      if (actualStaked < amountWei) {
+        toast.error(`Insufficient staked balance. You have ${ethers.formatEther(actualStaked)} LP staked`);
+        return false;
+      }
+
+      // Simulate transaction first
+      toast.info('Checking transaction...');
+      try {
+        await contract.withdraw.staticCall(pid, amountWei);
+        console.log('Withdraw static call succeeded');
+      } catch (staticError: any) {
+        console.error('Withdraw static call failed:', staticError);
+        const reason = staticError.reason || staticError.message || '';
+        
+        if (reason.includes('withdraw: not good') || reason.includes('exceeds')) {
+          toast.error('Cannot withdraw more than your staked amount');
+        } else if (reason.includes('revert')) {
+          toast.error('Withdrawal would fail. The contract may not have enough reward tokens to pay out.');
+        } else {
+          toast.error(`Transaction simulation failed: ${reason.slice(0, 100)}`);
+        }
+        return false;
+      }
+
+      // Execute withdrawal
       toast.info('Unstaking LP tokens...');
       try {
         const tx = await contract.withdraw(pid, amountWei, {
-          gasLimit: 300000n // Set manual gas limit to avoid estimateGas issues
+          gasLimit: 500000n // Increased gas limit for safety
         });
-        await tx.wait();
+        
+        toast.info('Transaction submitted. Waiting for confirmation...');
+        const receipt = await tx.wait();
+        
+        if (receipt.status === 0) {
+          toast.error('Transaction failed on-chain');
+          return false;
+        }
         
         toast.success('Successfully unstaked!');
-        
-        // Update pool data immediately after successful unstake
         await fetchPools();
-        
         return true;
+        
       } catch (withdrawError: any) {
         console.error('Withdraw error:', withdrawError);
-        
         const errorMessage = withdrawError.message || withdrawError.reason || '';
         
-        if (errorMessage.includes('execution reverted')) {
-          if (errorMessage.includes('insufficient') || errorMessage.includes('exceed')) {
-            toast.error('Insufficient staked LP balance');
-          } else {
-            toast.error('Transaction failed. Please check your staked amount and try again.');
-          }
+        if (errorMessage.includes('user rejected')) {
+          toast.error('Transaction was rejected');
+        } else if (errorMessage.includes('insufficient funds')) {
+          toast.error('Insufficient gas for transaction');
         } else {
-          toast.error(withdrawError.reason || 'Failed to unstake LP tokens');
+          toast.error('Withdrawal failed. The farming contract may not have enough reward tokens.');
         }
         return false;
       }
     } catch (error: any) {
       console.error('Unstake error:', error);
-      const errorMsg = error.reason || error.message || 'Failed to unstake';
-      toast.error(errorMsg.length > 100 ? 'Transaction failed. Please try again.' : errorMsg);
+      toast.error('Failed to unstake. Please try again.');
       return false;
     } finally {
       setIsUnstaking(false);
@@ -490,22 +551,39 @@ export const useFarming = () => {
       const contract = getFarmingContract();
       if (!contract) throw new Error('Contract not available');
 
-      // Deposit 0 to harvest rewards with manual gas limit
+      // Simulate harvest first (deposit 0)
+      toast.info('Checking rewards...');
+      try {
+        await contract.deposit.staticCall(pid, 0);
+      } catch (staticError: any) {
+        console.error('Harvest static call failed:', staticError);
+        toast.error('Cannot harvest rewards. The contract may not have enough reward tokens.');
+        return false;
+      }
+
+      // Execute harvest
       toast.info('Harvesting rewards...');
       const tx = await contract.deposit(pid, 0, {
-        gasLimit: 300000n // Set manual gas limit
+        gasLimit: 500000n
       });
-      await tx.wait();
+      
+      const receipt = await tx.wait();
+      if (receipt.status === 0) {
+        toast.error('Harvest transaction failed');
+        return false;
+      }
       
       toast.success('Successfully harvested rewards!');
-      
-      // Update pool data immediately after successful harvest
       await fetchPools();
-      
       return true;
     } catch (error: any) {
       console.error('Harvest error:', error);
-      toast.error(error.reason || error.message || 'Failed to harvest');
+      const msg = error.message || '';
+      if (msg.includes('user rejected')) {
+        toast.error('Transaction was rejected');
+      } else {
+        toast.error('Failed to harvest rewards');
+      }
       return false;
     } finally {
       setIsHarvesting(false);
@@ -530,28 +608,44 @@ export const useFarming = () => {
       if (!contract) throw new Error('Contract not available');
 
       toast.info(`Harvesting rewards from ${poolsWithRewards.length} pools...`);
+      
+      let successCount = 0;
+      let failCount = 0;
 
       for (const pool of poolsWithRewards) {
         try {
+          // Simulate first
+          await contract.deposit.staticCall(pool.pid, 0);
+          
           const tx = await contract.deposit(pool.pid, 0, {
-            gasLimit: 300000n // Set manual gas limit
+            gasLimit: 500000n
           });
           await tx.wait();
+          successCount++;
         } catch (e) {
           console.error(`Failed to harvest pool ${pool.pid}:`, e);
+          failCount++;
         }
       }
       
-      toast.success('Successfully harvested all rewards!');
-      return true;
+      if (successCount > 0 && failCount === 0) {
+        toast.success('Successfully harvested all rewards!');
+      } else if (successCount > 0) {
+        toast.success(`Harvested ${successCount} pools. ${failCount} pools failed.`);
+      } else {
+        toast.error('Failed to harvest. Contract may not have enough reward tokens.');
+      }
+      
+      await fetchPools();
+      return successCount > 0;
     } catch (error: any) {
       console.error('Harvest all error:', error);
-      toast.error(error.reason || error.message || 'Failed to harvest all');
+      toast.error('Failed to harvest all rewards');
       return false;
     } finally {
       setIsHarvestingAll(false);
     }
-  }, [signer, address, getFarmingContract, state.pools]);
+  }, [signer, address, getFarmingContract, state.pools, fetchPools]);
 
   const emergencyWithdraw = useCallback(async (pid: number) => {
     if (!signer || !address) {
@@ -563,18 +657,41 @@ export const useFarming = () => {
       const contract = getFarmingContract();
       if (!contract) throw new Error('Contract not available');
 
+      // Simulate first
+      toast.info('Checking emergency withdraw...');
+      try {
+        await contract.emergencyWithdraw.staticCall(pid);
+      } catch (staticError: any) {
+        console.error('Emergency withdraw static call failed:', staticError);
+        toast.error('Emergency withdraw would fail. You may not have any staked tokens.');
+        return false;
+      }
+
       toast.info('Emergency withdrawing...');
-      const tx = await contract.emergencyWithdraw(pid);
-      await tx.wait();
+      const tx = await contract.emergencyWithdraw(pid, {
+        gasLimit: 500000n
+      });
+      
+      const receipt = await tx.wait();
+      if (receipt.status === 0) {
+        toast.error('Emergency withdraw failed on-chain');
+        return false;
+      }
       
       toast.success('Emergency withdraw successful!');
+      await fetchPools();
       return true;
     } catch (error: any) {
       console.error('Emergency withdraw error:', error);
-      toast.error(error.reason || error.message || 'Failed to emergency withdraw');
+      const msg = error.message || '';
+      if (msg.includes('user rejected')) {
+        toast.error('Transaction was rejected');
+      } else {
+        toast.error('Failed to emergency withdraw');
+      }
       return false;
     }
-  }, [signer, address, getFarmingContract]);
+  }, [signer, address, getFarmingContract, fetchPools]);
 
   const getLpBalance = useCallback(async (lpToken: string): Promise<string> => {
     if (!address) return '0';
