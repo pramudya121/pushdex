@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import {
   ChevronUp,
   ExternalLink,
   Zap,
-  AlertTriangle
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
 import { BLOCK_EXPLORER } from '@/config/contracts';
 import {
@@ -71,6 +72,11 @@ export const FarmCard: React.FC<FarmCardProps> = ({
   const [lpBalance, setLpBalance] = useState('0');
   const [activeTab, setActiveTab] = useState('stake');
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  
+  // Animated pending rewards display
+  const [displayedReward, setDisplayedReward] = useState('0.000000');
+  const lastRewardRef = useRef(BigInt(0));
+  const animationRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -82,6 +88,51 @@ export const FarmCard: React.FC<FarmCardProps> = ({
     };
     fetchBalance();
   }, [pool.lpToken, getLpBalance, isConnected, isExpanded]);
+
+  // Animate the pending rewards counter
+  useEffect(() => {
+    const currentReward = pool.userPendingReward;
+    const targetValue = parseFloat(ethers.formatEther(currentReward));
+    
+    // Clear any existing animation
+    if (animationRef.current) {
+      clearInterval(animationRef.current);
+    }
+
+    // If there's a staked amount, simulate reward accumulation
+    if (pool.userStaked > BigInt(0) && hasEnoughRewards) {
+      const estimatedRewardPerSecond = targetValue / 100; // Rough estimate
+      
+      animationRef.current = setInterval(() => {
+        setDisplayedReward((prev) => {
+          const current = parseFloat(prev);
+          const increment = estimatedRewardPerSecond * 0.1; // Small increment
+          const newValue = current + increment;
+          // Cap at a reasonable limit above target
+          if (newValue > targetValue * 1.1) {
+            return targetValue.toFixed(6);
+          }
+          return newValue.toFixed(6);
+        });
+      }, 100);
+    } else {
+      setDisplayedReward(targetValue.toFixed(6));
+    }
+
+    lastRewardRef.current = currentReward;
+
+    return () => {
+      if (animationRef.current) {
+        clearInterval(animationRef.current);
+      }
+    };
+  }, [pool.userPendingReward, pool.userStaked, hasEnoughRewards]);
+
+  // Reset display when pool refreshes with new data
+  useEffect(() => {
+    const newValue = parseFloat(ethers.formatEther(pool.userPendingReward));
+    setDisplayedReward(newValue.toFixed(6));
+  }, [pool.userPendingReward]);
 
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
@@ -129,13 +180,13 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                 <img 
                   src={pool.token0Logo} 
                   alt={pool.token0Symbol}
-                  className="w-10 h-10 rounded-full border-2 border-card bg-muted"
+                  className="w-10 h-10 rounded-full border-2 border-card bg-muted transition-transform group-hover:scale-105"
                   onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
                 />
                 <img 
                   src={pool.token1Logo} 
                   alt={pool.token1Symbol}
-                  className="w-10 h-10 rounded-full border-2 border-card bg-muted"
+                  className="w-10 h-10 rounded-full border-2 border-card bg-muted transition-transform group-hover:scale-105"
                   onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
                 />
               </div>
@@ -153,7 +204,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
 
           <div className="flex flex-col items-end gap-1">
             {hasStaked && (
-              <Badge variant="secondary" className="bg-success/20 text-success border-success/30">
+              <Badge variant="secondary" className="bg-success/20 text-success border-success/30 animate-pulse">
                 <Zap className="w-3 h-3 mr-1" />
                 Farming
               </Badge>
@@ -168,7 +219,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
       <CardContent className="space-y-4">
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-muted/30 p-3 rounded-xl">
+          <div className="bg-muted/30 p-3 rounded-xl transition-all hover:bg-muted/40">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
               <TrendingUp className="w-3 h-3" />
               <span>APR</span>
@@ -178,7 +229,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
             </p>
           </div>
           
-          <div className="bg-muted/30 p-3 rounded-xl">
+          <div className="bg-muted/30 p-3 rounded-xl transition-all hover:bg-muted/40">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
               <Coins className="w-3 h-3" />
               <span>Total Staked</span>
@@ -191,15 +242,25 @@ export const FarmCard: React.FC<FarmCardProps> = ({
 
         {/* User Info */}
         {isConnected && (
-          <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30">
+          <div className="bg-muted/20 rounded-xl p-4 space-y-3 border border-border/30 transition-all hover:border-primary/20">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Your Staked</span>
               <span className="font-semibold text-foreground">
                 {parseFloat(userStakedFormatted).toFixed(6)} LP
               </span>
             </div>
+            
+            {/* Earned Section - Always visible when staked */}
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Earned</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Earned</span>
+                {hasStaked && hasEnoughRewards && (
+                  <div className="flex items-center gap-1 text-xs text-success">
+                    <Clock className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
+                    <span>Accruing</span>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <img 
                   src={rewardTokenLogo} 
@@ -207,8 +268,8 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   className="w-5 h-5 rounded-full"
                   onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
                 />
-                <span className="font-semibold text-primary">
-                  {parseFloat(pendingRewardFormatted).toFixed(6)} {rewardTokenSymbol}
+                <span className={`font-semibold tabular-nums ${hasPendingRewards ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {hasStaked ? displayedReward : parseFloat(pendingRewardFormatted).toFixed(6)} {rewardTokenSymbol}
                 </span>
               </div>
             </div>
@@ -217,7 +278,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
               <Button
                 onClick={handleHarvest}
                 disabled={isHarvesting}
-                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+                className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all hover:scale-[1.02]"
               >
                 {isHarvesting ? (
                   <>
@@ -234,7 +295,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
             )}
             
             {!hasEnoughRewards && hasStaked && (
-              <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg border border-destructive/30">
+              <div className="flex items-center gap-2 p-2 bg-destructive/10 rounded-lg border border-destructive/30 animate-pulse">
                 <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0" />
                 <p className="text-xs text-destructive">
                   Contract has insufficient rewards. Use Emergency Withdraw below.
@@ -247,7 +308,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
         {/* Expand Button */}
         <Button
           variant="ghost"
-          className="w-full"
+          className="w-full hover:bg-muted/50 transition-all"
           onClick={() => setIsExpanded(!isExpanded)}
         >
           {isExpanded ? (
@@ -269,17 +330,17 @@ export const FarmCard: React.FC<FarmCardProps> = ({
             {isConnected ? (
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid w-full grid-cols-2 bg-muted/50">
-                  <TabsTrigger value="stake" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <TabsTrigger value="stake" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                     <ArrowDownToLine className="w-4 h-4 mr-2" />
                     Stake
                   </TabsTrigger>
-                  <TabsTrigger value="unstake" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  <TabsTrigger value="unstake" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
                     <ArrowUpFromLine className="w-4 h-4 mr-2" />
                     Unstake
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="stake" className="space-y-3 mt-4">
+                <TabsContent value="stake" className="space-y-3 mt-4 animate-fade-in">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Available LP</span>
                     <span className="text-foreground">
@@ -296,12 +357,12 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       placeholder="0.0"
                       value={stakeAmount}
                       onChange={(e) => setStakeAmount(e.target.value)}
-                      className="pr-16 bg-muted/50 border-border/50"
+                      className="pr-16 bg-muted/50 border-border/50 focus:border-primary/50 transition-all"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80 transition-all"
                       onClick={() => setStakeAmount(lpBalance)}
                       disabled={!hasLpBalance}
                     >
@@ -311,7 +372,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   <Button
                     onClick={handleStake}
                     disabled={isStaking || !stakeAmount || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > parseFloat(lpBalance) || !hasEnoughRewards}
-                    className="w-full bg-primary hover:bg-primary/90"
+                    className="w-full bg-primary hover:bg-primary/90 transition-all hover:scale-[1.02]"
                   >
                     {isStaking ? (
                       <>
@@ -326,7 +387,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                     )}
                   </Button>
                   {!hasEnoughRewards && (
-                    <p className="text-xs text-destructive text-center">
+                    <p className="text-xs text-destructive text-center animate-pulse">
                       Staking disabled: Contract needs more reward tokens.
                     </p>
                   )}
@@ -337,7 +398,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   )}
                 </TabsContent>
 
-                <TabsContent value="unstake" className="space-y-3 mt-4">
+                <TabsContent value="unstake" className="space-y-3 mt-4 animate-fade-in">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Staked LP</span>
                     <span className="text-foreground">{parseFloat(userStakedFormatted).toFixed(6)}</span>
@@ -348,12 +409,12 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                       placeholder="0.0"
                       value={unstakeAmount}
                       onChange={(e) => setUnstakeAmount(e.target.value)}
-                      className="pr-16 bg-muted/50 border-border/50"
+                      className="pr-16 bg-muted/50 border-border/50 focus:border-primary/50 transition-all"
                     />
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80 transition-all"
                       onClick={() => setUnstakeAmount(userStakedFormatted)}
                       disabled={!hasStaked}
                     >
@@ -363,7 +424,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   <Button
                     onClick={handleUnstake}
                     disabled={isUnstaking || !unstakeAmount || parseFloat(unstakeAmount) <= 0 || parseFloat(unstakeAmount) > parseFloat(userStakedFormatted)}
-                    className="w-full bg-destructive hover:bg-destructive/90"
+                    className="w-full bg-destructive hover:bg-destructive/90 transition-all hover:scale-[1.02]"
                   >
                     {isUnstaking ? (
                       <>
@@ -401,12 +462,12 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                 {hasStaked && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive transition-all">
                         <AlertTriangle className="w-3 h-3 mr-1" />
                         Emergency
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent className="glass-card border-destructive/30">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Emergency Withdraw</AlertDialogTitle>
                         <AlertDialogDescription>

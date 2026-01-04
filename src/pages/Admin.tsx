@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { 
   Shield, 
   Plus, 
@@ -21,7 +23,11 @@ import {
   ExternalLink,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  DollarSign,
+  ArrowUpFromLine,
+  Sparkles,
+  TrendingUp
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { CONTRACTS, TOKEN_LIST, BLOCK_EXPLORER, RPC_URL } from '@/config/contracts';
@@ -55,6 +61,17 @@ interface FarmingPoolData {
   totalStaked: bigint;
 }
 
+interface FarmingContractInfo {
+  rewardToken: string;
+  rewardTokenSymbol: string;
+  rewardTokenLogo: string;
+  rewardPerBlock: bigint;
+  startBlock: bigint;
+  totalAllocPoint: bigint;
+  contractRewardBalance: bigint;
+  userRewardBalance: bigint;
+}
+
 const getProvider = () => new ethers.JsonRpcProvider(RPC_URL);
 
 const Admin: React.FC = () => {
@@ -69,6 +86,7 @@ const Admin: React.FC = () => {
   // State for farming admin
   const [farmingPools, setFarmingPools] = useState<FarmingPoolData[]>([]);
   const [isLoadingFarming, setIsLoadingFarming] = useState(true);
+  const [farmingInfo, setFarmingInfo] = useState<FarmingContractInfo | null>(null);
   
   // Add Pool Form State
   const [selectedToken, setSelectedToken] = useState('');
@@ -81,6 +99,11 @@ const Admin: React.FC = () => {
   const [lpTokenAddress, setLpTokenAddress] = useState('');
   const [allocPoint, setAllocPoint] = useState('');
   const [isAddingFarm, setIsAddingFarm] = useState(false);
+
+  // Funding Form State
+  const [fundAmount, setFundAmount] = useState('');
+  const [isFunding, setIsFunding] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   // Check ownership and fetch pools
   useEffect(() => {
@@ -142,7 +165,41 @@ const Admin: React.FC = () => {
       try {
         setIsLoadingFarming(true);
         const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
-        const poolLength = await farmingContract.poolLength();
+        
+        // Get farming contract info
+        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock] = await Promise.all([
+          farmingContract.poolLength(),
+          farmingContract.rewardToken(),
+          farmingContract.rewardPerBlock(),
+          farmingContract.totalAllocPoint(),
+          farmingContract.startBlock(),
+        ]);
+
+        // Get reward token details
+        const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+        const [contractRewardBalance, rewardTokenSymbol] = await Promise.all([
+          rewardTokenContract.balanceOf(CONTRACTS.FARMING),
+          rewardTokenContract.symbol(),
+        ]);
+
+        // Get user's reward token balance if connected
+        let userRewardBalance = BigInt(0);
+        if (address) {
+          userRewardBalance = await rewardTokenContract.balanceOf(address);
+        }
+
+        const tokenFromList = TOKEN_LIST.find(t => t.address.toLowerCase() === rewardToken.toLowerCase());
+        
+        setFarmingInfo({
+          rewardToken,
+          rewardTokenSymbol,
+          rewardTokenLogo: tokenFromList?.logo || '/tokens/pc.png',
+          rewardPerBlock,
+          startBlock,
+          totalAllocPoint,
+          contractRewardBalance,
+          userRewardBalance,
+        });
         
         const farms: FarmingPoolData[] = [];
         for (let i = 0; i < Number(poolLength); i++) {
@@ -310,13 +367,66 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleFundFarming = async () => {
+    if (!signer || !address || !farmingInfo) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    if (!fundAmount || parseFloat(fundAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      setIsFunding(true);
+      const rewardTokenContract = new ethers.Contract(farmingInfo.rewardToken, ERC20_ABI, signer);
+      const amountWei = ethers.parseEther(fundAmount);
+
+      // Check user's balance
+      if (farmingInfo.userRewardBalance < amountWei) {
+        toast.error(`Insufficient balance. You have ${ethers.formatEther(farmingInfo.userRewardBalance)} ${farmingInfo.rewardTokenSymbol}`);
+        return;
+      }
+
+      // Check allowance
+      const allowance = await rewardTokenContract.allowance(address, CONTRACTS.FARMING);
+      
+      if (allowance < amountWei) {
+        setIsApproving(true);
+        toast.info(`Approving ${farmingInfo.rewardTokenSymbol}...`);
+        const approveTx = await rewardTokenContract.approve(CONTRACTS.FARMING, ethers.MaxUint256);
+        await approveTx.wait();
+        toast.success('Approval successful!');
+        setIsApproving(false);
+      }
+
+      // Transfer tokens to farming contract
+      toast.info(`Transferring ${fundAmount} ${farmingInfo.rewardTokenSymbol} to farming contract...`);
+      const transferTx = await rewardTokenContract.transfer(CONTRACTS.FARMING, amountWei);
+      await transferTx.wait();
+
+      toast.success(`Successfully funded farming contract with ${fundAmount} ${farmingInfo.rewardTokenSymbol}!`);
+      setFundAmount('');
+      
+      // Refresh
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error funding farming:', error);
+      toast.error(error.reason || error.message || 'Failed to fund farming contract');
+    } finally {
+      setIsFunding(false);
+      setIsApproving(false);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-background wave-bg">
         <WaveBackground />
         <Header />
         <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
-          <Card className="glass-card max-w-md mx-auto">
+          <Card className="glass-card max-w-md mx-auto animate-fade-in">
             <CardContent className="py-12">
               <div className="text-center">
                 <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
@@ -331,6 +441,10 @@ const Admin: React.FC = () => {
       </div>
     );
   }
+
+  const contractBalanceFormatted = farmingInfo ? parseFloat(ethers.formatEther(farmingInfo.contractRewardBalance)).toFixed(4) : '0';
+  const userBalanceFormatted = farmingInfo ? parseFloat(ethers.formatEther(farmingInfo.userRewardBalance)).toFixed(4) : '0';
+  const hasLowBalance = farmingInfo ? farmingInfo.contractRewardBalance < ethers.parseEther('100') : true;
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -354,8 +468,8 @@ const Admin: React.FC = () => {
         </div>
 
         {/* Ownership Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className="glass-card">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 animate-stagger">
+          <Card className="glass-card hover:border-primary/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -395,7 +509,7 @@ const Admin: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="glass-card hover:border-accent/30 transition-all duration-300">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -425,19 +539,23 @@ const Admin: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="staking" className="space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="staking">
+          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
+            <TabsTrigger value="staking" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Coins className="w-4 h-4 mr-2" />
               Staking
             </TabsTrigger>
-            <TabsTrigger value="farming">
+            <TabsTrigger value="farming" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Leaf className="w-4 h-4 mr-2" />
               Farming
+            </TabsTrigger>
+            <TabsTrigger value="funding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <DollarSign className="w-4 h-4 mr-2" />
+              Funding
             </TabsTrigger>
           </TabsList>
 
           {/* Staking Tab */}
-          <TabsContent value="staking" className="space-y-6">
+          <TabsContent value="staking" className="space-y-6 animate-fade-in">
             {/* Add Pool Form */}
             {isStakingOwner && (
               <Card className="glass-card">
@@ -542,15 +660,27 @@ const Admin: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {isLoadingStaking ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="w-10 h-10 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-3 w-40" />
+                          </div>
+                        </div>
+                        <Skeleton className="h-8 w-20" />
+                      </div>
+                    ))}
                   </div>
                 ) : stakingPools.length > 0 ? (
                   <div className="space-y-4">
-                    {stakingPools.map((pool) => (
+                    {stakingPools.map((pool, index) => (
                       <div 
                         key={pool.id} 
-                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/30"
+                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/30 hover:border-primary/30 transition-all duration-300"
+                        style={{ animationDelay: `${index * 0.1}s` }}
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
@@ -599,7 +729,7 @@ const Admin: React.FC = () => {
           </TabsContent>
 
           {/* Farming Tab */}
-          <TabsContent value="farming" className="space-y-6">
+          <TabsContent value="farming" className="space-y-6 animate-fade-in">
             {/* Add Farm Form */}
             <Card className="glass-card">
               <CardHeader>
@@ -663,15 +793,30 @@ const Admin: React.FC = () => {
               </CardHeader>
               <CardContent>
                 {isLoadingFarming ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl">
+                        <div className="flex items-center gap-4">
+                          <Skeleton className="w-10 h-10 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-48" />
+                          </div>
+                        </div>
+                        <div className="flex gap-4">
+                          <Skeleton className="h-8 w-20" />
+                          <Skeleton className="h-8 w-20" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : farmingPools.length > 0 ? (
                   <div className="space-y-4">
-                    {farmingPools.map((farm) => (
+                    {farmingPools.map((farm, index) => (
                       <div 
                         key={farm.id} 
-                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/30"
+                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border border-border/30 hover:border-accent/30 transition-all duration-300"
+                        style={{ animationDelay: `${index * 0.1}s` }}
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
@@ -714,6 +859,207 @@ const Admin: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Funding Tab */}
+          <TabsContent value="funding" className="space-y-6 animate-fade-in">
+            {/* Contract Balance Overview */}
+            <Card className={`glass-card ${hasLowBalance ? 'border-destructive/50' : 'border-success/30'}`}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-warning" />
+                  Farming Contract Reward Balance
+                </CardTitle>
+                <CardDescription>
+                  Fund the farming contract with reward tokens to enable staking/harvesting
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isLoadingFarming ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                ) : farmingInfo ? (
+                  <>
+                    {/* Balance Display */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-muted/30 rounded-xl p-6 border border-border/30">
+                        <div className="flex items-center gap-3 mb-4">
+                          <img 
+                            src={farmingInfo.rewardTokenLogo}
+                            alt={farmingInfo.rewardTokenSymbol}
+                            className="w-10 h-10 rounded-full"
+                            onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                          />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Contract Balance</p>
+                            <p className={`text-2xl font-bold ${hasLowBalance ? 'text-destructive' : 'text-success'}`}>
+                              {contractBalanceFormatted} {farmingInfo.rewardTokenSymbol}
+                            </p>
+                          </div>
+                        </div>
+                        {hasLowBalance && (
+                          <div className="flex items-center gap-2 text-destructive text-sm">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>Low balance! Users cannot stake/harvest.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-muted/30 rounded-xl p-6 border border-border/30">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                            <Wallet className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Your Balance</p>
+                            <p className="text-2xl font-bold text-foreground">
+                              {userBalanceFormatted} {farmingInfo.rewardTokenSymbol}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contract Info */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-muted/20 rounded-lg p-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Reward Per Block</p>
+                        <p className="font-semibold text-foreground">
+                          {parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)).toFixed(6)}
+                        </p>
+                      </div>
+                      <div className="bg-muted/20 rounded-lg p-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Start Block</p>
+                        <p className="font-semibold text-foreground">
+                          {farmingInfo.startBlock.toString()}
+                        </p>
+                      </div>
+                      <div className="bg-muted/20 rounded-lg p-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Total Alloc Points</p>
+                        <p className="font-semibold text-foreground">
+                          {farmingInfo.totalAllocPoint.toString()}
+                        </p>
+                      </div>
+                      <div className="bg-muted/20 rounded-lg p-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Active Pools</p>
+                        <p className="font-semibold text-foreground">
+                          {farmingPools.length}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Fund Form */}
+                    <div className="border-t border-border/30 pt-6 space-y-4">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <ArrowUpFromLine className="w-4 h-4" />
+                        Fund Farming Contract
+                      </h4>
+                      <div className="flex gap-4">
+                        <div className="flex-1 relative">
+                          <Input
+                            type="number"
+                            placeholder={`Amount of ${farmingInfo.rewardTokenSymbol}`}
+                            value={fundAmount}
+                            onChange={(e) => setFundAmount(e.target.value)}
+                            className="pr-20"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80"
+                            onClick={() => setFundAmount(ethers.formatEther(farmingInfo.userRewardBalance))}
+                          >
+                            MAX
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={handleFundFarming}
+                          disabled={isFunding || !fundAmount || parseFloat(fundAmount) <= 0}
+                          className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 min-w-[150px]"
+                        >
+                          {isFunding ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {isApproving ? 'Approving...' : 'Funding...'}
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign className="w-4 h-4 mr-2" />
+                              Fund Contract
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Tokens will be transferred directly to the farming contract to pay user rewards.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Failed to load farming info</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Quick Stats */}
+            {farmingInfo && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="glass-card hover:border-primary/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                        <TrendingUp className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Est. Daily Rewards</p>
+                        <p className="text-xl font-bold text-foreground">
+                          {(parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)) * 28800).toFixed(2)} {farmingInfo.rewardTokenSymbol}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card hover:border-accent/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
+                        <Sparkles className="w-6 h-6 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Days of Rewards Left</p>
+                        <p className={`text-xl font-bold ${hasLowBalance ? 'text-destructive' : 'text-foreground'}`}>
+                          {farmingInfo.rewardPerBlock > 0 
+                            ? Math.floor(Number(farmingInfo.contractRewardBalance) / (Number(farmingInfo.rewardPerBlock) * 28800)).toLocaleString()
+                            : '∞'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card hover:border-success/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                        <Leaf className="w-6 h-6 text-success" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total LP Staked</p>
+                        <p className="text-xl font-bold text-foreground">
+                          {farmingPools.reduce((acc, pool) => acc + parseFloat(ethers.formatEther(pool.totalStaked)), 0).toFixed(4)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </main>
