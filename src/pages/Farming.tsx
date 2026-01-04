@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { FarmCard } from '@/components/FarmCard';
@@ -24,21 +24,71 @@ import {
   Layers,
   ArrowRight,
   Zap,
-  ChevronRight
+  ChevronRight,
+  Clock
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
 import { Link } from 'react-router-dom';
 
+// Skeleton component for stats cards
+const StatsSkeleton = () => (
+  <Card className="glass-card">
+    <CardContent className="p-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-12 h-12 rounded-xl" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-7 w-16" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// Skeleton component for farm cards
+const FarmCardSkeleton = () => (
+  <Card className="glass-card overflow-hidden">
+    <CardContent className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex -space-x-3">
+            <Skeleton className="w-10 h-10 rounded-full" />
+            <Skeleton className="w-10 h-10 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-16" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-20 rounded-xl" />
+        <Skeleton className="h-20 rounded-xl" />
+      </div>
+      <Skeleton className="h-24 rounded-xl" />
+      <Skeleton className="h-10 w-full rounded-lg" />
+    </CardContent>
+  </Card>
+);
+
 // Component for user's LP positions that can be staked
 const UserLPCard: React.FC<{
   position: UserLPPosition;
   onStake?: (lpToken: string, farmPid: number) => void;
-}> = ({ position, onStake }) => {
+  index: number;
+}> = ({ position, onStake, index }) => {
   const balanceFormatted = ethers.formatEther(position.balance);
 
   return (
-    <Card className="glass-card hover:border-primary/30 transition-all">
+    <Card 
+      className="glass-card hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 animate-fade-in"
+      style={{ animationDelay: `${index * 0.1}s` }}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -46,13 +96,13 @@ const UserLPCard: React.FC<{
               <img 
                 src={position.token0Logo} 
                 alt={position.token0Symbol}
-                className="w-8 h-8 rounded-full border-2 border-card bg-muted"
+                className="w-8 h-8 rounded-full border-2 border-card bg-muted transition-transform hover:scale-110"
                 onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
               />
               <img 
                 src={position.token1Logo} 
                 alt={position.token1Symbol}
-                className="w-8 h-8 rounded-full border-2 border-card bg-muted"
+                className="w-8 h-8 rounded-full border-2 border-card bg-muted transition-transform hover:scale-110"
                 onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
               />
             </div>
@@ -66,7 +116,7 @@ const UserLPCard: React.FC<{
           
           {position.isStakeable && position.farmPid !== undefined ? (
             <Link to="/farming" onClick={() => onStake?.(position.lpToken, position.farmPid!)}>
-              <Button size="sm" className="bg-primary hover:bg-primary/90">
+              <Button size="sm" className="bg-primary hover:bg-primary/90 transition-all hover:scale-105">
                 <Zap className="w-4 h-4 mr-1" />
                 Stake
               </Button>
@@ -81,6 +131,27 @@ const UserLPCard: React.FC<{
     </Card>
   );
 };
+
+// LP Skeleton
+const UserLPSkeleton = () => (
+  <Card className="glass-card">
+    <CardContent className="p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex -space-x-2">
+            <Skeleton className="w-8 h-8 rounded-full" />
+            <Skeleton className="w-8 h-8 rounded-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        </div>
+        <Skeleton className="h-8 w-16" />
+      </div>
+    </CardContent>
+  </Card>
+);
 
 const Farming: React.FC = () => {
   const { isConnected, connect } = useWallet();
@@ -110,6 +181,20 @@ const Farming: React.FC = () => {
     isHarvestingAll,
   } = useFarming();
 
+  // Auto-refresh pending rewards every 15 seconds
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isConnected && !isLoading) {
+        refreshPools();
+        setLastRefresh(Date.now());
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [isConnected, isLoading, refreshPools]);
+
   // Calculate total stats
   const totalUserStaked = pools.reduce((acc, pool) => acc + pool.userStaked, BigInt(0));
   const totalPendingRewards = pools.reduce((acc, pool) => acc + pool.userPendingReward, BigInt(0));
@@ -128,7 +213,7 @@ const Farming: React.FC = () => {
       <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
         {/* Hero Section */}
         <div className="text-center mb-12 animate-fade-in">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 animate-glow-pulse">
             <TreeDeciduous className="w-5 h-5 text-primary" />
             <span className="text-primary font-medium">Yield Farming</span>
           </div>
@@ -149,20 +234,23 @@ const Farming: React.FC = () => {
 
         {/* Reward Balance Warning */}
         {!hasEnoughRewards && (
-          <Alert variant="destructive" className="mb-8">
+          <Alert variant="destructive" className="mb-8 animate-fade-in">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <strong>Contract has insufficient reward tokens ({rewardBalanceFormatted} {rewardTokenSymbol}).</strong>
               <br />
               Staking, unstaking, and harvesting will fail until the admin funds the contract with more reward tokens.
               Use "Emergency Withdraw" to withdraw your LP tokens without rewards.
+              <Link to="/admin" className="ml-2 underline text-destructive-foreground hover:no-underline">
+                Go to Admin →
+              </Link>
             </AlertDescription>
           </Alert>
         )}
 
         {/* Error Alert */}
         {error && hasEnoughRewards && (
-          <Alert variant="destructive" className="mb-8">
+          <Alert variant="destructive" className="mb-8 animate-fade-in">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -170,99 +258,113 @@ const Farming: React.FC = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <Leaf className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Farms</p>
-                  <p className="text-2xl font-bold text-foreground">{pools.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            <>
+              <StatsSkeleton />
+              <StatsSkeleton />
+              <StatsSkeleton />
+              <StatsSkeleton />
+            </>
+          ) : (
+            <>
+              <Card className="glass-card hover:border-primary/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center transition-transform hover:scale-110">
+                      <Leaf className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Active Farms</p>
+                      <p className="text-2xl font-bold text-foreground">{pools.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg. APR</p>
-                  <p className="text-2xl font-bold gradient-text">
-                    {avgApr > 0 ? `${avgApr.toFixed(2)}%` : 'TBD'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="glass-card hover:border-accent/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center transition-transform hover:scale-110">
+                      <TrendingUp className="w-6 h-6 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Avg. APR</p>
+                      <p className="text-2xl font-bold gradient-text">
+                        {avgApr > 0 ? `${avgApr.toFixed(2)}%` : 'TBD'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                  <Coins className="w-6 h-6 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Your Staked</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {isConnected ? parseFloat(ethers.formatEther(totalUserStaked)).toFixed(4) : '0.00'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="glass-card hover:border-success/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center transition-transform hover:scale-110">
+                      <Coins className="w-6 h-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Your Staked</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {isConnected ? parseFloat(ethers.formatEther(totalUserStaked)).toFixed(4) : '0.00'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-                  {rewardTokenLogo ? (
-                    <img 
-                      src={rewardTokenLogo} 
-                      alt={rewardTokenSymbol}
-                      className="w-6 h-6 rounded-full"
-                      onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
-                    />
-                  ) : (
-                    <Sparkles className="w-6 h-6 text-warning" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Rewards</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="glass-card hover:border-warning/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center transition-transform hover:scale-110">
+                      {rewardTokenLogo ? (
+                        <img 
+                          src={rewardTokenLogo} 
+                          alt={rewardTokenSymbol}
+                          className="w-6 h-6 rounded-full"
+                          onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
+                        />
+                      ) : (
+                        <Sparkles className="w-6 h-6 text-warning" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending Rewards</p>
+                      <p className="text-2xl font-bold text-primary animate-pulse">
+                        {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.5s' }}>
+          <div className="flex items-center gap-4 flex-wrap">
             <Link to="/staking">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:border-primary/50 transition-all">
                 <Coins className="w-4 h-4 mr-2" />
                 Single Staking
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
             <Link to="/admin">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:border-warning/50 transition-all">
                 <Zap className="w-4 h-4 mr-2" />
                 Admin
               </Button>
             </Link>
-            <Badge variant="outline" className="py-2 px-4">
+            <Badge variant="outline" className="py-2 px-4 hover:bg-muted/50 transition-all">
               <Sprout className="w-4 h-4 mr-2" />
               Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
             </Badge>
-            <Badge variant={hasEnoughRewards ? "outline" : "destructive"} className="py-2 px-4">
+            <Badge 
+              variant={hasEnoughRewards ? "outline" : "destructive"} 
+              className={`py-2 px-4 transition-all ${hasEnoughRewards ? 'hover:bg-muted/50' : ''}`}
+            >
               <Coins className="w-4 h-4 mr-2" />
               Contract Balance: {rewardBalanceFormatted} {rewardTokenSymbol}
             </Badge>
@@ -273,14 +375,14 @@ const Farming: React.FC = () => {
               <Button
                 onClick={harvestAll}
                 disabled={isHarvestingAll}
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all hover:scale-105 animate-glow-pulse"
               >
                 {isHarvestingAll ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Sparkles className="w-4 h-4 mr-2" />
                 )}
-                Harvest All
+                Harvest All ({parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4)} {rewardTokenSymbol})
               </Button>
             )}
             <Button
@@ -288,6 +390,7 @@ const Farming: React.FC = () => {
               size="sm"
               onClick={refreshPools}
               disabled={isLoading}
+              className="hover:border-primary/50 transition-all"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -297,7 +400,7 @@ const Farming: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="hover:border-primary/50 transition-all">
                 <ExternalLink className="w-4 h-4 mr-2" />
                 Contract
               </Button>
@@ -305,17 +408,25 @@ const Farming: React.FC = () => {
           </div>
         </div>
 
+        {/* Auto-refresh indicator */}
+        {isConnected && !isLoading && (
+          <div className="flex items-center justify-end mb-4 text-xs text-muted-foreground animate-fade-in">
+            <Clock className="w-3 h-3 mr-1" />
+            <span>Auto-refreshes every 15s</span>
+          </div>
+        )}
+
         {/* Connect Wallet Message */}
         {!isConnected && (
-          <Card className="glass-card mb-8">
+          <Card className="glass-card mb-8 animate-fade-in">
             <CardContent className="py-8">
               <div className="text-center">
-                <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <Wallet className="w-12 h-12 mx-auto mb-4 text-muted-foreground animate-bounce" />
                 <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
                 <p className="text-muted-foreground mb-4">
                   Connect your wallet to view your staked positions and rewards
                 </p>
-                <Button onClick={() => connect('metamask')} className="bg-primary hover:bg-primary/90">
+                <Button onClick={() => connect('metamask')} className="bg-primary hover:bg-primary/90 transition-all hover:scale-105">
                   Connect Wallet
                 </Button>
               </div>
@@ -324,8 +435,8 @@ const Farming: React.FC = () => {
         )}
 
         {/* User's Available LP Tokens */}
-        {isConnected && stakeableLPs.length > 0 && (
-          <Card className="glass-card mb-8">
+        {isConnected && (
+          <Card className="glass-card mb-8 animate-fade-in" style={{ animationDelay: '0.6s' }}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Layers className="w-5 h-5 text-primary" />
@@ -333,11 +444,32 @@ const Farming: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stakeableLPs.map((position) => (
-                  <UserLPCard key={position.lpToken} position={position} />
-                ))}
-              </div>
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <UserLPSkeleton />
+                  <UserLPSkeleton />
+                  <UserLPSkeleton />
+                </div>
+              ) : stakeableLPs.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {stakeableLPs.map((position, index) => (
+                    <UserLPCard key={position.lpToken} position={position} index={index} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Layers className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                  <p className="text-muted-foreground mb-4">
+                    No LP tokens available for staking
+                  </p>
+                  <Link to="/liquidity">
+                    <Button variant="outline" className="hover:border-primary/50">
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Add Liquidity
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -345,54 +477,47 @@ const Farming: React.FC = () => {
         {/* Farm Cards */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <Card key={i} className="glass-card">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="w-12 h-12 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-5 w-32" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-20 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
+            <FarmCardSkeleton />
+            <FarmCardSkeleton />
+            <FarmCardSkeleton />
           </div>
         ) : pools.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {pools.map((pool) => (
-              <FarmCard
-                key={pool.pid}
-                pool={pool}
-                rewardTokenSymbol={rewardTokenSymbol}
-                rewardTokenLogo={rewardTokenLogo}
-                onStake={stake}
-                onUnstake={unstake}
-                onHarvest={harvest}
-                onEmergencyWithdraw={emergencyWithdraw}
-                getLpBalance={getLpBalance}
-                onRefresh={refreshPools}
-                isStaking={isStaking}
-                isUnstaking={isUnstaking}
-                isHarvesting={isHarvesting}
-                hasEnoughRewards={hasEnoughRewards}
-              />
+            {pools.map((pool, index) => (
+              <div 
+                key={pool.pid} 
+                className="animate-fade-in"
+                style={{ animationDelay: `${0.1 * index}s` }}
+              >
+                <FarmCard
+                  pool={pool}
+                  rewardTokenSymbol={rewardTokenSymbol}
+                  rewardTokenLogo={rewardTokenLogo}
+                  onStake={stake}
+                  onUnstake={unstake}
+                  onHarvest={harvest}
+                  onEmergencyWithdraw={emergencyWithdraw}
+                  getLpBalance={getLpBalance}
+                  onRefresh={refreshPools}
+                  isStaking={isStaking}
+                  isUnstaking={isUnstaking}
+                  isHarvesting={isHarvesting}
+                  hasEnoughRewards={hasEnoughRewards}
+                />
+              </div>
             ))}
           </div>
         ) : (
-          <Card className="glass-card">
+          <Card className="glass-card animate-fade-in">
             <CardContent className="py-16">
               <div className="text-center">
-                <Leaf className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
+                <Leaf className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50 animate-bounce" />
                 <h3 className="text-xl font-semibold mb-2">No Active Farms</h3>
                 <p className="text-muted-foreground mb-4">
                   There are currently no active farming pools. Check back later or add liquidity to start farming.
                 </p>
                 <Link to="/liquidity">
-                  <Button className="bg-primary hover:bg-primary/90">
+                  <Button className="bg-primary hover:bg-primary/90 transition-all hover:scale-105">
                     <ArrowRight className="w-4 h-4 mr-2" />
                     Add Liquidity
                   </Button>
@@ -404,41 +529,42 @@ const Farming: React.FC = () => {
 
         {/* Info Section */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center mb-4">
-                <span className="text-xl font-bold text-primary">1</span>
-              </div>
-              <h3 className="font-semibold mb-2">Add Liquidity</h3>
-              <p className="text-sm text-muted-foreground">
-                First, add liquidity to any pool to receive LP tokens that represent your share.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center mb-4">
-                <span className="text-xl font-bold text-primary">2</span>
-              </div>
-              <h3 className="font-semibold mb-2">Stake LP Tokens</h3>
-              <p className="text-sm text-muted-foreground">
-                Stake your LP tokens in the farm to start earning rewards automatically.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center mb-4">
-                <span className="text-xl font-bold text-primary">3</span>
-              </div>
-              <h3 className="font-semibold mb-2">Harvest Rewards</h3>
-              <p className="text-sm text-muted-foreground">
-                Harvest your earned {rewardTokenSymbol || 'tokens'} anytime. Rewards accumulate every block.
-              </p>
-            </CardContent>
-          </Card>
+          {[
+            {
+              step: 1,
+              title: 'Add Liquidity',
+              description: 'First, add liquidity to any pool to receive LP tokens that represent your share.',
+              delay: '0.1s'
+            },
+            {
+              step: 2,
+              title: 'Stake LP Tokens',
+              description: 'Stake your LP tokens in the farm to start earning rewards automatically.',
+              delay: '0.2s'
+            },
+            {
+              step: 3,
+              title: 'Harvest Rewards',
+              description: `Harvest your earned ${rewardTokenSymbol || 'tokens'} anytime. Rewards accumulate every block.`,
+              delay: '0.3s'
+            }
+          ].map((item) => (
+            <Card 
+              key={item.step} 
+              className="glass-card hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 animate-fade-in"
+              style={{ animationDelay: item.delay }}
+            >
+              <CardContent className="p-6">
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center mb-4 transition-transform hover:scale-110">
+                  <span className="text-xl font-bold text-primary">{item.step}</span>
+                </div>
+                <h3 className="font-semibold mb-2">{item.title}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {item.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </main>
     </div>
