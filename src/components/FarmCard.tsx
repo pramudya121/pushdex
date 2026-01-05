@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PoolInfo } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
+import { FarmPoolChart } from '@/components/FarmPoolChart';
 import { 
   TrendingUp, 
   Coins, 
@@ -19,7 +20,8 @@ import {
   ExternalLink,
   Zap,
   AlertTriangle,
-  Clock
+  Clock,
+  BarChart3
 } from 'lucide-react';
 import { BLOCK_EXPLORER } from '@/config/contracts';
 import {
@@ -67,6 +69,7 @@ export const FarmCard: React.FC<FarmCardProps> = ({
 }) => {
   const { isConnected } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showChart, setShowChart] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
   const [unstakeAmount, setUnstakeAmount] = useState('');
   const [lpBalance, setLpBalance] = useState('0');
@@ -239,6 +242,28 @@ export const FarmCard: React.FC<FarmCardProps> = ({
             </p>
           </div>
         </div>
+
+        {/* Chart Toggle Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-muted-foreground hover:text-primary hover:bg-muted/30 transition-all"
+          onClick={() => setShowChart(!showChart)}
+        >
+          <BarChart3 className="w-4 h-4 mr-2" />
+          {showChart ? 'Hide Charts' : 'View Historical Charts'}
+        </Button>
+
+        {/* Historical Charts */}
+        {showChart && (
+          <div className="animate-fade-in">
+            <FarmPoolChart
+              poolId={pool.pid}
+              currentApr={pool.apr}
+              totalStaked={totalStakedFormatted}
+            />
+          </div>
+        )}
 
         {/* User Info */}
         {isConnected && (
