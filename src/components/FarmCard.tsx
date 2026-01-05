@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +52,7 @@ interface FarmCardProps {
   hasEnoughRewards?: boolean;
 }
 
-export const FarmCard: React.FC<FarmCardProps> = ({
+export const FarmCard: React.FC<FarmCardProps> = memo(({
   pool,
   rewardTokenSymbol,
   rewardTokenLogo,
@@ -279,10 +279,16 @@ export const FarmCard: React.FC<FarmCardProps> = ({
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Earned</span>
-                {hasStaked && hasEnoughRewards && (
-                  <div className="flex items-center gap-1 text-xs text-success">
+                {hasStaked && hasEnoughRewards && parseFloat(displayedReward) > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-success animate-pulse">
                     <Clock className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
                     <span>Accruing</span>
+                  </div>
+                )}
+                {hasStaked && parseFloat(displayedReward) === 0 && (
+                  <div className="flex items-center gap-1 text-xs text-warning">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>No rewards</span>
                   </div>
                 )}
               </div>
@@ -293,11 +299,21 @@ export const FarmCard: React.FC<FarmCardProps> = ({
                   className="w-5 h-5 rounded-full"
                   onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
                 />
-                <span className={`font-semibold tabular-nums ${hasPendingRewards ? 'text-primary' : 'text-muted-foreground'}`}>
+                <span className={`font-semibold tabular-nums ${hasPendingRewards ? 'text-primary animate-pulse' : 'text-muted-foreground'}`}>
                   {hasStaked ? displayedReward : parseFloat(pendingRewardFormatted).toFixed(6)} {rewardTokenSymbol}
                 </span>
               </div>
             </div>
+
+            {/* No Rewards Warning - when staked but no rewards coming */}
+            {hasStaked && parseFloat(displayedReward) === 0 && hasEnoughRewards && (
+              <div className="flex items-center gap-2 p-2 bg-warning/10 rounded-lg border border-warning/30">
+                <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
+                <p className="text-xs text-warning">
+                  Rewards not accruing. Admin needs to set <code className="bg-background/50 px-1 rounded">rewardPerBlock</code> in the contract.
+                </p>
+              </div>
+            )}
             
             {hasPendingRewards && hasEnoughRewards && (
               <Button
@@ -519,4 +535,4 @@ export const FarmCard: React.FC<FarmCardProps> = ({
       </CardContent>
     </Card>
   );
-};
+});

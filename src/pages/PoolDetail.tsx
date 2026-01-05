@@ -74,28 +74,48 @@ const PoolDetail = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const fetchPoolDetails = async () => {
-    if (!address) return;
+    if (!address) {
+      console.log('No address provided');
+      return;
+    }
     
     setIsLoading(true);
     try {
       const provider = getReadProvider();
+      
+      // Validate address format
+      if (!ethers.isAddress(address)) {
+        toast.error('Invalid pool address');
+        setIsLoading(false);
+        return;
+      }
+      
       const pairContract = new ethers.Contract(address, PAIR_ABI, provider);
       
-      const [token0, token1, reserves, totalSupply] = await Promise.all([
-        pairContract.token0(),
-        pairContract.token1(),
-        pairContract.getReserves(),
-        pairContract.totalSupply(),
-      ]);
+      // Check if contract exists by calling a view function
+      let token0, token1, reserves, totalSupply;
+      try {
+        [token0, token1, reserves, totalSupply] = await Promise.all([
+          pairContract.token0(),
+          pairContract.token1(),
+          pairContract.getReserves(),
+          pairContract.totalSupply(),
+        ]);
+      } catch (err) {
+        console.error('Contract call failed:', err);
+        toast.error('Pool not found or invalid address');
+        setIsLoading(false);
+        return;
+      }
 
       const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
       const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
 
       const [token0Symbol, token1Symbol, token0Decimals, token1Decimals] = await Promise.all([
-        token0Contract.symbol(),
-        token1Contract.symbol(),
-        token0Contract.decimals(),
-        token1Contract.decimals(),
+        token0Contract.symbol().catch(() => 'Unknown'),
+        token1Contract.symbol().catch(() => 'Unknown'),
+        token0Contract.decimals().catch(() => 18),
+        token1Contract.decimals().catch(() => 18),
       ]);
 
       const token0Info = getTokenByAddress(token0);
@@ -104,10 +124,13 @@ const PoolDetail = () => {
       const reserve0Formatted = formatAmount(reserves[0], token0Decimals);
       const reserve1Formatted = formatAmount(reserves[1], token1Decimals);
       
-      const price0 = parseFloat(reserve1Formatted) / parseFloat(reserve0Formatted);
-      const price1 = parseFloat(reserve0Formatted) / parseFloat(reserve1Formatted);
+      const reserve0Num = parseFloat(reserve0Formatted) || 0;
+      const reserve1Num = parseFloat(reserve1Formatted) || 0;
       
-      const tvl = parseFloat(reserve0Formatted) + parseFloat(reserve1Formatted);
+      const price0 = reserve0Num > 0 ? reserve1Num / reserve0Num : 0;
+      const price1 = reserve1Num > 0 ? reserve0Num / reserve1Num : 0;
+      
+      const tvl = reserve0Num + reserve1Num;
       const volume24h = tvl * (0.05 + Math.random() * 0.15);
       const fees24h = volume24h * 0.003;
       const apy = tvl > 0 ? ((fees24h * 365) / tvl) * 100 : 0;
@@ -135,13 +158,17 @@ const PoolDetail = () => {
 
       // Fetch user LP balance if connected
       if (userAddress) {
-        const balance = await pairContract.balanceOf(userAddress);
-        const balanceFormatted = formatAmount(balance, 18);
-        setUserLpBalance(balanceFormatted);
-        
-        const totalSupplyNum = parseFloat(formatAmount(totalSupply, 18));
-        const balanceNum = parseFloat(balanceFormatted);
-        setUserShare(totalSupplyNum > 0 ? (balanceNum / totalSupplyNum) * 100 : 0);
+        try {
+          const balance = await pairContract.balanceOf(userAddress);
+          const balanceFormatted = formatAmount(balance, 18);
+          setUserLpBalance(balanceFormatted);
+          
+          const totalSupplyNum = parseFloat(formatAmount(totalSupply, 18));
+          const balanceNum = parseFloat(balanceFormatted);
+          setUserShare(totalSupplyNum > 0 ? (balanceNum / totalSupplyNum) * 100 : 0);
+        } catch (err) {
+          console.error('Error fetching user balance:', err);
+        }
       }
 
       // Generate mock transactions
