@@ -232,14 +232,29 @@ const Farming: React.FC = () => {
           <FarmingCountdown startBlock={startBlock} className="mb-8" />
         )}
 
+        {/* Reward Per Block = 0 Warning */}
+        {rewardPerBlock === BigInt(0) && !isLoading && (
+          <Alert className="mb-6 animate-fade-in border-warning/50 bg-warning/10">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning">
+              <strong>Farming rewards not configured!</strong> The contract has <code className="bg-background/50 px-1 rounded">rewardPerBlock = 0</code>.
+              <br />
+              Admin needs to set reward rate via contract or Admin page. No rewards will accrue until this is configured.
+              <Link to="/admin" className="ml-2 underline hover:no-underline font-semibold">
+                Configure in Admin →
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Reward Balance Warning */}
-        {!hasEnoughRewards && (
-          <Alert variant="destructive" className="mb-8 animate-fade-in">
+        {!hasEnoughRewards && rewardPerBlock > BigInt(0) && (
+          <Alert variant="destructive" className="mb-6 animate-fade-in">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <strong>Contract has insufficient reward tokens ({rewardBalanceFormatted} {rewardTokenSymbol}).</strong>
               <br />
-              Staking, unstaking, and harvesting will fail until the admin funds the contract with more reward tokens.
+              Staking, unstaking, and harvesting will fail until the admin funds the contract.
               Use "Emergency Withdraw" to withdraw your LP tokens without rewards.
               <Link to="/admin" className="ml-2 underline text-destructive-foreground hover:no-underline">
                 Go to Admin →
@@ -249,8 +264,8 @@ const Farming: React.FC = () => {
         )}
 
         {/* Error Alert */}
-        {error && hasEnoughRewards && (
-          <Alert variant="destructive" className="mb-8 animate-fade-in">
+        {error && hasEnoughRewards && rewardPerBlock > BigInt(0) && (
+          <Alert variant="destructive" className="mb-6 animate-fade-in">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
@@ -357,13 +372,16 @@ const Farming: React.FC = () => {
                 Admin
               </Button>
             </Link>
-            <Badge variant="outline" className="py-2 px-4 hover:bg-muted/50 transition-all">
+            <Badge 
+              variant={rewardPerBlock > BigInt(0) ? "outline" : "destructive"} 
+              className={`py-2 px-4 transition-all ${rewardPerBlock > BigInt(0) ? 'hover:bg-muted/50' : 'animate-pulse'}`}
+            >
               <Sprout className="w-4 h-4 mr-2" />
-              Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0'} {rewardTokenSymbol}/block
+              Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0 (NOT SET)'} {rewardTokenSymbol}/block
             </Badge>
             <Badge 
               variant={hasEnoughRewards ? "outline" : "destructive"} 
-              className={`py-2 px-4 transition-all ${hasEnoughRewards ? 'hover:bg-muted/50' : ''}`}
+              className={`py-2 px-4 transition-all ${hasEnoughRewards ? 'hover:bg-muted/50' : 'animate-pulse'}`}
             >
               <Coins className="w-4 h-4 mr-2" />
               Contract Balance: {rewardBalanceFormatted} {rewardTokenSymbol}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { ethers } from 'ethers';
 import { Link } from 'react-router-dom';
 import { WaveBackground } from '@/components/WaveBackground';
@@ -10,6 +10,7 @@ import { QuickStats } from '@/components/QuickStats';
 import { PriceAlertModal } from '@/components/PriceAlertModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CONTRACTS } from '@/config/contracts';
 import { FACTORY_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
@@ -46,7 +47,7 @@ type SortField = 'tvl' | 'volume24h' | 'apy';
 type ViewMode = 'grid' | 'list';
 type FilterMode = 'all' | 'favorites';
 
-// Mock price data - in production this would come from an oracle or price feed
+// Token prices - memoized outside component
 const TOKEN_PRICES: Record<string, number> = {
   'WPC': 1.5,
   'ETH': 2300,
@@ -55,7 +56,42 @@ const TOKEN_PRICES: Record<string, number> = {
   'PC': 1.5,
 };
 
-const Pools = () => {
+// Pool Card Skeleton for loading state
+const PoolCardSkeleton = memo(() => (
+  <div className="glass-card p-5 space-y-4">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="flex -space-x-3">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <Skeleton className="w-10 h-10 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+      <div className="flex gap-1">
+        <Skeleton className="w-8 h-8 rounded-lg" />
+        <Skeleton className="w-8 h-8 rounded-lg" />
+      </div>
+    </div>
+    <div className="grid grid-cols-2 gap-3">
+      <Skeleton className="h-16 rounded-xl" />
+      <Skeleton className="h-16 rounded-xl" />
+    </div>
+    <div className="space-y-2">
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-full" />
+    </div>
+    <Skeleton className="h-4 w-full" />
+    <div className="flex gap-2">
+      <Skeleton className="h-8 flex-1 rounded-lg" />
+      <Skeleton className="h-8 flex-1 rounded-lg" />
+    </div>
+  </div>
+));
+
+const Pools = memo(() => {
   const [pools, setPools] = useState<PoolInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,37 +194,37 @@ const Pools = () => {
     fetchPools();
   }, []);
 
-  // Filter and sort pools
-  const filteredPools = pools
-    .filter(pool => {
-      // Text search filter
-      const matchesSearch = pool.token0Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pool.token1Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pool.pairAddress.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Favorites filter
-      const matchesFavorites = filterMode === 'all' || isFavoritePool(pool.pairAddress);
-      
-      return matchesSearch && matchesFavorites;
-    })
-    .sort((a, b) => {
-      const multiplier = sortDesc ? -1 : 1;
-      return (a[sortField] - b[sortField]) * multiplier;
-    });
+  // Memoized filter and sort
+  const filteredPools = useMemo(() => {
+    return pools
+      .filter(pool => {
+        const matchesSearch = pool.token0Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          pool.token1Symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          pool.pairAddress.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFavorites = filterMode === 'all' || isFavoritePool(pool.pairAddress);
+        return matchesSearch && matchesFavorites;
+      })
+      .sort((a, b) => {
+        const multiplier = sortDesc ? -1 : 1;
+        return (a[sortField] - b[sortField]) * multiplier;
+      });
+  }, [pools, searchTerm, filterMode, isFavoritePool, sortField, sortDesc]);
 
-  // Stats summary - from on-chain data
-  const totalTVL = pools.reduce((sum, p) => sum + p.tvl, 0);
-  const totalVolume = pools.reduce((sum, p) => sum + p.volume24h, 0);
-  const avgAPY = pools.length > 0 ? pools.reduce((sum, p) => sum + p.apy, 0) / pools.length : 0;
+  // Memoized stats
+  const { totalTVL, totalVolume, avgAPY } = useMemo(() => ({
+    totalTVL: pools.reduce((sum, p) => sum + p.tvl, 0),
+    totalVolume: pools.reduce((sum, p) => sum + p.volume24h, 0),
+    avgAPY: pools.length > 0 ? pools.reduce((sum, p) => sum + p.apy, 0) / pools.length : 0
+  }), [pools]);
 
-  const toggleSort = (field: SortField) => {
+  const toggleSort = useCallback((field: SortField) => {
     if (sortField === field) {
-      setSortDesc(!sortDesc);
+      setSortDesc(prev => !prev);
     } else {
       setSortField(field);
       setSortDesc(true);
     }
-  };
+  }, [sortField]);
 
   return (
     <div className="min-h-screen relative">
@@ -345,11 +381,10 @@ const Pools = () => {
             {/* Pools List/Grid */}
             <div className="xl:col-span-2">
               {isLoading ? (
-                <div className="flex items-center justify-center py-32">
-                  <div className="text-center">
-                    <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-                    <p className="text-muted-foreground">Loading pools from blockchain...</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <PoolCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : filteredPools.length === 0 ? (
                 <div className="glass-card p-16 text-center animate-scale-in">
@@ -481,6 +516,6 @@ const Pools = () => {
       </main>
     </div>
   );
-};
+});
 
 export default Pools;
