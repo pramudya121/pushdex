@@ -105,6 +105,12 @@ const Admin: React.FC = () => {
   const [isFunding, setIsFunding] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
+  // Set Reward Per Block State
+  const [newRewardPerBlock, setNewRewardPerBlock] = useState('');
+  const [isSettingReward, setIsSettingReward] = useState(false);
+  const [farmingOwner, setFarmingOwner] = useState<string>('');
+  const [isFarmingOwner, setIsFarmingOwner] = useState(false);
+
   // Check ownership and fetch pools
   useEffect(() => {
     const fetchData = async () => {
@@ -166,14 +172,19 @@ const Admin: React.FC = () => {
         setIsLoadingFarming(true);
         const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
         
-        // Get farming contract info
-        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock] = await Promise.all([
+        // Get farming contract info including owner
+        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, farmOwner] = await Promise.all([
           farmingContract.poolLength(),
           farmingContract.rewardToken(),
           farmingContract.rewardPerBlock(),
           farmingContract.totalAllocPoint(),
           farmingContract.startBlock(),
+          farmingContract.owner().catch(() => ''),
         ]);
+
+        // Set farming owner state
+        setFarmingOwner(farmOwner);
+        setIsFarmingOwner(address?.toLowerCase() === farmOwner.toLowerCase());
 
         // Get reward token details
         const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
@@ -420,6 +431,39 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleSetRewardPerBlock = async () => {
+    if (!signer || !isFarmingOwner) {
+      toast.error('You must be the farming contract owner');
+      return;
+    }
+
+    if (!newRewardPerBlock || parseFloat(newRewardPerBlock) < 0) {
+      toast.error('Please enter a valid reward per block');
+      return;
+    }
+
+    try {
+      setIsSettingReward(true);
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
+      const rewardWei = ethers.parseEther(newRewardPerBlock);
+
+      toast.info('Setting reward per block...');
+      const tx = await farmingContract.updateRewardPerBlock(rewardWei);
+      await tx.wait();
+
+      toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
+      setNewRewardPerBlock('');
+      
+      // Refresh
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error setting reward per block:', error);
+      toast.error(error.reason || error.message || 'Failed to set reward per block');
+    } finally {
+      setIsSettingReward(false);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-background wave-bg">
@@ -523,15 +567,28 @@ const Admin: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <a
-                  href={`${BLOCK_EXPLORER}/address/${CONTRACTS.FARMING}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="ghost" size="sm">
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </a>
+                <div className="flex items-center gap-2">
+                  {isFarmingOwner ? (
+                    <Badge className="bg-success/20 text-success border-success/30">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Owner
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      Viewer
+                    </Badge>
+                  )}
+                  <a
+                    href={`${BLOCK_EXPLORER}/address/${CONTRACTS.FARMING}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="ghost" size="sm">
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </a>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -949,6 +1006,67 @@ const Admin: React.FC = () => {
                         </p>
                       </div>
                     </div>
+
+                    {/* Set Reward Per Block - Only for Owner */}
+                    {isFarmingOwner && (
+                      <div className="border-t border-border/30 pt-6 space-y-4">
+                        <h4 className="font-semibold flex items-center gap-2 text-warning">
+                          <Settings className="w-4 h-4" />
+                          Set Reward Per Block (Owner Only)
+                        </h4>
+                        {farmingInfo.rewardPerBlock === BigInt(0) && (
+                          <Alert className="border-destructive/50 bg-destructive/10">
+                            <AlertCircle className="h-4 w-4 text-destructive" />
+                            <AlertDescription className="text-destructive">
+                              <strong>Critical:</strong> Reward per block is 0! Users cannot earn rewards. Set a value above to enable farming rewards.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              placeholder="e.g. 0.1 (tokens per block)"
+                              value={newRewardPerBlock}
+                              onChange={(e) => setNewRewardPerBlock(e.target.value)}
+                              step="0.000001"
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Current: {parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)).toFixed(6)} {farmingInfo.rewardTokenSymbol}/block
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleSetRewardPerBlock}
+                            disabled={isSettingReward || !newRewardPerBlock}
+                            className="bg-warning hover:bg-warning/90 text-warning-foreground min-w-[180px]"
+                          >
+                            {isSettingReward ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Setting...
+                              </>
+                            ) : (
+                              <>
+                                <Settings className="w-4 h-4 mr-2" />
+                                Set Reward Rate
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          This controls how many reward tokens are distributed per block across all pools.
+                        </p>
+                      </div>
+                    )}
+
+                    {!isFarmingOwner && farmingInfo.rewardPerBlock === BigInt(0) && (
+                      <Alert className="border-destructive/50 bg-destructive/10">
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                        <AlertDescription className="text-destructive">
+                          <strong>Farming Not Active:</strong> Reward per block is 0. Contact the contract owner ({farmingOwner.slice(0, 10)}...{farmingOwner.slice(-8)}) to configure rewards.
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     {/* Fund Form */}
                     <div className="border-t border-border/30 pt-6 space-y-4">
