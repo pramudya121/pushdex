@@ -1007,66 +1007,91 @@ const Admin: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Set Reward Per Block - Only for Owner */}
-                    {isFarmingOwner && (
-                      <div className="border-t border-border/30 pt-6 space-y-4">
+                    {/* Set Reward Per Block Section */}
+                    <div className="border-t border-border/30 pt-6 space-y-4">
+                      <div className="flex items-center justify-between">
                         <h4 className="font-semibold flex items-center gap-2 text-warning">
-                          <Settings className="w-4 h-4" />
-                          Set Reward Per Block (Owner Only)
+                          <TrendingUp className="w-4 h-4" />
+                          Set Reward Per Block
                         </h4>
-                        {farmingInfo.rewardPerBlock === BigInt(0) && (
-                          <Alert className="border-destructive/50 bg-destructive/10">
-                            <AlertCircle className="h-4 w-4 text-destructive" />
-                            <AlertDescription className="text-destructive">
-                              <strong>Critical:</strong> Reward per block is 0! Users cannot earn rewards. Set a value above to enable farming rewards.
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                        <div className="flex gap-4">
-                          <div className="flex-1">
-                            <Input
-                              type="number"
-                              placeholder="e.g. 0.1 (tokens per block)"
-                              value={newRewardPerBlock}
-                              onChange={(e) => setNewRewardPerBlock(e.target.value)}
-                              step="0.000001"
-                            />
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Current: {parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)).toFixed(6)} {farmingInfo.rewardTokenSymbol}/block
-                            </p>
-                          </div>
-                          <Button
-                            onClick={handleSetRewardPerBlock}
-                            disabled={isSettingReward || !newRewardPerBlock}
-                            className="bg-warning hover:bg-warning/90 text-warning-foreground min-w-[180px]"
-                          >
-                            {isSettingReward ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Setting...
-                              </>
-                            ) : (
-                              <>
-                                <Settings className="w-4 h-4 mr-2" />
-                                Set Reward Rate
-                              </>
+                        {farmingOwner && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Owner:</span>
+                            <a
+                              href={`${BLOCK_EXPLORER}/address/${farmingOwner}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-mono text-primary hover:underline"
+                            >
+                              {farmingOwner.slice(0, 6)}...{farmingOwner.slice(-4)}
+                            </a>
+                            {isFarmingOwner && (
+                              <Badge variant="default" className="bg-success text-success-foreground text-xs">
+                                You
+                              </Badge>
                             )}
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          This controls how many reward tokens are distributed per block across all pools.
-                        </p>
+                          </div>
+                        )}
                       </div>
-                    )}
 
-                    {!isFarmingOwner && farmingInfo.rewardPerBlock === BigInt(0) && (
-                      <Alert className="border-destructive/50 bg-destructive/10">
-                        <AlertCircle className="h-4 w-4 text-destructive" />
-                        <AlertDescription className="text-destructive">
-                          <strong>Farming Not Active:</strong> Reward per block is 0. Contact the contract owner ({farmingOwner.slice(0, 10)}...{farmingOwner.slice(-8)}) to configure rewards.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                      {farmingInfo.rewardPerBlock === BigInt(0) && (
+                        <Alert className="border-destructive/50 bg-destructive/10">
+                          <AlertCircle className="h-4 w-4 text-destructive" />
+                          <AlertDescription className="text-destructive">
+                            <strong>Critical:</strong> Reward per block is 0! Users cannot earn rewards. 
+                            {isFarmingOwner 
+                              ? " Set a value below to enable farming rewards."
+                              : ` Contact the contract owner to configure rewards.`
+                            }
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {!isFarmingOwner && (
+                        <Alert className="border-warning/30 bg-warning/5">
+                          <AlertCircle className="h-4 w-4 text-warning" />
+                          <AlertDescription className="text-foreground">
+                            Only the farming contract owner can set the reward per block. You are viewing as a non-owner.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <Input
+                            type="number"
+                            placeholder="e.g. 0.1 (tokens per block)"
+                            value={newRewardPerBlock}
+                            onChange={(e) => setNewRewardPerBlock(e.target.value)}
+                            step="0.000001"
+                            disabled={!isFarmingOwner}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Current: {parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)).toFixed(6)} {farmingInfo.rewardTokenSymbol}/block
+                          </p>
+                        </div>
+                        <Button
+                          onClick={handleSetRewardPerBlock}
+                          disabled={isSettingReward || !newRewardPerBlock || !isFarmingOwner}
+                          className="bg-warning hover:bg-warning/90 text-warning-foreground min-w-[180px]"
+                        >
+                          {isSettingReward ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Setting...
+                            </>
+                          ) : (
+                            <>
+                              <Settings className="w-4 h-4 mr-2" />
+                              Set Reward Rate
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        This controls how many reward tokens are distributed per block across all pools.
+                      </p>
+                    </div>
 
                     {/* Fund Form */}
                     <div className="border-t border-border/30 pt-6 space-y-4">
