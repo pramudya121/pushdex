@@ -618,6 +618,27 @@ export const FARMING_ABI = [
     name: "Withdraw",
     type: "event",
   },
+  {
+    inputs: [{ internalType: "uint256", name: "_rewardPerBlock", type: "uint256" }],
+    name: "updateRewardPerBlock",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "owner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "massUpdatePools",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
 ] as const;
 
 // Staking ABI
