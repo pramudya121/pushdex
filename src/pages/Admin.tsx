@@ -184,45 +184,81 @@ const Admin: React.FC = () => {
         
         // Get farming contract info including owner
         const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, farmOwner, blockNumber] = await Promise.all([
-          farmingContract.poolLength(),
-          farmingContract.rewardToken(),
-          farmingContract.rewardPerBlock(),
-          farmingContract.totalAllocPoint(),
-          farmingContract.startBlock(),
+          farmingContract.poolLength().catch(() => BigInt(0)),
+          farmingContract.rewardToken().catch(() => ''),
+          farmingContract.rewardPerBlock().catch(() => BigInt(0)),
+          farmingContract.totalAllocPoint().catch(() => BigInt(0)),
+          farmingContract.startBlock().catch(() => BigInt(0)),
           farmingContract.owner().catch(() => ''),
-          provider.getBlockNumber(),
+          provider.getBlockNumber().catch(() => 0),
         ]);
 
         // Set farming owner state and current block
-        setFarmingOwner(farmOwner);
-        setIsFarmingOwner(address?.toLowerCase() === farmOwner.toLowerCase());
+        if (farmOwner) {
+          setFarmingOwner(farmOwner);
+          setIsFarmingOwner(address?.toLowerCase() === farmOwner.toLowerCase());
+        }
         setCurrentBlock(blockNumber);
 
-        // Get reward token details
-        const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
-        const [contractRewardBalance, rewardTokenSymbol] = await Promise.all([
-          rewardTokenContract.balanceOf(CONTRACTS.FARMING),
-          rewardTokenContract.symbol(),
-        ]);
+        // Check if we have a valid reward token
+        if (!rewardToken || rewardToken === '' || rewardToken === ethers.ZeroAddress) {
+          console.log('No valid reward token found');
+          // Still set basic farming info even without reward token
+          setFarmingInfo({
+            rewardToken: rewardToken || ethers.ZeroAddress,
+            rewardTokenSymbol: 'UNKNOWN',
+            rewardTokenLogo: '/tokens/pc.png',
+            rewardPerBlock,
+            startBlock,
+            totalAllocPoint,
+            contractRewardBalance: BigInt(0),
+            userRewardBalance: BigInt(0),
+          });
+        } else {
+          // Get reward token details with error handling
+          const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
+          
+          let contractRewardBalance = BigInt(0);
+          let rewardTokenSymbol = 'UNKNOWN';
+          let userRewardBalance = BigInt(0);
 
-        // Get user's reward token balance if connected
-        let userRewardBalance = BigInt(0);
-        if (address) {
-          userRewardBalance = await rewardTokenContract.balanceOf(address);
+          try {
+            contractRewardBalance = await rewardTokenContract.balanceOf(CONTRACTS.FARMING);
+          } catch (e) {
+            console.log('Error fetching contract reward balance:', e);
+          }
+
+          try {
+            rewardTokenSymbol = await rewardTokenContract.symbol();
+          } catch (e) {
+            console.log('Error fetching reward token symbol:', e);
+            // Try to get from token list
+            const tokenFromList = TOKEN_LIST.find(t => t.address.toLowerCase() === rewardToken.toLowerCase());
+            rewardTokenSymbol = tokenFromList?.symbol || 'UNKNOWN';
+          }
+
+          // Get user's reward token balance if connected
+          if (address) {
+            try {
+              userRewardBalance = await rewardTokenContract.balanceOf(address);
+            } catch (e) {
+              console.log('Error fetching user reward balance:', e);
+            }
+          }
+
+          const tokenFromList = TOKEN_LIST.find(t => t.address.toLowerCase() === rewardToken.toLowerCase());
+          
+          setFarmingInfo({
+            rewardToken,
+            rewardTokenSymbol,
+            rewardTokenLogo: tokenFromList?.logo || '/tokens/pc.png',
+            rewardPerBlock,
+            startBlock,
+            totalAllocPoint,
+            contractRewardBalance,
+            userRewardBalance,
+          });
         }
-
-        const tokenFromList = TOKEN_LIST.find(t => t.address.toLowerCase() === rewardToken.toLowerCase());
-        
-        setFarmingInfo({
-          rewardToken,
-          rewardTokenSymbol,
-          rewardTokenLogo: tokenFromList?.logo || '/tokens/pc.png',
-          rewardPerBlock,
-          startBlock,
-          totalAllocPoint,
-          contractRewardBalance,
-          userRewardBalance,
-        });
         
         const farms: FarmingPoolData[] = [];
         for (let i = 0; i < Number(poolLength); i++) {
