@@ -105,11 +105,21 @@ const Admin: React.FC = () => {
   const [isFunding, setIsFunding] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
-  // Set Reward Per Block State
+// Set Reward Per Block State
   const [newRewardPerBlock, setNewRewardPerBlock] = useState('');
   const [isSettingReward, setIsSettingReward] = useState(false);
   const [farmingOwner, setFarmingOwner] = useState<string>('');
   const [isFarmingOwner, setIsFarmingOwner] = useState(false);
+
+  // Withdraw Rewards State (Owner only)
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Mass Update Pools State
+  const [isMassUpdating, setIsMassUpdating] = useState(false);
+
+  // Current Block State
+  const [currentBlock, setCurrentBlock] = useState<number>(0);
 
   // Check ownership and fetch pools
   useEffect(() => {
@@ -173,18 +183,20 @@ const Admin: React.FC = () => {
         const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
         
         // Get farming contract info including owner
-        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, farmOwner] = await Promise.all([
+        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, farmOwner, blockNumber] = await Promise.all([
           farmingContract.poolLength(),
           farmingContract.rewardToken(),
           farmingContract.rewardPerBlock(),
           farmingContract.totalAllocPoint(),
           farmingContract.startBlock(),
           farmingContract.owner().catch(() => ''),
+          provider.getBlockNumber(),
         ]);
 
-        // Set farming owner state
+        // Set farming owner state and current block
         setFarmingOwner(farmOwner);
         setIsFarmingOwner(address?.toLowerCase() === farmOwner.toLowerCase());
+        setCurrentBlock(blockNumber);
 
         // Get reward token details
         const rewardTokenContract = new ethers.Contract(rewardToken, ERC20_ABI, provider);
@@ -461,6 +473,76 @@ const Admin: React.FC = () => {
       toast.error(error.reason || error.message || 'Failed to set reward per block');
     } finally {
       setIsSettingReward(false);
+    }
+  };
+
+  const handleWithdrawRewards = async () => {
+    if (!signer || !isFarmingOwner || !farmingInfo) {
+      toast.error('You must be the farming contract owner');
+      return;
+    }
+
+    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    const amountWei = ethers.parseEther(withdrawAmount);
+    if (amountWei > farmingInfo.contractRewardBalance) {
+      toast.error('Amount exceeds contract balance');
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const rewardTokenContract = new ethers.Contract(farmingInfo.rewardToken, ERC20_ABI, signer);
+      
+      // Note: This assumes the farming contract has a withdraw function for the owner
+      // If not available, we'll show an error
+      toast.info(`Withdrawing ${withdrawAmount} ${farmingInfo.rewardTokenSymbol}...`);
+      
+      // Try to call withdrawReward or similar function
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
+      
+      // Check if contract has withdrawReward function
+      try {
+        const tx = await farmingContract.withdrawReward(amountWei);
+        await tx.wait();
+        toast.success(`Successfully withdrew ${withdrawAmount} ${farmingInfo.rewardTokenSymbol}!`);
+        setWithdrawAmount('');
+        window.location.reload();
+      } catch {
+        // If withdrawReward doesn't exist, show info message
+        toast.error('Withdraw function not available on this contract. Contact the developer.');
+      }
+    } catch (error: any) {
+      console.error('Error withdrawing rewards:', error);
+      toast.error(error.reason || error.message || 'Failed to withdraw rewards');
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const handleMassUpdatePools = async () => {
+    if (!signer) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    try {
+      setIsMassUpdating(true);
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
+      
+      toast.info('Updating all farming pools...');
+      const tx = await farmingContract.massUpdatePools();
+      await tx.wait();
+      
+      toast.success('All pools updated successfully!');
+    } catch (error: any) {
+      console.error('Error mass updating pools:', error);
+      toast.error(error.reason || error.message || 'Failed to update pools');
+    } finally {
+      setIsMassUpdating(false);
     }
   };
 
@@ -980,7 +1062,7 @@ const Admin: React.FC = () => {
                     </div>
 
                     {/* Contract Info */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="bg-muted/20 rounded-lg p-4 text-center">
                         <p className="text-xs text-muted-foreground mb-1">Reward Per Block</p>
                         <p className="font-semibold text-foreground">
@@ -991,6 +1073,12 @@ const Admin: React.FC = () => {
                         <p className="text-xs text-muted-foreground mb-1">Start Block</p>
                         <p className="font-semibold text-foreground">
                           {farmingInfo.startBlock.toString()}
+                        </p>
+                      </div>
+                      <div className="bg-muted/20 rounded-lg p-4 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Current Block</p>
+                        <p className="font-semibold text-foreground">
+                          {currentBlock.toLocaleString()}
                         </p>
                       </div>
                       <div className="bg-muted/20 rounded-lg p-4 text-center">
@@ -1005,6 +1093,37 @@ const Admin: React.FC = () => {
                           {farmingPools.length}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Mass Update Pools Button */}
+                    <div className="flex items-center justify-between border-t border-border/30 pt-6">
+                      <div>
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4" />
+                          Pool Management
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Update all pools to sync reward calculations
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleMassUpdatePools}
+                        disabled={isMassUpdating}
+                        variant="outline"
+                        className="min-w-[160px]"
+                      >
+                        {isMassUpdating ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Mass Update Pools
+                          </>
+                        )}
+                      </Button>
                     </div>
 
                     {/* Set Reward Per Block Section */}
@@ -1139,6 +1258,63 @@ const Admin: React.FC = () => {
                         Tokens will be transferred directly to the farming contract to pay user rewards.
                       </p>
                     </div>
+
+                    {/* Withdraw Rewards Section (Owner Only) */}
+                    {isFarmingOwner && (
+                      <div className="border-t border-border/30 pt-6 space-y-4">
+                        <h4 className="font-semibold flex items-center gap-2 text-destructive">
+                          <ArrowUpFromLine className="w-4 h-4 rotate-180" />
+                          Withdraw Rewards (Owner Only)
+                        </h4>
+                        <Alert className="border-warning/30 bg-warning/5">
+                          <AlertCircle className="h-4 w-4 text-warning" />
+                          <AlertDescription className="text-foreground text-sm">
+                            Warning: Withdrawing reward tokens may affect users' ability to harvest their rewards. 
+                            Only use this if absolutely necessary.
+                          </AlertDescription>
+                        </Alert>
+                        <div className="flex gap-4">
+                          <div className="flex-1 relative">
+                            <Input
+                              type="number"
+                              placeholder={`Amount of ${farmingInfo.rewardTokenSymbol}`}
+                              value={withdrawAmount}
+                              onChange={(e) => setWithdrawAmount(e.target.value)}
+                              className="pr-20"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-1 top-1/2 -translate-y-1/2 text-destructive hover:text-destructive/80"
+                              onClick={() => setWithdrawAmount(ethers.formatEther(farmingInfo.contractRewardBalance))}
+                            >
+                              MAX
+                            </Button>
+                          </div>
+                          <Button
+                            onClick={handleWithdrawRewards}
+                            disabled={isWithdrawing || !withdrawAmount || parseFloat(withdrawAmount) <= 0}
+                            variant="destructive"
+                            className="min-w-[150px]"
+                          >
+                            {isWithdrawing ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Withdrawing...
+                              </>
+                            ) : (
+                              <>
+                                <ArrowUpFromLine className="w-4 h-4 mr-2 rotate-180" />
+                                Withdraw
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Contract Balance: {contractBalanceFormatted} {farmingInfo.rewardTokenSymbol}
+                        </p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-8">
@@ -1151,7 +1327,7 @@ const Admin: React.FC = () => {
 
             {/* Quick Stats */}
             {farmingInfo && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="glass-card hover:border-primary/30 transition-all duration-300">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
@@ -1196,6 +1372,22 @@ const Admin: React.FC = () => {
                         <p className="text-sm text-muted-foreground">Total LP Staked</p>
                         <p className="text-xl font-bold text-foreground">
                           {farmingPools.reduce((acc, pool) => acc + parseFloat(ethers.formatEther(pool.totalStaked)), 0).toFixed(4)}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card hover:border-warning/30 transition-all duration-300">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
+                        <Coins className="w-6 h-6 text-warning" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Est. Weekly Rewards</p>
+                        <p className="text-xl font-bold text-foreground">
+                          {(parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)) * 28800 * 7).toFixed(2)} {farmingInfo.rewardTokenSymbol}
                         </p>
                       </div>
                     </div>
