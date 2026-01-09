@@ -183,22 +183,37 @@ const Admin: React.FC = () => {
         const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
         
         // Get farming contract info including owner
-        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, farmOwner, blockNumber] = await Promise.all([
+        const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, blockNumber] = await Promise.all([
           farmingContract.poolLength().catch(() => BigInt(0)),
           farmingContract.rewardToken().catch(() => ''),
           farmingContract.rewardPerBlock().catch(() => BigInt(0)),
           farmingContract.totalAllocPoint().catch(() => BigInt(0)),
           farmingContract.startBlock().catch(() => BigInt(0)),
-          farmingContract.owner().catch(() => ''),
           provider.getBlockNumber().catch(() => 0),
         ]);
 
-        // Set farming owner state and current block
-        if (farmOwner) {
-          setFarmingOwner(farmOwner);
-          setIsFarmingOwner(address?.toLowerCase() === farmOwner.toLowerCase());
+        // Get owner separately with better error handling
+        let farmOwner = '';
+        try {
+          farmOwner = await farmingContract.owner();
+          console.log('Farming contract owner:', farmOwner);
+          console.log('Connected address:', address);
+        } catch (e) {
+          console.log('Error fetching farming owner:', e);
         }
+
+        // Set farming owner state and current block
+        setFarmingOwner(farmOwner);
         setCurrentBlock(blockNumber);
+        
+        // Check if connected user is owner (case-insensitive comparison)
+        if (address && farmOwner) {
+          const isOwner = address.toLowerCase() === farmOwner.toLowerCase();
+          console.log('Is farming owner:', isOwner);
+          setIsFarmingOwner(isOwner);
+        } else {
+          setIsFarmingOwner(false);
+        }
 
         // Check if we have a valid reward token
         if (!rewardToken || rewardToken === '' || rewardToken === ethers.ZeroAddress) {
