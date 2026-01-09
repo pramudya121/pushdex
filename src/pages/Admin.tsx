@@ -519,8 +519,8 @@ const Admin: React.FC = () => {
   };
 
   const handleSetRewardPerBlock = async () => {
-    if (!signer || !isFarmingOwner) {
-      toast.error('You must be the farming contract owner');
+    if (!signer) {
+      toast.error('Please connect your wallet');
       return;
     }
 
@@ -531,18 +531,50 @@ const Admin: React.FC = () => {
 
     try {
       setIsSettingReward(true);
-      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
       const rewardWei = ethers.parseEther(newRewardPerBlock);
-
-      toast.info('Setting reward per block...');
-      const tx = await farmingContract.updateRewardPerBlock(rewardWei);
-      await tx.wait();
-
-      toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
-      setNewRewardPerBlock('');
       
-      // Refresh
-      window.location.reload();
+      // Try multiple function names that different farming contracts might use
+      const functionNames = [
+        'updateRewardPerBlock',
+        'setRewardPerBlock', 
+        'updateEmissionRate',
+        'setEmissionRate',
+        'updateReward'
+      ];
+      
+      let success = false;
+      let lastError: any = null;
+      
+      for (const funcName of functionNames) {
+        if (success) break;
+        try {
+          // Create minimal ABI for each function
+          const minAbi = [{
+            inputs: [{ internalType: "uint256", name: "_amount", type: "uint256" }],
+            name: funcName,
+            outputs: [],
+            stateMutability: "nonpayable",
+            type: "function",
+          }];
+          
+          const tempContract = new ethers.Contract(CONTRACTS.FARMING, minAbi, signer);
+          toast.info(`Trying ${funcName}...`);
+          const tx = await tempContract[funcName](rewardWei);
+          await tx.wait();
+          success = true;
+          toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
+          setNewRewardPerBlock('');
+          window.location.reload();
+        } catch (e: any) {
+          console.log(`${funcName} failed:`, e.message);
+          lastError = e;
+        }
+      }
+      
+      if (!success) {
+        console.error('All function attempts failed:', lastError);
+        toast.error('Contract does not have a reward update function. Please check the contract ABI or contact the developer.');
+      }
     } catch (error: any) {
       console.error('Error setting reward per block:', error);
       toast.error(error.reason || error.message || 'Failed to set reward per block');
