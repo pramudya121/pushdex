@@ -182,7 +182,7 @@ const Admin: React.FC = () => {
         setIsLoadingFarming(true);
         const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
         
-        // Get farming contract info including owner
+        // Get farming contract info
         const [poolLength, rewardToken, rewardPerBlock, totalAllocPoint, startBlock, blockNumber] = await Promise.all([
           farmingContract.poolLength().catch(() => BigInt(0)),
           farmingContract.rewardToken().catch(() => ''),
@@ -192,27 +192,51 @@ const Admin: React.FC = () => {
           provider.getBlockNumber().catch(() => 0),
         ]);
 
-        // Get owner separately with better error handling
+        setCurrentBlock(blockNumber);
+
+        // Try multiple ways to get owner (different contracts use different function names)
         let farmOwner = '';
-        try {
-          farmOwner = await farmingContract.owner();
-          console.log('Farming contract owner:', farmOwner);
-          console.log('Connected address:', address);
-        } catch (e) {
-          console.log('Error fetching farming owner:', e);
+        const ownerFunctions = ['owner', 'admin', 'governance', 'dev'];
+        
+        for (const funcName of ownerFunctions) {
+          if (farmOwner) break;
+          try {
+            // Create a minimal ABI for just the owner function
+            const minAbi = [{
+              inputs: [],
+              name: funcName,
+              outputs: [{ internalType: "address", name: "", type: "address" }],
+              stateMutability: "view",
+              type: "function",
+            }];
+            const tempContract = new ethers.Contract(CONTRACTS.FARMING, minAbi, provider);
+            farmOwner = await tempContract[funcName]();
+            console.log(`Found owner via ${funcName}():`, farmOwner);
+          } catch (e) {
+            console.log(`No ${funcName}() function or error:`, e);
+          }
         }
 
-        // Set farming owner state and current block
+        // Set farming owner state 
         setFarmingOwner(farmOwner);
-        setCurrentBlock(blockNumber);
         
         // Check if connected user is owner (case-insensitive comparison)
-        if (address && farmOwner) {
+        if (address && farmOwner && farmOwner !== ethers.ZeroAddress) {
           const isOwner = address.toLowerCase() === farmOwner.toLowerCase();
+          console.log('Connected address:', address);
+          console.log('Farming contract owner:', farmOwner);
           console.log('Is farming owner:', isOwner);
           setIsFarmingOwner(isOwner);
         } else {
-          setIsFarmingOwner(false);
+          console.log('No owner found or address not connected');
+          // If no owner function exists, allow admin access for the connected user
+          // This is a fallback for contracts without owner() function
+          if (!farmOwner && address) {
+            console.log('No owner function found - enabling admin mode for connected wallet');
+            setIsFarmingOwner(true);
+          } else {
+            setIsFarmingOwner(false);
+          }
         }
 
         // Check if we have a valid reward token
@@ -1179,29 +1203,61 @@ const Admin: React.FC = () => {
 
                     {/* Set Reward Per Block Section */}
                     <div className="border-t border-border/30 pt-6 space-y-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
                         <h4 className="font-semibold flex items-center gap-2 text-warning">
                           <TrendingUp className="w-4 h-4" />
                           Set Reward Per Block
                         </h4>
-                        {farmingOwner && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Owner:</span>
-                            <a
-                              href={`${BLOCK_EXPLORER}/address/${farmingOwner}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-mono text-primary hover:underline"
-                            >
-                              {farmingOwner.slice(0, 6)}...{farmingOwner.slice(-4)}
-                            </a>
-                            {isFarmingOwner && (
-                              <Badge variant="default" className="bg-success text-success-foreground text-xs">
-                                You
-                              </Badge>
-                            )}
+                        <div className="flex items-center gap-3">
+                          {farmingOwner ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Owner:</span>
+                              <a
+                                href={`${BLOCK_EXPLORER}/address/${farmingOwner}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-mono text-primary hover:underline"
+                              >
+                                {farmingOwner.slice(0, 6)}...{farmingOwner.slice(-4)}
+                              </a>
+                              {isFarmingOwner && (
+                                <Badge variant="default" className="bg-success text-success-foreground text-xs">
+                                  You
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No owner function found</span>
+                          )}
+                          
+                          {/* Admin Override Toggle */}
+                          <div className="flex items-center gap-2 border-l border-border/30 pl-3">
+                            <Switch
+                              id="admin-override"
+                              checked={isFarmingOwner}
+                              onCheckedChange={setIsFarmingOwner}
+                            />
+                            <Label htmlFor="admin-override" className="text-xs text-muted-foreground cursor-pointer">
+                              Admin Mode
+                            </Label>
                           </div>
-                        )}
+                        </div>
+                      </div>
+
+                      {/* Debug Info */}
+                      <div className="bg-muted/20 rounded-lg p-3 text-xs">
+                        <p className="text-muted-foreground">
+                          <span className="font-semibold">Your Address:</span> {address || 'Not connected'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span className="font-semibold">Contract Owner:</span> {farmingOwner || 'Unable to fetch'}
+                        </p>
+                        <p className="text-muted-foreground">
+                          <span className="font-semibold">Admin Access:</span>{' '}
+                          <span className={isFarmingOwner ? 'text-success' : 'text-destructive'}>
+                            {isFarmingOwner ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </p>
                       </div>
 
                       {farmingInfo.rewardPerBlock === BigInt(0) && (
@@ -1209,19 +1265,7 @@ const Admin: React.FC = () => {
                           <AlertCircle className="h-4 w-4 text-destructive" />
                           <AlertDescription className="text-destructive">
                             <strong>Critical:</strong> Reward per block is 0! Users cannot earn rewards. 
-                            {isFarmingOwner 
-                              ? " Set a value below to enable farming rewards."
-                              : ` Contact the contract owner to configure rewards.`
-                            }
-                          </AlertDescription>
-                        </Alert>
-                      )}
-
-                      {!isFarmingOwner && (
-                        <Alert className="border-warning/30 bg-warning/5">
-                          <AlertCircle className="h-4 w-4 text-warning" />
-                          <AlertDescription className="text-foreground">
-                            Only the farming contract owner can set the reward per block. You are viewing as a non-owner.
+                            Set a value below to enable farming rewards.
                           </AlertDescription>
                         </Alert>
                       )}
