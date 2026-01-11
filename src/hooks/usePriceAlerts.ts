@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 
 export interface PriceAlert {
   id: string;
@@ -11,12 +11,44 @@ export interface PriceAlert {
   currentPrice: number;
   createdAt: number;
   triggered: boolean;
+  notified: boolean;
 }
 
 const ALERTS_STORAGE_KEY = 'pushdex_price_alerts';
 
+// Request notification permission
+const requestNotificationPermission = async (): Promise<boolean> => {
+  if (!('Notification' in window)) {
+    return false;
+  }
+  
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+  
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+  
+  return false;
+};
+
+// Show browser notification
+const showBrowserNotification = (title: string, body: string) => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, {
+      body,
+      icon: '/tokens/pc.png',
+      badge: '/tokens/pc.png',
+    });
+  }
+};
+
 export function usePriceAlerts() {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const checkIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasRequestedPermission = useRef(false);
 
   // Load alerts from localStorage
   useEffect(() => {
@@ -29,6 +61,12 @@ export function usePriceAlerts() {
         console.error('Failed to parse price alerts:', e);
       }
     }
+    
+    // Request notification permission on first load
+    if (!hasRequestedPermission.current) {
+      hasRequestedPermission.current = true;
+      requestNotificationPermission();
+    }
   }, []);
 
   // Save alerts to localStorage
@@ -36,12 +74,13 @@ export function usePriceAlerts() {
     localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(newAlerts));
   }, []);
 
-  const addAlert = useCallback((alert: Omit<PriceAlert, 'id' | 'createdAt' | 'triggered'>) => {
+  const addAlert = useCallback((alert: Omit<PriceAlert, 'id' | 'createdAt' | 'triggered' | 'notified'>) => {
     const newAlert: PriceAlert = {
       ...alert,
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: Date.now(),
       triggered: false,
+      notified: false,
     };
     
     setAlerts(prev => {
@@ -50,8 +89,7 @@ export function usePriceAlerts() {
       return updated;
     });
 
-    toast({
-      title: "Price Alert Created",
+    toast.success("Price Alert Created", {
       description: `Alert set for ${alert.token0Symbol}/${alert.token1Symbol} when price goes ${alert.condition} ${alert.targetPrice.toFixed(6)}`,
     });
 
@@ -64,6 +102,7 @@ export function usePriceAlerts() {
       saveAlerts(updated);
       return updated;
     });
+    toast.info("Alert removed");
   }, [saveAlerts]);
 
   const checkAlerts = useCallback((pairAddress: string, currentPrice: number) => {
@@ -78,14 +117,22 @@ export function usePriceAlerts() {
           (alert.condition === 'above' && currentPrice >= alert.targetPrice) ||
           (alert.condition === 'below' && currentPrice <= alert.targetPrice);
 
-        if (shouldTrigger) {
+        if (shouldTrigger && !alert.notified) {
           hasChanges = true;
-          toast({
-            title: "🔔 Price Alert Triggered!",
+          
+          // Show toast notification
+          toast.success("🔔 Price Alert Triggered!", {
             description: `${alert.token0Symbol}/${alert.token1Symbol} is now ${alert.condition} ${alert.targetPrice.toFixed(6)} (Current: ${currentPrice.toFixed(6)})`,
-            variant: "default",
+            duration: 10000,
           });
-          return { ...alert, triggered: true, currentPrice };
+          
+          // Show browser notification
+          showBrowserNotification(
+            "🔔 Price Alert Triggered!",
+            `${alert.token0Symbol}/${alert.token1Symbol} is now ${alert.condition} ${alert.targetPrice.toFixed(6)}`
+          );
+          
+          return { ...alert, triggered: true, notified: true, currentPrice };
         }
 
         return { ...alert, currentPrice };
@@ -99,20 +146,52 @@ export function usePriceAlerts() {
     });
   }, [saveAlerts]);
 
+  const checkAllAlerts = useCallback((priceUpdates: Map<string, number>) => {
+    priceUpdates.forEach((price, pairAddress) => {
+      checkAlerts(pairAddress, price);
+    });
+  }, [checkAlerts]);
+
   const clearAllAlerts = useCallback(() => {
     setAlerts([]);
     saveAlerts([]);
-    toast({
-      title: "All Alerts Cleared",
+    toast.info("All Alerts Cleared", {
       description: "All price alerts have been removed.",
     });
   }, [saveAlerts]);
+
+  const updateAlertPrice = useCallback((id: string, newPrice: number) => {
+    setAlerts(prev => {
+      const updated = prev.map(alert => 
+        alert.id === id ? { ...alert, currentPrice: newPrice } : alert
+      );
+      saveAlerts(updated);
+      return updated;
+    });
+  }, [saveAlerts]);
+
+  // Get alerts count for a specific pair
+  const getAlertsForPair = useCallback((pairAddress: string) => {
+    return alerts.filter(a => a.pairAddress.toLowerCase() === pairAddress.toLowerCase());
+  }, [alerts]);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current);
+      }
+    };
+  }, []);
 
   return {
     alerts,
     addAlert,
     removeAlert,
     checkAlerts,
+    checkAllAlerts,
     clearAllAlerts,
+    updateAlertPrice,
+    getAlertsForPair,
   };
 }
