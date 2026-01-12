@@ -533,26 +533,61 @@ const Admin: React.FC = () => {
       setIsSettingReward(true);
       const rewardWei = ethers.parseEther(newRewardPerBlock);
       
-      // Use the updateRewardPerBlock function directly from FARMING_ABI
-      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
-      
       console.log('Setting reward per block to:', newRewardPerBlock, 'wei:', rewardWei.toString());
-      toast.info('Sending transaction to update reward per block...');
+      toast.info('Attempting to update reward per block...');
       
-      // Call updateRewardPerBlock which is defined in the ABI
-      const tx = await farmingContract.updateRewardPerBlock(rewardWei);
-      
-      toast.info('Transaction submitted, waiting for confirmation...');
-      console.log('Transaction hash:', tx.hash);
-      
-      const receipt = await tx.wait();
-      console.log('Transaction confirmed:', receipt);
-      
-      toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
-      setNewRewardPerBlock('');
-      
-      // Refresh the page to see updated values
-      window.location.reload();
+      // Try multiple function names that different farming contracts might use
+      const rewardFunctions = [
+        { name: 'updateRewardPerBlock', inputs: [{ type: 'uint256', name: '_rewardPerBlock' }] },
+        { name: 'setRewardPerBlock', inputs: [{ type: 'uint256', name: '_rewardPerBlock' }] },
+        { name: 'updateEmissionRate', inputs: [{ type: 'uint256', name: '_emissionRate' }] },
+        { name: 'setEmissionRate', inputs: [{ type: 'uint256', name: '_emissionRate' }] },
+        { name: 'updateReward', inputs: [{ type: 'uint256', name: '_reward' }] },
+        { name: 'setReward', inputs: [{ type: 'uint256', name: '_reward' }] },
+      ];
+
+      let successTx = null;
+      let lastError = null;
+
+      for (const funcDef of rewardFunctions) {
+        try {
+          const minAbi = [{
+            inputs: funcDef.inputs,
+            name: funcDef.name,
+            outputs: [],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          }];
+          
+          const tempContract = new ethers.Contract(CONTRACTS.FARMING, minAbi, signer);
+          
+          // First, estimate gas to check if function exists
+          await tempContract[funcDef.name].estimateGas(rewardWei);
+          
+          console.log(`Found function: ${funcDef.name}, sending transaction...`);
+          successTx = await tempContract[funcDef.name](rewardWei);
+          break;
+        } catch (e: any) {
+          console.log(`Function ${funcDef.name} not available:`, e.message?.slice(0, 50));
+          lastError = e;
+        }
+      }
+
+      if (successTx) {
+        toast.info('Transaction submitted, waiting for confirmation...');
+        console.log('Transaction hash:', successTx.hash);
+        
+        const receipt = await successTx.wait();
+        console.log('Transaction confirmed:', receipt);
+        
+        toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
+        setNewRewardPerBlock('');
+        
+        // Refresh the page to see updated values
+        window.location.reload();
+      } else {
+        throw lastError || new Error('No compatible function found on contract');
+      }
     } catch (error: any) {
       console.error('Error setting reward per block:', error);
       
@@ -567,6 +602,8 @@ const Admin: React.FC = () => {
         errorMessage = 'Only contract owner can set reward per block';
       } else if (error.message?.includes('execution reverted')) {
         errorMessage = 'Transaction reverted - you may not have permission';
+      } else if (error.message?.includes('missing revert data')) {
+        errorMessage = 'Function not found on contract - check contract compatibility';
       } else if (error.message) {
         errorMessage = error.message.slice(0, 100);
       }
