@@ -110,6 +110,8 @@ const Admin: React.FC = () => {
   const [isSettingReward, setIsSettingReward] = useState(false);
   const [farmingOwner, setFarmingOwner] = useState<string>('');
   const [isFarmingOwner, setIsFarmingOwner] = useState(false);
+  const [rewardFunctionName, setRewardFunctionName] = useState<string | null>(null);
+  const [isCheckingRewardFunction, setIsCheckingRewardFunction] = useState(true);
 
   // Withdraw Rewards State (Owner only)
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -238,6 +240,52 @@ const Admin: React.FC = () => {
             setIsFarmingOwner(false);
           }
         }
+
+        // Check which reward function is available on the contract
+        setIsCheckingRewardFunction(true);
+        const rewardFunctions = [
+          'updateRewardPerBlock',
+          'setRewardPerBlock', 
+          'updateEmissionRate',
+          'setEmissionRate',
+          'updateReward',
+          'setReward',
+        ];
+        
+        let foundFunction: string | null = null;
+        for (const funcName of rewardFunctions) {
+          try {
+            const checkAbi = [{
+              inputs: [{ type: 'uint256', name: '_value' }],
+              name: funcName,
+              outputs: [],
+              stateMutability: 'nonpayable',
+              type: 'function',
+            }];
+            const checkContract = new ethers.Contract(CONTRACTS.FARMING, checkAbi, provider);
+            // Try to encode the function call to check if it exists
+            await checkContract[funcName].staticCall(ethers.parseEther('1')).catch((e: any) => {
+              // If error is NOT "missing revert data", the function exists
+              if (!e.message?.includes('missing revert data')) {
+                throw e; // Re-throw to be caught and mark as found
+              }
+              throw new Error('Function not found');
+            });
+            foundFunction = funcName;
+            console.log(`Found reward function: ${funcName}`);
+            break;
+          } catch (e: any) {
+            if (!e.message?.includes('Function not found') && !e.message?.includes('missing revert data')) {
+              // Function exists but reverted for other reasons (like not owner)
+              foundFunction = funcName;
+              console.log(`Found reward function (reverted): ${funcName}`);
+              break;
+            }
+          }
+        }
+        setRewardFunctionName(foundFunction);
+        setIsCheckingRewardFunction(false);
+        console.log('Available reward function:', foundFunction);
 
         // Check if we have a valid reward token
         if (!rewardToken || rewardToken === '' || rewardToken === ethers.ZeroAddress) {
@@ -529,65 +577,41 @@ const Admin: React.FC = () => {
       return;
     }
 
+    if (!rewardFunctionName) {
+      toast.error('This farming contract does not support changing reward per block. The contract needs to be upgraded.');
+      return;
+    }
+
     try {
       setIsSettingReward(true);
       const rewardWei = ethers.parseEther(newRewardPerBlock);
       
       console.log('Setting reward per block to:', newRewardPerBlock, 'wei:', rewardWei.toString());
-      toast.info('Attempting to update reward per block...');
+      console.log('Using function:', rewardFunctionName);
+      toast.info(`Updating reward per block using ${rewardFunctionName}...`);
       
-      // Try multiple function names that different farming contracts might use
-      const rewardFunctions = [
-        { name: 'updateRewardPerBlock', inputs: [{ type: 'uint256', name: '_rewardPerBlock' }] },
-        { name: 'setRewardPerBlock', inputs: [{ type: 'uint256', name: '_rewardPerBlock' }] },
-        { name: 'updateEmissionRate', inputs: [{ type: 'uint256', name: '_emissionRate' }] },
-        { name: 'setEmissionRate', inputs: [{ type: 'uint256', name: '_emissionRate' }] },
-        { name: 'updateReward', inputs: [{ type: 'uint256', name: '_reward' }] },
-        { name: 'setReward', inputs: [{ type: 'uint256', name: '_reward' }] },
-      ];
-
-      let successTx = null;
-      let lastError = null;
-
-      for (const funcDef of rewardFunctions) {
-        try {
-          const minAbi = [{
-            inputs: funcDef.inputs,
-            name: funcDef.name,
-            outputs: [],
-            stateMutability: 'nonpayable',
-            type: 'function',
-          }];
-          
-          const tempContract = new ethers.Contract(CONTRACTS.FARMING, minAbi, signer);
-          
-          // First, estimate gas to check if function exists
-          await tempContract[funcDef.name].estimateGas(rewardWei);
-          
-          console.log(`Found function: ${funcDef.name}, sending transaction...`);
-          successTx = await tempContract[funcDef.name](rewardWei);
-          break;
-        } catch (e: any) {
-          console.log(`Function ${funcDef.name} not available:`, e.message?.slice(0, 50));
-          lastError = e;
-        }
-      }
-
-      if (successTx) {
-        toast.info('Transaction submitted, waiting for confirmation...');
-        console.log('Transaction hash:', successTx.hash);
-        
-        const receipt = await successTx.wait();
-        console.log('Transaction confirmed:', receipt);
-        
-        toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
-        setNewRewardPerBlock('');
-        
-        // Refresh the page to see updated values
-        window.location.reload();
-      } else {
-        throw lastError || new Error('No compatible function found on contract');
-      }
+      const minAbi = [{
+        inputs: [{ type: 'uint256', name: '_value' }],
+        name: rewardFunctionName,
+        outputs: [],
+        stateMutability: 'nonpayable',
+        type: 'function',
+      }];
+      
+      const farmingContract = new ethers.Contract(CONTRACTS.FARMING, minAbi, signer);
+      const tx = await farmingContract[rewardFunctionName](rewardWei);
+      
+      toast.info('Transaction submitted, waiting for confirmation...');
+      console.log('Transaction hash:', tx.hash);
+      
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+      
+      toast.success(`Reward per block set to ${newRewardPerBlock} ${farmingInfo?.rewardTokenSymbol}!`);
+      setNewRewardPerBlock('');
+      
+      // Refresh the page to see updated values
+      window.location.reload();
     } catch (error: any) {
       console.error('Error setting reward per block:', error);
       
@@ -603,7 +627,7 @@ const Admin: React.FC = () => {
       } else if (error.message?.includes('execution reverted')) {
         errorMessage = 'Transaction reverted - you may not have permission';
       } else if (error.message?.includes('missing revert data')) {
-        errorMessage = 'Function not found on contract - check contract compatibility';
+        errorMessage = 'Function not found on contract - the contract may need to be upgraded';
       } else if (error.message) {
         errorMessage = error.message.slice(0, 100);
       }
@@ -1321,9 +1345,29 @@ const Admin: React.FC = () => {
                             {isFarmingOwner ? 'Enabled' : 'Disabled'}
                           </span>
                         </p>
+                        <p className="text-muted-foreground">
+                          <span className="font-semibold">Set Reward Function:</span>{' '}
+                          {isCheckingRewardFunction ? (
+                            <span className="text-muted-foreground">Checking...</span>
+                          ) : rewardFunctionName ? (
+                            <span className="text-success">{rewardFunctionName}() ✓</span>
+                          ) : (
+                            <span className="text-destructive">Not available ✗</span>
+                          )}
+                        </p>
                       </div>
 
-                      {farmingInfo.rewardPerBlock === BigInt(0) && (
+                      {!isCheckingRewardFunction && !rewardFunctionName && (
+                        <Alert className="border-warning/50 bg-warning/10">
+                          <AlertCircle className="h-4 w-4 text-warning" />
+                          <AlertDescription className="text-warning">
+                            <strong>Contract Limitation:</strong> The deployed farming contract does not have a function to update reward per block. 
+                            You need to deploy a new farming contract with <code className="bg-muted px-1 rounded">updateRewardPerBlock(uint256)</code> or similar function.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {farmingInfo.rewardPerBlock === BigInt(0) && rewardFunctionName && (
                         <Alert className="border-destructive/50 bg-destructive/10">
                           <AlertCircle className="h-4 w-4 text-destructive" />
                           <AlertDescription className="text-destructive">
@@ -1341,7 +1385,7 @@ const Admin: React.FC = () => {
                             value={newRewardPerBlock}
                             onChange={(e) => setNewRewardPerBlock(e.target.value)}
                             step="0.000001"
-                            disabled={!isFarmingOwner}
+                            disabled={!isFarmingOwner || !rewardFunctionName || isCheckingRewardFunction}
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             Current: {parseFloat(ethers.formatEther(farmingInfo.rewardPerBlock)).toFixed(6)} {farmingInfo.rewardTokenSymbol}/block
@@ -1349,13 +1393,23 @@ const Admin: React.FC = () => {
                         </div>
                         <Button
                           onClick={handleSetRewardPerBlock}
-                          disabled={isSettingReward || !newRewardPerBlock || !isFarmingOwner}
+                          disabled={isSettingReward || !newRewardPerBlock || !isFarmingOwner || !rewardFunctionName || isCheckingRewardFunction}
                           className="bg-warning hover:bg-warning/90 text-warning-foreground min-w-[180px]"
                         >
                           {isSettingReward ? (
                             <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                               Setting...
+                            </>
+                          ) : isCheckingRewardFunction ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Checking...
+                            </>
+                          ) : !rewardFunctionName ? (
+                            <>
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Not Supported
                             </>
                           ) : (
                             <>
