@@ -3,6 +3,7 @@ import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { FarmCard } from '@/components/FarmCard';
 import { FarmingCountdown } from '@/components/FarmingCountdown';
+import { RewardSetupGuide } from '@/components/RewardSetupGuide';
 import { useFarming, UserLPPosition } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,8 @@ import {
   Clock
 } from 'lucide-react';
 import { ethers } from 'ethers';
-import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
+import { BLOCK_EXPLORER, CONTRACTS, RPC_URL } from '@/config/contracts';
+import { FARMING_ABI } from '@/config/abis';
 import { Link } from 'react-router-dom';
 
 // Skeleton component for stats cards
@@ -183,6 +185,52 @@ const Farming: React.FC = () => {
 
   // Auto-refresh pending rewards every 15 seconds
   const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [hasUpdateFunction, setHasUpdateFunction] = useState(false);
+  const [isCheckingFunction, setIsCheckingFunction] = useState(true);
+  
+  // Check if contract has updateRewardPerBlock function
+  useEffect(() => {
+    const checkUpdateFunction = async () => {
+      try {
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const functionNames = [
+          'updateRewardPerBlock',
+          'setRewardPerBlock', 
+          'updateEmissionRate',
+          'setEmissionRate'
+        ];
+        
+        for (const funcName of functionNames) {
+          const minAbi = [{
+            inputs: [{ type: 'uint256', name: '_value' }],
+            name: funcName,
+            outputs: [],
+            stateMutability: 'nonpayable',
+            type: 'function',
+          }];
+          
+          try {
+            const contract = new ethers.Contract(CONTRACTS.FARMING, minAbi, provider);
+            await contract[funcName].estimateGas(0);
+            setHasUpdateFunction(true);
+            break;
+          } catch (e: any) {
+            // If we get a revert (not "function not found"), it means function exists
+            if (e.message && !e.message.includes('no matching function')) {
+              setHasUpdateFunction(true);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking update function:', error);
+      } finally {
+        setIsCheckingFunction(false);
+      }
+    };
+    
+    checkUpdateFunction();
+  }, []);
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -204,6 +252,9 @@ const Farming: React.FC = () => {
   const hasPendingRewards = totalPendingRewards > BigInt(0);
   const stakeableLPs = userLPPositions.filter(p => p.isStakeable);
   const rewardBalanceFormatted = parseFloat(ethers.formatEther(contractRewardBalance)).toFixed(4);
+  
+  // Check if rewards are not fully configured
+  const needsSetup = !isLoading && !isCheckingFunction && (rewardPerBlock === BigInt(0) || !hasEnoughRewards || !hasUpdateFunction);
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -232,19 +283,14 @@ const Farming: React.FC = () => {
           <FarmingCountdown startBlock={startBlock} className="mb-8" />
         )}
 
-        {/* Reward Per Block = 0 Warning */}
-        {rewardPerBlock === BigInt(0) && !isLoading && (
-          <Alert className="mb-6 animate-fade-in border-warning/50 bg-warning/10">
-            <AlertCircle className="h-4 w-4 text-warning" />
-            <AlertDescription className="text-warning">
-              <strong>Farming rewards not configured!</strong> The contract has <code className="bg-background/50 px-1 rounded">rewardPerBlock = 0</code>.
-              <br />
-              Admin needs to set reward rate via contract or Admin page. No rewards will accrue until this is configured.
-              <Link to="/admin" className="ml-2 underline hover:no-underline font-semibold">
-                Configure in Admin →
-              </Link>
-            </AlertDescription>
-          </Alert>
+        {/* Reward Setup Guide - Comprehensive guide for enabling earned rewards */}
+        {needsSetup && (
+          <RewardSetupGuide
+            rewardPerBlock={rewardPerBlock}
+            contractRewardBalance={contractRewardBalance}
+            rewardTokenSymbol={rewardTokenSymbol}
+            hasUpdateFunction={hasUpdateFunction}
+          />
         )}
 
         {/* Reward Balance Warning */}
