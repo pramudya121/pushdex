@@ -32,6 +32,7 @@ import { ethers } from 'ethers';
 import { BLOCK_EXPLORER, CONTRACTS, RPC_URL } from '@/config/contracts';
 import { FARMING_ABI } from '@/config/abis';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 // Skeleton component for stats cards
 const StatsSkeleton = () => (
@@ -183,10 +184,9 @@ const Farming: React.FC = () => {
     isHarvestingAll,
   } = useFarming();
 
-  // Auto-refresh pending rewards every 15 seconds
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
   const [hasUpdateFunction, setHasUpdateFunction] = useState(false);
   const [isCheckingFunction, setIsCheckingFunction] = useState(true);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   
   // Check if contract has updateRewardPerBlock function
   useEffect(() => {
@@ -232,16 +232,16 @@ const Farming: React.FC = () => {
     checkUpdateFunction();
   }, []);
   
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isConnected && !isLoading) {
-        refreshPools();
-        setLastRefresh(Date.now());
-      }
-    }, 15000);
-
-    return () => clearInterval(interval);
-  }, [isConnected, isLoading, refreshPools]);
+  // Manual refresh handler
+  const handleManualRefresh = async () => {
+    if (isManualRefreshing) return;
+    setIsManualRefreshing(true);
+    try {
+      await refreshPools();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  };
 
   // Calculate total stats
   const totalUserStaked = pools.reduce((acc, pool) => acc + pool.userStaked, BigInt(0));
@@ -472,11 +472,19 @@ const Farming: React.FC = () => {
           </div>
         </div>
 
-        {/* Auto-refresh indicator */}
+        {/* Manual refresh button */}
         {isConnected && !isLoading && (
-          <div className="flex items-center justify-end mb-4 text-xs text-muted-foreground animate-fade-in">
-            <Clock className="w-3 h-3 mr-1" />
-            <span>Auto-refreshes every 15s</span>
+          <div className="flex items-center justify-end mb-4 animate-fade-in">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={isManualRefreshing}
+              className="gap-2 hover:border-primary/50 transition-all"
+            >
+              <RefreshCw className={cn("w-4 h-4", isManualRefreshing && "animate-spin")} />
+              {isManualRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
           </div>
         )}
 

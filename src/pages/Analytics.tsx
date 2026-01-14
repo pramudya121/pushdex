@@ -6,7 +6,9 @@ import { CONTRACTS, TOKEN_LIST } from '@/config/contracts';
 import { FACTORY_ABI, FARMING_ABI, STAKING_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
 import { getMultiplePairReserves } from '@/lib/multicall';
-import { LoadingSkeleton, AnimatedNumber, PulseDot, EmptyState } from '@/components/ui/loading-skeleton';
+import { LoadingSkeleton, PulseDot, EmptyState } from '@/components/ui/loading-skeleton';
+import { NumberTicker } from '@/components/ui/magic-ui/number-ticker';
+import { GlowingStarsBackgroundCard } from '@/components/ui/aceternity/glowing-stars';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -75,14 +77,10 @@ const generateHistoricalData = (days: number, baseTVL: number, baseVolume: numbe
   return data;
 };
 
-// Memoized stat card component
+// Enhanced stat card with GlowingStars and NumberTicker
 const StatCard = memo(({ stat, index }: { stat: any; index: number }) => (
-  <div 
-    className="glass-card-hover p-6 relative overflow-hidden"
-    style={{ animationDelay: `${index * 0.1}s` }}
-  >
-    <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-50`} />
-    <div className="relative">
+  <GlowingStarsBackgroundCard className="h-full">
+    <div className="relative p-6 animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
       <div className="flex items-center justify-between mb-3">
         <div className="p-2.5 rounded-xl bg-primary/10">
           <stat.icon className="w-5 h-5 text-primary" />
@@ -93,18 +91,20 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => (
         </div>
       </div>
       <div className="text-2xl md:text-3xl font-bold mb-1">
-        {typeof stat.value === 'number' ? (
-          <AnimatedNumber 
-            value={stat.value} 
-            decimals={0}
-            prefix={stat.prefix || ''}
-            suffix={stat.suffix || ''}
-          />
+        {typeof stat.numericValue === 'number' && stat.numericValue > 0 ? (
+          <div className="flex items-center">
+            {stat.prefix && <span>{stat.prefix}</span>}
+            <NumberTicker 
+              value={stat.numericValue} 
+              className="text-foreground"
+            />
+            {stat.suffix && <span>{stat.suffix}</span>}
+          </div>
         ) : stat.value}
       </div>
       <div className="text-sm text-muted-foreground">{stat.label}</div>
     </div>
-  </div>
+  </GlowingStarsBackgroundCard>
 ));
 StatCard.displayName = 'StatCard';
 
@@ -258,6 +258,8 @@ const Analytics = memo(() => {
     {
       label: 'Total Value Locked',
       value: `$${(data?.totalTVL || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+      numericValue: Math.round(data?.totalTVL || 0),
+      prefix: '$',
       icon: TrendingUp,
       change: '+12.5%',
       positive: true,
@@ -266,6 +268,8 @@ const Analytics = memo(() => {
     {
       label: 'Volume (24h)',
       value: `$${(data?.totalVolume24h || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+      numericValue: Math.round(data?.totalVolume24h || 0),
+      prefix: '$',
       icon: Activity,
       change: '+8.3%',
       positive: true,
@@ -274,6 +278,8 @@ const Analytics = memo(() => {
     {
       label: 'Fees (24h)',
       value: `$${(data?.totalFees24h || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+      numericValue: Math.round(data?.totalFees24h || 0),
+      prefix: '$',
       icon: Coins,
       change: '+5.2%',
       positive: true,
@@ -282,6 +288,7 @@ const Analytics = memo(() => {
     {
       label: 'Total Pools',
       value: data?.totalPools || 0,
+      numericValue: data?.totalPools || 0,
       icon: Droplets,
       change: '+2',
       positive: true,
@@ -352,29 +359,10 @@ const Analytics = memo(() => {
             <LoadingSkeleton variant="stat" count={4} className="mb-8" />
           ) : (
             <>
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 animate-fade-in">
+              {/* Stats Grid with GlowingStars */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {stats.map((stat, index) => (
-                  <div 
-                    key={stat.label} 
-                    className="glass-card-hover p-6 relative overflow-hidden"
-                    style={{ animationDelay: `${index * 0.1}s` }}
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-50`} />
-                    <div className="relative">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="p-2.5 rounded-xl bg-primary/10">
-                          <stat.icon className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className={`flex items-center gap-1 text-sm font-medium ${stat.positive ? 'text-green-400' : 'text-red-400'}`}>
-                          {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                          {stat.change}
-                        </div>
-                      </div>
-                      <div className="text-2xl md:text-3xl font-bold mb-1">{stat.value}</div>
-                      <div className="text-sm text-muted-foreground">{stat.label}</div>
-                    </div>
-                  </div>
+                  <StatCard key={stat.label} stat={stat} index={index} />
                 ))}
               </div>
 
