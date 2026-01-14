@@ -11,6 +11,7 @@ import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER, RPC_URL } from '@/config/contrac
 import { FACTORY_ABI, PAIR_ABI, STAKING_ABI, FARMING_ABI, ERC20_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount, shortenAddress } from '@/lib/dex';
 import { getMultipleBalances, getMultiplePairReserves } from '@/lib/multicall';
+import { BorderBeam } from '@/components/ui/magic-ui/border-beam';
 import { 
   Wallet, 
   Loader2, 
@@ -26,7 +27,8 @@ import {
   Coins,
   Sprout,
   Lock,
-  Gift
+  Gift,
+  Crown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -591,9 +593,15 @@ const Portfolio = () => {
                 </div>
               )}
 
-              {/* Portfolio Overview Cards */}
+              {/* Portfolio Overview Cards - Premium Version with BorderBeam */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 animate-fade-in">
-                <div className="glass-card p-6 col-span-2 md:col-span-2">
+                {/* Total Portfolio Value - Premium Card */}
+                <div className="relative glass-card p-6 col-span-2 md:col-span-2 overflow-hidden">
+                  <BorderBeam size={250} duration={12} delay={0} />
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown className="w-5 h-5 text-yellow-500" />
+                    <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Premium Portfolio</span>
+                  </div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <div className="text-sm text-muted-foreground mb-1">Total Portfolio Value</div>
@@ -634,7 +642,9 @@ const Portfolio = () => {
                   </div>
                 </div>
                 
-                <div className="glass-card p-4">
+                {/* Tokens Card with BorderBeam */}
+                <div className="relative glass-card p-4 overflow-hidden group hover:border-primary/30 transition-all">
+                  <BorderBeam size={100} duration={8} delay={2} />
                   <div className="flex items-center gap-2 mb-2">
                     <Coins className="w-4 h-4 text-primary" />
                     <span className="text-xs text-muted-foreground">Tokens</span>
@@ -647,7 +657,9 @@ const Portfolio = () => {
                   </div>
                 </div>
                 
-                <div className="glass-card p-4">
+                {/* Staking Card with BorderBeam */}
+                <div className="relative glass-card p-4 overflow-hidden group hover:border-warning/30 transition-all">
+                  <BorderBeam size={100} duration={8} delay={4} colorFrom="hsl(45, 100%, 50%)" colorTo="hsl(30, 100%, 50%)" />
                   <div className="flex items-center gap-2 mb-2">
                     <Lock className="w-4 h-4 text-warning" />
                     <span className="text-xs text-muted-foreground">Staking</span>
@@ -660,7 +672,9 @@ const Portfolio = () => {
                   </div>
                 </div>
                 
-                <div className="glass-card p-4">
+                {/* Farming Card with BorderBeam */}
+                <div className="relative glass-card p-4 overflow-hidden group hover:border-success/30 transition-all">
+                  <BorderBeam size={100} duration={8} delay={6} colorFrom="hsl(142, 76%, 36%)" colorTo="hsl(120, 60%, 50%)" />
                   <div className="flex items-center gap-2 mb-2">
                     <Sprout className="w-4 h-4 text-success" />
                     <span className="text-xs text-muted-foreground">Farming</span>

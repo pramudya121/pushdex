@@ -22,6 +22,7 @@ import {
 } from '@/lib/dex';
 import { toast } from 'sonner';
 import { Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
+import { TextGenerateEffect } from '@/components/ui/aceternity/text-generate-effect';
 
 const Liquidity = () => {
   const { address, signer, isConnected, isCorrectNetwork, switchNetwork, balance } = useWallet();
@@ -397,9 +398,11 @@ const Liquidity = () => {
             <h1 className="text-3xl font-bold mb-2">
               <span className="gradient-text">Liquidity</span>
             </h1>
-            <p className="text-muted-foreground">
-              Add or remove liquidity to earn fees
-            </p>
+            <TextGenerateEffect 
+              words="Add or remove liquidity to earn trading fees from every swap"
+              className="text-muted-foreground text-base"
+              duration={0.5}
+            />
           </div>
 
           <div className="grid lg:grid-cols-3 gap-6">

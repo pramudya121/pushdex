@@ -26,19 +26,21 @@ export const TextGenerateEffect: React.FC<TextGenerateEffectProps> = ({
   }, [wordsArray.length, duration]);
 
   return (
-    <div className={cn("font-bold", className)}>
+    <div className={cn("font-normal", className)}>
       <div className="leading-snug tracking-wide">
         {wordsArray.map((word, idx) => (
-          <span
-            key={idx}
-            className="inline-block opacity-0 animate-text-generate"
-            style={{
-              animationDelay: `${idx * duration * 0.1}s`,
-              animationFillMode: "forwards",
-            }}
-          >
-            {word}{" "}
-          </span>
+          <React.Fragment key={idx}>
+            <span
+              className="inline-block opacity-0 animate-text-generate"
+              style={{
+                animationDelay: `${idx * duration * 0.1}s`,
+                animationFillMode: "forwards",
+              }}
+            >
+              {word}
+            </span>
+            {idx < wordsArray.length - 1 && <span>&nbsp;</span>}
+          </React.Fragment>
         ))}
       </div>
     </div>
