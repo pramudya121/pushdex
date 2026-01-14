@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowUpRight, Droplets, TrendingUp, ExternalLink, Star } from 'lucide-react';
 import { getTokenByAddress } from '@/lib/dex';
 import { useFavorites } from '@/hooks/useFavorites';
+import { BackgroundGradient } from '@/components/ui/aceternity/background-gradient';
 
 interface PoolCardProps {
   pairAddress: string;
@@ -49,8 +50,12 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
   }, [propVolume24h, propApy, tvl]);
 
   return (
+    <BackgroundGradient
+      className="rounded-2xl"
+      containerClassName="w-full"
+    >
     <div
-      className={`glass-card-hover p-5 cursor-pointer transition-all duration-300 group ${
+      className={`bg-card rounded-2xl p-5 cursor-pointer transition-all duration-300 group ${
         isSelected ? 'border-primary/50 shadow-[var(--shadow-glow)]' : ''
       }`}
       onClick={onSelect}
@@ -194,5 +199,6 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
         </Link>
       </div>
     </div>
+    </BackgroundGradient>
   );
 });
