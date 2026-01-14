@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/popover';
 import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MovingBorder } from '@/components/ui/aceternity/moving-border';
 
 export const SwapCard: React.FC = () => {
   const {
@@ -129,7 +130,12 @@ export const SwapCard: React.FC = () => {
   );
 
   return (
-    <div className="glass-card p-6 w-full max-w-md mx-auto animate-scale-in hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500">
+    <MovingBorder
+      duration={3000}
+      containerClassName="w-full max-w-md mx-auto rounded-3xl"
+      className="bg-card rounded-3xl"
+    >
+    <div className="p-6 w-full animate-scale-in transition-all duration-500">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
@@ -411,5 +417,6 @@ export const SwapCard: React.FC = () => {
         {getButtonContent()}
       </Button>
     </div>
+    </MovingBorder>
   );
 };

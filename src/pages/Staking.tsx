@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Meteors } from '@/components/ui/magic-ui/meteors';
 import { 
   Coins, 
   TrendingUp, 
@@ -78,7 +79,10 @@ const Staking: React.FC = () => {
     });
 
   return (
-    <div className="min-h-screen bg-background wave-bg">
+    <div className="min-h-screen bg-background wave-bg relative overflow-hidden">
+      {/* Meteors Background Effect */}
+      <Meteors number={20} />
+      
       <WaveBackground />
       <Header />
       
