@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
+import { HeroSection } from '@/components/HeroSection';
 import { StakeCard } from '@/components/StakeCard';
 import { useStaking } from '@/hooks/useStaking';
 import { useWallet } from '@/contexts/WalletContext';
@@ -88,19 +89,16 @@ const Staking: React.FC = () => {
       
       <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-accent/10 border border-accent/20">
-            <Coins className="w-5 h-5 text-accent" />
-            <span className="text-accent font-medium">Single Token Staking</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="gradient-text">Earn Passive Income</span>
-          </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Stake your tokens and earn rewards. Choose from multiple pools with different APRs and lock periods.
-          </p>
-        </div>
+        <HeroSection
+          title="Earn Passive Income"
+          description="Stake your tokens and earn rewards. Choose from multiple pools with different APRs and lock periods."
+          showSpotlight={false}
+          showStars={true}
+          badge={{
+            text: "Single Token Staking",
+            icon: <Coins className="w-4 h-4 text-accent" />,
+          }}
+        />
 
         {/* Error Alert */}
         {error && (

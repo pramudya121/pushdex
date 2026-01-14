@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import { TextGenerateEffect } from '@/components/ui/aceternity/text-generate-effect';
+import { HeroSection } from '@/components/HeroSection';
 
 const Liquidity = () => {
   const { address, signer, isConnected, isCorrectNetwork, switchNetwork, balance } = useWallet();
@@ -394,16 +395,11 @@ const Liquidity = () => {
       
       <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8 animate-fade-in">
-            <h1 className="text-3xl font-bold mb-2">
-              <span className="gradient-text">Liquidity</span>
-            </h1>
-            <TextGenerateEffect 
-              words="Add or remove liquidity to earn trading fees from every swap"
-              className="text-muted-foreground text-base"
-              duration={0.5}
-            />
-          </div>
+          <HeroSection
+            title="Liquidity"
+            description="Add or remove liquidity to earn trading fees from every swap"
+            showSpotlight={false}
+          />
 
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Main Liquidity Card */}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { ethers } from 'ethers';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { GlowingStarsBackgroundCard } from '@/components/ui/aceternity/glowing-stars';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -173,7 +174,7 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
   const hasLpBalance = parseFloat(lpBalance) > 0;
 
   return (
-    <Card className="glass-card-hover overflow-hidden group">
+    <GlowingStarsBackgroundCard className="overflow-hidden group transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10">
       {/* Header */}
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -540,6 +541,6 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
           </div>
         )}
       </CardContent>
-    </Card>
+    </GlowingStarsBackgroundCard>
   );
 });
