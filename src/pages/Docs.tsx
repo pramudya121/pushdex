@@ -4,6 +4,7 @@ import { Header } from '@/components/Header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { HoverEffect } from '@/components/ui/aceternity/card-hover-effect';
 import { 
   BookOpen, 
   Code, 
@@ -18,7 +19,10 @@ import {
   ArrowRight,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  ArrowLeftRight,
+  Droplets,
+  LayoutGrid
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -213,26 +217,24 @@ const Docs = () => {
                   liquidity to earn trading fees, and create new trading pairs - all without intermediaries.
                 </p>
                 
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
-                    <h3 className="font-semibold mb-2">🔄 Token Swaps</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Exchange tokens instantly using automated liquidity pools with competitive rates
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
-                    <h3 className="font-semibold mb-2">💧 Liquidity Provision</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Provide liquidity to pools and earn 0.3% fees on every trade
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
-                    <h3 className="font-semibold mb-2">🏊 Pool Creation</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Create new trading pairs and bootstrap liquidity for any token
-                    </p>
-                  </div>
-                </div>
+                {/* Features with HoverEffect */}
+                <HoverEffect items={[
+                  {
+                    title: "Token Swaps",
+                    description: "Exchange tokens instantly using automated liquidity pools with competitive rates",
+                    link: "/",
+                  },
+                  {
+                    title: "Liquidity Provision",
+                    description: "Provide liquidity to pools and earn 0.3% fees on every trade",
+                    link: "/liquidity",
+                  },
+                  {
+                    title: "Pool Creation",
+                    description: "Create new trading pairs and bootstrap liquidity for any token",
+                    link: "/pools",
+                  },
+                ]} />
               </Card>
 
               <Card className="glass-card p-8">
