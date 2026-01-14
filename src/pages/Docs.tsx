@@ -116,7 +116,7 @@ const TECH_STACK = [
   {
     category: 'Blockchain',
     items: [
-      { name: 'Pushchain Testnet', description: 'Layer 2 blockchain for high-speed transactions' },
+      { name: 'Pushchain Testnet', description: 'Layer 1 blockchain for high-speed transactions' },
       { name: 'Ethers.js v6', description: 'Complete Ethereum library for blockchain interaction' },
       { name: 'Uniswap V2 Protocol', description: 'Battle-tested AMM design pattern' },
     ]
