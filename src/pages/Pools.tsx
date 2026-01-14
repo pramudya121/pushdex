@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { Link } from 'react-router-dom';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { HeroSection } from '@/components/HeroSection';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { PoolCard } from '@/components/PoolCard';
 import { PriceChart } from '@/components/PriceChart';
@@ -234,14 +235,13 @@ const Pools = memo(() => {
       <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
-          <div className="text-center mb-10 animate-fade-in">
-            <h1 className="text-4xl md:text-5xl font-bold mb-3">
-              <span className="gradient-text">Liquidity Pools</span>
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Explore and provide liquidity to earn trading fees
-            </p>
-          </div>
+          <HeroSection
+            title="Liquidity Pools"
+            description="Explore and provide liquidity to earn trading fees"
+            showSpotlight={true}
+            showStars={true}
+            spotlightColor="hsl(280, 80%, 50%)"
+          />
 
           {/* Quick Stats */}
           <QuickStats className="mb-6 animate-fade-in" />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
+import { HeroSection } from '@/components/HeroSection';
 import { FarmCard } from '@/components/FarmCard';
 import { FarmingCountdown } from '@/components/FarmingCountdown';
 import { RewardSetupGuide } from '@/components/RewardSetupGuide';
@@ -263,20 +264,17 @@ const Farming: React.FC = () => {
       
       <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
         {/* Hero Section */}
-        <div className="text-center mb-12 animate-fade-in">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 animate-glow-pulse">
-            <TreeDeciduous className="w-5 h-5 text-primary" />
-            <span className="text-primary font-medium">Yield Farming</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="gradient-text">Grow Your Assets</span>
-          </h1>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Stake LP tokens and earn {rewardTokenSymbol || 'rewards'}. 
-            Harvest your yield anytime.
-          </p>
-        </div>
+        <HeroSection
+          title="Grow Your Assets"
+          description={`Stake LP tokens and earn ${rewardTokenSymbol || 'rewards'}. Harvest your yield anytime.`}
+          showSpotlight={true}
+          showStars={true}
+          spotlightColor="hsl(330, 100%, 60%)"
+          badge={{
+            text: "Yield Farming",
+            icon: <TreeDeciduous className="w-4 h-4 text-primary" />,
+          }}
+        />
 
         {/* Countdown Timer */}
         {startBlock > BigInt(0) && (
