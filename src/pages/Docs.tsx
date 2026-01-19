@@ -185,7 +185,7 @@ const Docs = () => {
           </div>
 
           <Tabs defaultValue="overview" className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsList className="grid w-full grid-cols-5 mb-8">
               <TabsTrigger value="overview" className="gap-2">
                 <Globe className="w-4 h-4" />
                 Overview
@@ -197,6 +197,10 @@ const Docs = () => {
               <TabsTrigger value="contracts" className="gap-2">
                 <Box className="w-4 h-4" />
                 Contracts
+              </TabsTrigger>
+              <TabsTrigger value="pushchain" className="gap-2">
+                <Zap className="w-4 h-4" />
+                Push Chain SDK
               </TabsTrigger>
               <TabsTrigger value="roadmap" className="gap-2">
                 <GitBranch className="w-4 h-4" />
@@ -504,6 +508,71 @@ const Docs = () => {
                     <p className="text-sm text-muted-foreground">
                       Helper library for price calculations, pair address computation, and quote generation.
                     </p>
+                  </div>
+                </div>
+              </Card>
+            </TabsContent>
+
+            {/* Push Chain SDK Tab */}
+            <TabsContent value="pushchain" className="space-y-6">
+              <Card className="glass-card p-8">
+                <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                  <Zap className="w-6 h-6 text-primary" />
+                  Push Chain SDK Integration
+                </h2>
+                <p className="text-muted-foreground leading-relaxed mb-6">
+                  Push Chain is a shared-state blockchain designed for universal apps. It supports cross-chain transactions, 
+                  universal accounts, high-speed transactions, and EVM compatibility.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
+                    <h4 className="font-semibold mb-2">Quick Installation</h4>
+                    <div className="bg-muted/50 rounded-lg p-3 font-mono text-sm overflow-x-auto">
+                      npm install @pushchain/core ethers
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 rounded-lg bg-secondary/50 border border-border/50">
+                    <h4 className="font-semibold mb-2">Key Features</h4>
+                    <div className="grid sm:grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-[hsl(var(--success))]" />
+                        <span>Universal Signer for cross-chain txs</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-[hsl(var(--success))]" />
+                        <span>EVM Compatible</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-[hsl(var(--success))]" />
+                        <span>High-speed transactions</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="w-4 h-4 text-[hsl(var(--success))]" />
+                        <span>Universal accounts</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-4 pt-4">
+                    <a 
+                      href="/pushchain-docs"
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      Full SDK Guide
+                      <ArrowRight className="w-4 h-4" />
+                    </a>
+                    <a 
+                      href="https://docs.push.org" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-secondary transition-colors"
+                    >
+                      Official Docs
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
                   </div>
                 </div>
               </Card>
