@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
+import { AIChatBot } from "@/components/AIChatBot";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -70,6 +71,8 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
+          {/* AI ChatBot - Available on all pages */}
+          <AIChatBot />
         </BrowserRouter>
       </TooltipProvider>
     </WalletProvider>
