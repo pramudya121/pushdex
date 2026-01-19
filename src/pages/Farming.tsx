@@ -5,6 +5,7 @@ import { HeroSection } from '@/components/HeroSection';
 import { FarmCard } from '@/components/FarmCard';
 import { FarmingCountdown } from '@/components/FarmingCountdown';
 import { RewardSetupGuide } from '@/components/RewardSetupGuide';
+import { RewardStatusCard } from '@/components/RewardStatusCard';
 import { useFarming, UserLPPosition } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
@@ -317,9 +318,20 @@ const Farming: React.FC = () => {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          {/* Reward Status Card - Always visible */}
+          <div className="md:col-span-1">
+            <RewardStatusCard
+              rewardPerBlock={rewardPerBlock}
+              contractRewardBalance={contractRewardBalance}
+              rewardTokenSymbol={rewardTokenSymbol}
+              hasUpdateFunction={hasUpdateFunction}
+              className="h-full"
+            />
+          </div>
+          
+          {/* Stats Cards */}
           {isLoading ? (
             <>
-              <StatsSkeleton />
               <StatsSkeleton />
               <StatsSkeleton />
               <StatsSkeleton />
@@ -366,31 +378,6 @@ const Farming: React.FC = () => {
                       <p className="text-sm text-muted-foreground">Your Staked</p>
                       <p className="text-2xl font-bold text-foreground">
                         {isConnected ? parseFloat(ethers.formatEther(totalUserStaked)).toFixed(4) : '0.00'}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card hover:border-warning/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.4s' }}>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center transition-transform hover:scale-110">
-                      {rewardTokenLogo ? (
-                        <img 
-                          src={rewardTokenLogo} 
-                          alt={rewardTokenSymbol}
-                          className="w-6 h-6 rounded-full"
-                          onError={(e) => { e.currentTarget.src = '/tokens/pc.png'; }}
-                        />
-                      ) : (
-                        <Sparkles className="w-6 h-6 text-warning" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending Rewards</p>
-                      <p className="text-2xl font-bold text-primary animate-pulse">
-                        {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
                       </p>
                     </div>
                   </div>

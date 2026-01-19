@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { SwapCard } from '@/components/SwapCard';
-import { RotatingTokenLogo } from '@/components/RotatingTokenLogo';
+import { WolfLogo } from '@/components/WolfLogo';
 import { TokenMarquee } from '@/components/TokenMarquee';
 import { ShimmerButton, Spotlight } from '@/components/ui/magic-ui';
 import { TypingAnimation } from '@/components/ui/magic-ui/typing-animation';
@@ -29,8 +29,22 @@ const Index = () => {
         <div className="max-w-md mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-8 animate-fade-in">
+            {/* 3D Rotating Logo Container */}
             <div className="flex justify-center mb-6">
-              <RotatingTokenLogo logo="/tokens/psdx.png" size={100} />
+              <div className="relative group">
+                {/* Glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary rounded-3xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500 animate-pulse" style={{ transform: 'scale(1.3)' }} />
+                
+                {/* Rotating container */}
+                <div className="relative p-5 rounded-3xl bg-card/80 backdrop-blur-xl border border-border/40 glow-pink-subtle animate-float">
+                  <WolfLogo size={72} />
+                </div>
+                
+                {/* Orbit ring */}
+                <div className="absolute inset-[-15%] rounded-full border border-primary/20 animate-spin" style={{ animationDuration: '8s' }}>
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary shadow-lg shadow-primary/50" />
+                </div>
+              </div>
             </div>
             
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 tracking-tight">

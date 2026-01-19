@@ -20,6 +20,7 @@ const History = lazy(() => import("./pages/History"));
 const Farming = lazy(() => import("./pages/Farming"));
 const Staking = lazy(() => import("./pages/Staking"));
 const Docs = lazy(() => import("./pages/Docs"));
+const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -67,7 +68,9 @@ const App = () => (
               <Route path="/farming" element={<Farming />} />
               <Route path="/staking" element={<Staking />} />
               <Route path="/docs" element={<Docs />} />
+              <Route path="/pushchain-docs" element={<PushChainDocs />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="*" element={<NotFound />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
