@@ -52,6 +52,48 @@ export const TOKENS = {
     logo: "/tokens/pc.png",
     isNative: true,
   },
+  LINK: {
+    address: "0xDa70a94c2976d64b1dDF9E796c3709bC989b7Dc7",
+    symbol: "LINK",
+    name: "Chainlink",
+    decimals: 18,
+    logo: "/tokens/link.png",
+  },
+  HYPE: {
+    address: "0x5E0B3DE95ACeeF2d46CEAF3e287370D23d90B603",
+    symbol: "HYPE",
+    name: "Hyperliquid",
+    decimals: 18,
+    logo: "/tokens/hype.png",
+  },
+  ZEC: {
+    address: "0x84fDbFA4322915D82B9e11C0B999d589af2911ae",
+    symbol: "ZEC",
+    name: "Zcash",
+    decimals: 18,
+    logo: "/tokens/zec.png",
+  },
+  SUI: {
+    address: "0x260B0d562e5eB66C85ECD19cB0C7269055CFFE0F",
+    symbol: "SUI",
+    name: "Sui",
+    decimals: 18,
+    logo: "/tokens/sui.png",
+  },
+  UNI: {
+    address: "0xFEBb4524170A78c83A29249992C444A6d21d8c07",
+    symbol: "UNI",
+    name: "Uniswap",
+    decimals: 18,
+    logo: "/tokens/uni.png",
+  },
+  OKB: {
+    address: "0x731251C4fcA037F718b24DEFd8AD6C5Abe224C41",
+    symbol: "OKB",
+    name: "OKB",
+    decimals: 18,
+    logo: "/tokens/okb.png",
+  },
 } as const;
 
 export type TokenInfo = typeof TOKENS[keyof typeof TOKENS];

@@ -2,7 +2,8 @@ import React, { memo } from 'react';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { SwapCard } from '@/components/SwapCard';
-import { WolfLogo } from '@/components/WolfLogo';
+import { RotatingTokenLogo } from '@/components/RotatingTokenLogo';
+import { TokenMarquee } from '@/components/TokenMarquee';
 import { ShimmerButton, Spotlight } from '@/components/ui/magic-ui';
 import { TypingAnimation } from '@/components/ui/magic-ui/typing-animation';
 import { Zap, ArrowRight } from 'lucide-react';
@@ -19,17 +20,17 @@ const Index = () => {
       
       <Header />
       
-      <main className="relative z-10 pt-28 md:pt-24 pb-20 px-4">
+      {/* Token Price Marquee */}
+      <div className="relative z-10 pt-20">
+        <TokenMarquee />
+      </div>
+      
+      <main className="relative z-10 pt-8 md:pt-4 pb-20 px-4">
         <div className="max-w-md mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-8 animate-fade-in">
             <div className="flex justify-center mb-6">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-3xl blur-xl opacity-30 group-hover:opacity-50 transition-opacity duration-500" />
-                <div className="relative p-5 rounded-3xl bg-card/80 backdrop-blur-xl border border-border/40 glow-pink-subtle">
-                  <WolfLogo size={72} />
-                </div>
-              </div>
+              <RotatingTokenLogo logo="/tokens/psdx.png" size={100} />
             </div>
             
             <h1 className="text-4xl md:text-5xl font-display font-bold mb-3 tracking-tight">
