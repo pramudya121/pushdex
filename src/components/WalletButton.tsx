@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useWallet } from '@/contexts/WalletContext';
+import { useWallet, usePushChain } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -8,10 +8,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { shortenAddress } from '@/lib/dex';
-import { Wallet, ChevronDown, LogOut, Copy, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Wallet, ChevronDown, LogOut, Copy, ExternalLink, AlertTriangle, Zap, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { BLOCK_EXPLORER, CHAIN_NAME } from '@/config/contracts';
+
+// PushChain Logo
+const PushChainLogo = () => (
+  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="32" height="32" rx="8" fill="url(#push_gradient)"/>
+    <path d="M16 6L8 12v8l8 6 8-6v-8l-8-6z" fill="white" fillOpacity="0.9"/>
+    <path d="M16 10L12 13v6l4 3 4-3v-6l-4-3z" fill="url(#push_gradient)"/>
+    <defs>
+      <linearGradient id="push_gradient" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#DD44B9"/>
+        <stop offset="1" stopColor="#8B5CF6"/>
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 // MetaMask Logo SVG
 const MetaMaskLogo = () => (
@@ -74,6 +90,13 @@ const BitgetLogo = () => (
 
 const WALLETS = [
   {
+    id: 'pushchain' as const,
+    name: 'Universal Wallet',
+    icon: <PushChainLogo />,
+    description: 'Connect with Universal Signer',
+    recommended: true,
+  },
+  {
     id: 'metamask' as const,
     name: 'MetaMask',
     icon: <MetaMaskLogo />,
@@ -111,11 +134,13 @@ export const WalletButton: React.FC = () => {
     switchNetwork,
     walletType,
   } = useWallet();
+
+  const { universalSigner } = usePushChain();
   
   const [isOpen, setIsOpen] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
-  const handleConnect = async (walletId: 'metamask' | 'okx' | 'rabby' | 'bitget') => {
+  const handleConnect = async (walletId: 'metamask' | 'okx' | 'rabby' | 'bitget' | 'pushchain') => {
     await connect(walletId);
     setIsOpen(false);
   };
@@ -141,6 +166,14 @@ export const WalletButton: React.FC = () => {
   if (isConnected && address) {
     return (
       <div className="flex items-center gap-2">
+        {/* Universal Signer Indicator */}
+        {universalSigner.isInitialized && (
+          <Badge variant="outline" className="hidden md:flex items-center gap-1 bg-primary/10 border-primary/30 text-primary">
+            <Globe className="w-3 h-3" />
+            Universal
+          </Badge>
+        )}
+        
         {!isCorrectNetwork && (
           <Button
             variant="destructive"
@@ -176,16 +209,37 @@ export const WalletButton: React.FC = () => {
               <DialogTitle className="flex items-center gap-3">
                 <div className="w-8 h-8">{getWalletIcon()}</div>
                 Wallet
+                {universalSigner.isInitialized && (
+                  <Badge className="bg-primary/20 text-primary border-primary/30">
+                    <Zap className="w-3 h-3 mr-1" />
+                    Universal Signer
+                  </Badge>
+                )}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-surface border border-border">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Connected with {walletType}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Connected with {walletType === 'pushchain' ? 'Universal Wallet' : walletType}
+                  </span>
                   <div className="w-2 h-2 rounded-full bg-success" />
                 </div>
                 <div className="font-mono text-lg">{shortenAddress(address, 6)}</div>
               </div>
+              
+              {/* Universal Signer Status */}
+              {universalSigner.isInitialized && (
+                <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-primary">Universal Signer Active</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Cross-chain transactions enabled on PushChain
+                  </div>
+                </div>
+              )}
               
               <div className="p-4 rounded-xl bg-surface border border-border">
                 <div className="text-sm text-muted-foreground mb-1">Balance</div>
@@ -242,22 +296,37 @@ export const WalletButton: React.FC = () => {
       </DialogTrigger>
       <DialogContent className="glass-card border-border max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Connect Wallet</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            Connect Wallet
+            <Badge variant="outline" className="text-xs">
+              <Zap className="w-3 h-3 mr-1" />
+              Universal Signer
+            </Badge>
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 mt-4">
           {WALLETS.map((wallet) => (
             <button
               key={wallet.id}
               onClick={() => handleConnect(wallet.id)}
-              className="w-full flex items-center gap-4 p-4 rounded-xl bg-surface hover:bg-surface-hover border border-border hover:border-primary/30 transition-all duration-200 group"
+              className={`w-full flex items-center gap-4 p-4 rounded-xl bg-surface hover:bg-surface-hover border transition-all duration-200 group ${
+                wallet.recommended 
+                  ? 'border-primary/50 hover:border-primary ring-1 ring-primary/20' 
+                  : 'border-border hover:border-primary/30'
+              }`}
               disabled={isConnecting}
             >
               <div className="w-10 h-10 flex items-center justify-center">
                 {wallet.icon}
               </div>
-              <div className="text-left">
-                <div className="font-semibold group-hover:text-primary transition-colors">
+              <div className="text-left flex-1">
+                <div className="font-semibold group-hover:text-primary transition-colors flex items-center gap-2">
                   {wallet.name}
+                  {wallet.recommended && (
+                    <Badge className="text-[10px] bg-primary/20 text-primary border-0">
+                      Recommended
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {wallet.description}

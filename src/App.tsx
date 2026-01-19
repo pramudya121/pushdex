@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { WalletProvider } from "@/contexts/WalletContext";
+import { PushChainProvider } from "@/contexts/PushChainContext";
 import { Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 import { AIChatBot } from "@/components/AIChatBot";
@@ -50,7 +50,7 @@ const PageLoader = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <WalletProvider>
+    <PushChainProvider>
       <TooltipProvider delayDuration={200}>
         <Toaster />
         <Sonner position="top-right" theme="dark" richColors closeButton />
@@ -78,7 +78,7 @@ const App = () => (
           <AIChatBot />
         </BrowserRouter>
       </TooltipProvider>
-    </WalletProvider>
+    </PushChainProvider>
   </QueryClientProvider>
 );
 
