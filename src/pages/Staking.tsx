@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Meteors } from '@/components/ui/magic-ui/meteors';
+import { Spotlight } from '@/components/ui/magic-ui/spotlight';
+import { GlowingStarsBackgroundCard } from '@/components/ui/aceternity/glowing-stars';
+import { NumberTicker } from '@/components/ui/magic-ui/number-ticker';
 import { 
   Coins, 
   TrendingUp, 
@@ -84,6 +87,10 @@ const Staking: React.FC = () => {
       {/* Meteors Background Effect */}
       <Meteors number={20} />
       
+      {/* Spotlight Effects */}
+      <Spotlight className="-top-40 left-0 md:left-40" fill="hsl(280, 80%, 50%)" />
+      <Spotlight className="top-20 right-0 md:right-20" fill="hsl(330, 100%, 50%)" />
+      
       <WaveBackground />
       <Header />
       
@@ -108,89 +115,81 @@ const Staking: React.FC = () => {
           </Alert>
         )}
 
-        {/* Stats Overview */}
+        {/* Stats Overview with GlowingStars */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Pools</p>
-                  <p className="text-2xl font-bold text-foreground">{activePools}</p>
+          <GlowingStarsBackgroundCard className="h-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-primary" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-2xl font-bold">
+                <NumberTicker value={activePools} className="text-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground">Active Pools</p>
+            </div>
+          </GlowingStarsBackgroundCard>
           
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Coins className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total TVL</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {parseFloat(ethers.formatEther(totalTVL)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </p>
+          <GlowingStarsBackgroundCard className="h-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                  <Coins className="w-5 h-5 text-blue-500" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-2xl font-bold">
+                {parseFloat(ethers.formatEther(totalTVL)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </div>
+              <p className="text-sm text-muted-foreground">Total TVL</p>
+            </div>
+          </GlowingStarsBackgroundCard>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <Percent className="w-6 h-6 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Highest APR</p>
-                  <p className="text-2xl font-bold gradient-text">
-                    {highestApr.toFixed(1)}%
-                  </p>
+          <GlowingStarsBackgroundCard className="h-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <Percent className="w-5 h-5 text-accent" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-2xl font-bold gradient-text">
+                {highestApr.toFixed(1)}%
+              </div>
+              <p className="text-sm text-muted-foreground">Highest APR</p>
+            </div>
+          </GlowingStarsBackgroundCard>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Your Staked</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {isConnected ? parseFloat(ethers.formatEther(totalUserStaked)).toFixed(2) : '0.00'}
-                  </p>
+          <GlowingStarsBackgroundCard className="h-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-success/20 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-success" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-2xl font-bold">
+                {isConnected ? parseFloat(ethers.formatEther(totalUserStaked)).toFixed(2) : '0.00'}
+              </div>
+              <p className="text-sm text-muted-foreground">Your Staked</p>
+            </div>
+          </GlowingStarsBackgroundCard>
 
-          <Card className="glass-card">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-warning" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Rewards</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
-                  </p>
+          <GlowingStarsBackgroundCard className="h-full">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-warning" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-2xl font-bold text-primary">
+                {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
+              </div>
+              <p className="text-sm text-muted-foreground">Pending Rewards</p>
+            </div>
+          </GlowingStarsBackgroundCard>
         </div>
 
         {/* Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 animate-fade-in">
           <div className="flex items-center gap-4">
             <Link to="/farming">
               <Button variant="outline" size="sm">

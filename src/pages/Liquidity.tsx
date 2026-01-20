@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import { TextGenerateEffect } from '@/components/ui/aceternity/text-generate-effect';
 import { HeroSection } from '@/components/HeroSection';
+import { Spotlight } from '@/components/ui/magic-ui/spotlight';
 
 const Liquidity = () => {
   const { address, signer, isConnected, isCorrectNetwork, switchNetwork, balance } = useWallet();
@@ -389,8 +390,13 @@ const Liquidity = () => {
   };
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative overflow-hidden">
       <WaveBackground />
+      
+      {/* Spotlight Effects */}
+      <Spotlight className="-top-40 left-0 md:left-60" fill="hsl(330, 100%, 50%)" />
+      <Spotlight className="top-20 right-0 md:right-40" fill="hsl(280, 80%, 50%)" />
+      
       <Header />
       
       <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
@@ -399,6 +405,7 @@ const Liquidity = () => {
             title="Liquidity"
             description="Add or remove liquidity to earn trading fees from every swap"
             showSpotlight={false}
+            showStars={true}
           />
 
           <div className="grid lg:grid-cols-3 gap-6">
