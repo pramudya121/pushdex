@@ -19,7 +19,6 @@ const CreatePool = lazy(() => import("./pages/CreatePool"));
 const History = lazy(() => import("./pages/History"));
 const Farming = lazy(() => import("./pages/Farming"));
 const Staking = lazy(() => import("./pages/Staking"));
-const Tokens = lazy(() => import("./pages/Tokens"));
 const Docs = lazy(() => import("./pages/Docs"));
 const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -68,7 +67,6 @@ const App = () => (
               <Route path="/history" element={<History />} />
               <Route path="/farming" element={<Farming />} />
               <Route path="/staking" element={<Staking />} />
-              <Route path="/tokens" element={<Tokens />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/pushchain-docs" element={<PushChainDocs />} />
               <Route path="/admin" element={<Admin />} />

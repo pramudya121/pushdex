@@ -2,9 +2,8 @@ import React, { memo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, CircleDollarSign } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins } from 'lucide-react';
 import { FloatingDock } from '@/components/ui/aceternity/floating-dock';
 
 const NAV_ITEMS = [
@@ -13,7 +12,6 @@ const NAV_ITEMS = [
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/farming', label: 'Farming', icon: Leaf },
   { path: '/staking', label: 'Staking', icon: Coins },
-  { path: '/tokens', label: 'Tokens', icon: CircleDollarSign },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
   { path: '/docs', label: 'Docs', icon: BookOpen },
@@ -69,9 +67,8 @@ export const Header: React.FC = memo(() => {
               })}
             </nav>
 
-            {/* Theme Toggle & Wallet */}
+            {/* Wallet */}
             <div className="flex items-center gap-3">
-              <ThemeToggle />
               <WalletButton />
             </div>
           </div>

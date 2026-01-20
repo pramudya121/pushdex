@@ -111,15 +111,21 @@ const PoolDetail = () => {
       const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
       const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
 
-      const [token0Symbol, token1Symbol, token0Decimals, token1Decimals] = await Promise.all([
+      // Get token info from our known token list first
+      const token0Info = getTokenByAddress(token0);
+      const token1Info = getTokenByAddress(token1);
+
+      // Fetch on-chain data as fallback
+      const [token0SymbolOnChain, token1SymbolOnChain, token0Decimals, token1Decimals] = await Promise.all([
         token0Contract.symbol().catch(() => 'Unknown'),
         token1Contract.symbol().catch(() => 'Unknown'),
         token0Contract.decimals().catch(() => 18),
         token1Contract.decimals().catch(() => 18),
       ]);
 
-      const token0Info = getTokenByAddress(token0);
-      const token1Info = getTokenByAddress(token1);
+      // Prioritize known token info over on-chain data
+      const token0Symbol = token0Info?.symbol || token0SymbolOnChain;
+      const token1Symbol = token1Info?.symbol || token1SymbolOnChain;
 
       const reserve0Formatted = formatAmount(reserves[0], token0Decimals);
       const reserve1Formatted = formatAmount(reserves[1], token1Decimals);
