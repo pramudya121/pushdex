@@ -17,8 +17,6 @@ interface PoolCardProps {
   tvl: number;
   volume24h?: number;
   apy?: number;
-  onSelect?: () => void;
-  isSelected?: boolean;
 }
 
 export const PoolCard: React.FC<PoolCardProps> = memo(({
@@ -32,8 +30,6 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
   tvl,
   volume24h: propVolume24h,
   apy: propApy,
-  onSelect,
-  isSelected,
 }) => {
   const token0Info = useMemo(() => getTokenByAddress(token0), [token0]);
   const token1Info = useMemo(() => getTokenByAddress(token1), [token1]);
@@ -54,12 +50,7 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
       className="rounded-2xl"
       containerClassName="w-full"
     >
-    <div
-      className={`bg-card rounded-2xl p-5 cursor-pointer transition-all duration-300 group ${
-        isSelected ? 'border-primary/50 shadow-[var(--shadow-glow)]' : ''
-      }`}
-      onClick={onSelect}
-    >
+    <div className="bg-card rounded-2xl p-5 transition-all duration-300 group hover:shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">

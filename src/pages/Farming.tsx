@@ -457,22 +457,6 @@ const Farming: React.FC = () => {
           </div>
         </div>
 
-        {/* Manual refresh button */}
-        {isConnected && !isLoading && (
-          <div className="flex items-center justify-end mb-4 animate-fade-in">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleManualRefresh}
-              disabled={isManualRefreshing}
-              className="gap-2 hover:border-primary/50 transition-all"
-            >
-              <RefreshCw className={cn("w-4 h-4", isManualRefreshing && "animate-spin")} />
-              {isManualRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-          </div>
-        )}
-
         {/* Connect Wallet Message */}
         {!isConnected && (
           <Card className="glass-card mb-8 animate-fade-in">
