@@ -1,10 +1,11 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowUpRight, Droplets, TrendingUp, ExternalLink, Star } from 'lucide-react';
+import { ArrowUpRight, Droplets, TrendingUp, TrendingDown, ExternalLink, Star, Radio } from 'lucide-react';
 import { getTokenByAddress } from '@/lib/dex';
 import { useFavorites } from '@/hooks/useFavorites';
 import { BackgroundGradient } from '@/components/ui/aceternity/background-gradient';
+import { cn } from '@/lib/utils';
 
 interface PoolCardProps {
   pairAddress: string;
@@ -17,6 +18,8 @@ interface PoolCardProps {
   tvl: number;
   volume24h?: number;
   apy?: number;
+  priceChange24h?: number;
+  lastUpdate?: number;
 }
 
 export const PoolCard: React.FC<PoolCardProps> = memo(({
@@ -30,12 +33,26 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
   tvl,
   volume24h: propVolume24h,
   apy: propApy,
+  priceChange24h = 0,
+  lastUpdate,
 }) => {
   const token0Info = useMemo(() => getTokenByAddress(token0), [token0]);
   const token1Info = useMemo(() => getTokenByAddress(token1), [token1]);
   const { isFavoritePool, toggleFavoritePool } = useFavorites();
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [prevTvl, setPrevTvl] = useState(tvl);
   
   const isFavorite = isFavoritePool(pairAddress);
+  
+  // Flash effect when price updates
+  useEffect(() => {
+    if (tvl !== prevTvl) {
+      setIsFlashing(true);
+      const timer = setTimeout(() => setIsFlashing(false), 500);
+      setPrevTvl(tvl);
+      return () => clearTimeout(timer);
+    }
+  }, [tvl, prevTvl]);
   
   // Use provided values or calculate mock stats - memoized to prevent recalculation
   const { volume24h, fees24h, apy } = useMemo(() => {
@@ -45,15 +62,27 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
     return { volume24h: vol, fees24h: fees, apy: apyVal };
   }, [propVolume24h, propApy, tvl]);
 
+  const isPositiveChange = priceChange24h >= 0;
+
   return (
     <BackgroundGradient
       className="rounded-2xl"
       containerClassName="w-full"
     >
-    <div className="bg-card rounded-2xl p-5 transition-all duration-300 group hover:shadow-lg">
+    <div className={cn(
+      "bg-card rounded-2xl p-5 transition-all duration-300 group hover:shadow-lg",
+      isFlashing && (tvl > prevTvl ? "ring-2 ring-[hsl(var(--success))]/50" : "ring-2 ring-destructive/50")
+    )}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
+          {/* Live Indicator */}
+          <div className="relative">
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
+          </div>
           <div className="flex -space-x-3">
             {token0Info?.logo ? (
               <img 
@@ -84,8 +113,15 @@ export const PoolCard: React.FC<PoolCardProps> = memo(({
             <h3 className="font-semibold text-lg">{token0Symbol}/{token1Symbol}</h3>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Fee: 0.3%</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-              <span className="text-xs text-[hsl(var(--success))]">Active</span>
+              <div className={cn(
+                "flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded",
+                isPositiveChange 
+                  ? "bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]" 
+                  : "bg-destructive/10 text-destructive"
+              )}>
+                {isPositiveChange ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                {isPositiveChange ? '+' : ''}{priceChange24h.toFixed(2)}%
+              </div>
             </div>
           </div>
         </div>

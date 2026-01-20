@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
-import { ethers } from 'ethers';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
@@ -9,13 +8,11 @@ import { QuickStats } from '@/components/QuickStats';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CONTRACTS } from '@/config/contracts';
-import { FACTORY_ABI } from '@/config/abis';
-import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
-import { getMultiplePairReserves } from '@/lib/multicall';
+import { getTokenByAddress } from '@/lib/dex';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useRealtimePrices } from '@/hooks/useRealtimePrices';
+import { PulseDot } from '@/components/LivePriceIndicator';
 import { 
-  Loader2, 
   Droplets, 
   Plus, 
   RefreshCcw, 
@@ -25,7 +22,8 @@ import {
   LayoutList,
   ChevronDown,
   ArrowUpDown,
-  Star
+  Star,
+  Radio
 } from 'lucide-react';
 
 interface PoolInfo {
@@ -39,20 +37,13 @@ interface PoolInfo {
   tvl: number;
   volume24h: number;
   apy: number;
+  priceChange24h: number;
+  lastUpdate: number;
 }
 
 type SortField = 'tvl' | 'volume24h' | 'apy';
 type ViewMode = 'grid' | 'list';
 type FilterMode = 'all' | 'favorites';
-
-// Token prices - memoized outside component
-const TOKEN_PRICES: Record<string, number> = {
-  'WPC': 1.5,
-  'ETH': 2300,
-  'BNB': 580,
-  'PSDX': 0.85,
-  'PC': 1.5,
-};
 
 // Pool Card Skeleton for loading state
 const PoolCardSkeleton = memo(() => (
@@ -90,8 +81,6 @@ const PoolCardSkeleton = memo(() => (
 ));
 
 const Pools = memo(() => {
-  const [pools, setPools] = useState<PoolInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('tvl');
   const [sortDesc, setSortDesc] = useState(true);
@@ -99,95 +88,27 @@ const Pools = memo(() => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const { favoritePools, isFavoritePool } = useFavorites();
+  
+  // Use real-time price hook with 10 second refresh
+  const { pools: realtimePools, isLoading, lastUpdate, isConnected, refresh } = useRealtimePrices(10000);
 
-  const fetchPools = async () => {
-    setIsLoading(true);
-    try {
-      const provider = getReadProvider();
-      const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
-      
-      const pairsLength = await factory.allPairsLength();
-      
-      // Fetch all pair addresses
-      const pairInfoPromises = [];
-      for (let i = 0; i < Number(pairsLength); i++) {
-        pairInfoPromises.push(factory.allPairs(i));
-      }
-      
-      const pairAddresses = await Promise.all(pairInfoPromises);
-      
-      // Use multicall to get reserves for all pairs at once
-      const reservesMap = await getMultiplePairReserves(pairAddresses);
-      
-      const poolPromises = pairAddresses.map(async (pairAddress) => {
-        try {
-          const pair = getPairContract(pairAddress, provider);
-          const [token0, token1] = await Promise.all([
-            pair.token0(),
-            pair.token1(),
-          ]);
-          
-          const reserves = reservesMap.get(pairAddress.toLowerCase());
-          const token0Info = getTokenByAddress(token0);
-          const token1Info = getTokenByAddress(token1);
-          
-          // Get on-chain reserve values
-          const reserve0Raw = reserves?.reserve0 || 0n;
-          const reserve1Raw = reserves?.reserve1 || 0n;
-          
-          const reserve0Formatted = formatAmount(reserve0Raw, token0Info?.decimals || 18);
-          const reserve1Formatted = formatAmount(reserve1Raw, token1Info?.decimals || 18);
-          
-          // Calculate TVL using token prices
-          const price0 = TOKEN_PRICES[token0Info?.symbol || ''] || 1;
-          const price1 = TOKEN_PRICES[token1Info?.symbol || ''] || 1;
-          
-          const tvl0 = parseFloat(reserve0Formatted) * price0;
-          const tvl1 = parseFloat(reserve1Formatted) * price1;
-          const tvl = tvl0 + tvl1;
-          
-          // Calculate 24h volume (based on TVL - in production this would come from events/subgraph)
-          // Using a realistic daily trading volume of 5-20% of TVL
-          const volumeRatio = 0.05 + Math.random() * 0.15;
-          const volume24h = tvl * volumeRatio;
-          
-          // Calculate APY from trading fees
-          // 0.3% fee on each trade, annualized
-          const fees24h = volume24h * 0.003;
-          const apy = tvl > 0 ? ((fees24h * 365) / tvl) * 100 : 0;
-          
-          return {
-            pairAddress,
-            token0,
-            token1,
-            token0Symbol: token0Info?.symbol || 'Unknown',
-            token1Symbol: token1Info?.symbol || 'Unknown',
-            reserve0: reserve0Formatted,
-            reserve1: reserve1Formatted,
-            tvl,
-            volume24h,
-            apy,
-          };
-        } catch (error) {
-          console.error(`Error fetching pair ${pairAddress}:`, error);
-          return null;
-        }
-      });
-      
-      const results = await Promise.all(poolPromises);
-      const validPools = results.filter((p): p is PoolInfo => p !== null);
-      setPools(validPools);
-      
-    } catch (error) {
-      console.error('Error fetching pools:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPools();
-  }, []);
+  // Transform realtime pools to PoolInfo format
+  const pools: PoolInfo[] = useMemo(() => {
+    return realtimePools.map(p => ({
+      pairAddress: p.pairAddress,
+      token0: p.token0,
+      token1: p.token1,
+      token0Symbol: p.token0Symbol,
+      token1Symbol: p.token1Symbol,
+      reserve0: p.reserve0,
+      reserve1: p.reserve1,
+      tvl: p.tvl,
+      volume24h: p.volume24h,
+      apy: p.apy,
+      priceChange24h: p.priceChange24h,
+      lastUpdate: p.lastUpdate,
+    }));
+  }, [realtimePools]);
 
   // Memoized filter and sort
   const filteredPools = useMemo(() => {
@@ -220,6 +141,14 @@ const Pools = memo(() => {
       setSortDesc(true);
     }
   }, [sortField]);
+
+  // Format last update time
+  const lastUpdateFormatted = useMemo(() => {
+    const seconds = Math.floor((Date.now() - lastUpdate) / 1000);
+    if (seconds < 5) return 'Just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    return `${Math.floor(seconds / 60)}m ago`;
+  }, [lastUpdate]);
 
   return (
     <div className="min-h-screen relative">
@@ -351,10 +280,18 @@ const Pools = memo(() => {
                 </button>
               </div>
 
+              {/* Live Status & Refresh */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface/50 border border-border/50">
+                <PulseDot connected={isConnected} />
+                <span className="text-xs text-muted-foreground">
+                  {isConnected ? `Updated ${lastUpdateFormatted}` : 'Reconnecting...'}
+                </span>
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
-                onClick={fetchPools}
+                onClick={refresh}
                 disabled={isLoading}
                 className="gap-2"
               >
