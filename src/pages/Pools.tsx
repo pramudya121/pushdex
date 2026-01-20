@@ -4,11 +4,8 @@ import { Link } from 'react-router-dom';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { HeroSection } from '@/components/HeroSection';
-import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { PoolCard } from '@/components/PoolCard';
-import { PriceChart } from '@/components/PriceChart';
 import { QuickStats } from '@/components/QuickStats';
-import { PriceAlertModal } from '@/components/PriceAlertModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -98,7 +95,7 @@ const Pools = memo(() => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('tvl');
   const [sortDesc, setSortDesc] = useState(true);
-  const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
+  
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const { favoritePools, isFavoritePool } = useFavorites();
@@ -181,9 +178,6 @@ const Pools = memo(() => {
       const validPools = results.filter((p): p is PoolInfo => p !== null);
       setPools(validPools);
       
-      if (validPools.length > 0 && !selectedPool) {
-        setSelectedPool(validPools[0]);
-      }
     } catch (error) {
       console.error('Error fetching pools:', error);
     } finally {
@@ -376,142 +370,107 @@ const Pools = memo(() => {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* Pools List/Grid */}
-            <div className="xl:col-span-2">
-              {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[...Array(4)].map((_, i) => (
-                    <PoolCardSkeleton key={i} />
-                  ))}
-                </div>
-              ) : filteredPools.length === 0 ? (
-                <div className="glass-card p-16 text-center animate-scale-in">
-                  <Droplets className="w-20 h-20 text-muted-foreground mx-auto mb-6 opacity-50" />
-                  <h3 className="text-2xl font-semibold mb-3">
-                    {searchTerm ? 'No Pools Found' : 'No Pools Yet'}
-                  </h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    {searchTerm 
-                      ? 'Try adjusting your search criteria'
-                      : 'Be the first to create a liquidity pool and start earning fees!'
-                    }
-                  </p>
-                  {!searchTerm && (
-                    <Link to="/pools/create">
-                      <Button className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90">
-                        <Plus className="w-4 h-4" />
-                        Create First Pool
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              ) : viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-                  {filteredPools.map((pool, index) => (
-                    <div 
-                      key={pool.pairAddress} 
-                      className="animate-fade-in"
-                      style={{ animationDelay: `${index * 0.05}s` }}
-                    >
-                      <PoolCard
-                        {...pool}
-                        onSelect={() => setSelectedPool(pool)}
-                        isSelected={selectedPool?.pairAddress === pool.pairAddress}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="glass-card overflow-hidden animate-fade-in">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-6 gap-4 px-6 py-4 bg-secondary/30 border-b border-border/50 text-sm font-medium text-muted-foreground">
-                    <div className="col-span-2">Pool</div>
-                    <div className="text-right">TVL</div>
-                    <div className="text-right">Volume 24h</div>
-                    <div className="text-right">APY</div>
-                    <div className="text-right">Action</div>
-                  </div>
-                  
-                  {/* Table Rows */}
-                  {filteredPools.map((pool, index) => {
-                    const token0Info = getTokenByAddress(pool.token0);
-                    const token1Info = getTokenByAddress(pool.token1);
-                    
-                    return (
-                      <div
-                        key={pool.pairAddress}
-                        onClick={() => setSelectedPool(pool)}
-                        className={`grid grid-cols-6 gap-4 px-6 py-4 items-center border-b border-border/30 hover:bg-secondary/30 cursor-pointer transition-all animate-fade-in ${
-                          selectedPool?.pairAddress === pool.pairAddress ? 'bg-primary/5 border-l-2 border-l-primary' : ''
-                        }`}
-                        style={{ animationDelay: `${index * 0.03}s` }}
-                      >
-                        <div className="col-span-2 flex items-center gap-3">
-                          <div className="flex -space-x-2">
-                            {token0Info?.logo ? (
-                              <img src={token0Info.logo} alt={pool.token0Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-primary-foreground border-2 border-background">
-                                {pool.token0Symbol.charAt(0)}
-                              </div>
-                            )}
-                            {token1Info?.logo ? (
-                              <img src={token1Info.logo} alt={pool.token1Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-xs font-bold text-primary-foreground border-2 border-background">
-                                {pool.token1Symbol.charAt(0)}
-                              </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-semibold">{pool.token0Symbol}/{pool.token1Symbol}</div>
-                            <div className="text-xs text-muted-foreground">Fee: 0.3%</div>
-                          </div>
-                        </div>
-                        <div className="text-right font-medium">${pool.tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                        <div className="text-right">${pool.volume24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
-                        <div className="text-right text-[hsl(var(--success))]">{pool.apy.toFixed(2)}%</div>
-                        <div className="text-right">
-                          <Link to={`/pools/${pool.pairAddress}`}>
-                            <Button variant="outline" size="sm">
-                              View
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          {/* Pools Grid - 3 columns */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <PoolCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredPools.length === 0 ? (
+            <div className="glass-card p-16 text-center animate-scale-in">
+              <Droplets className="w-20 h-20 text-muted-foreground mx-auto mb-6 opacity-50" />
+              <h3 className="text-2xl font-semibold mb-3">
+                {searchTerm ? 'No Pools Found' : 'No Pools Yet'}
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                {searchTerm 
+                  ? 'Try adjusting your search criteria'
+                  : 'Be the first to create a liquidity pool and start earning fees!'
+                }
+              </p>
+              {!searchTerm && (
+                <Link to="/pools/create">
+                  <Button className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                    <Plus className="w-4 h-4" />
+                    Create First Pool
+                  </Button>
+                </Link>
               )}
             </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Price Chart */}
-              {selectedPool && (
-                <div className="animate-fade-in">
-                  <PriceChart 
-                    token0Symbol={selectedPool.token0Symbol}
-                    token1Symbol={selectedPool.token1Symbol}
-                    reserve0={selectedPool.reserve0}
-                    reserve1={selectedPool.reserve1}
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+              {filteredPools.map((pool, index) => (
+                <div 
+                  key={pool.pairAddress} 
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <PoolCard
+                    {...pool}
                   />
-                  <div className="mt-4">
-                    <PriceAlertModal
-                      token0Symbol={selectedPool.token0Symbol}
-                      token1Symbol={selectedPool.token1Symbol}
-                      pairAddress={selectedPool.pairAddress}
-                      currentPrice={parseFloat(selectedPool.reserve1) / parseFloat(selectedPool.reserve0) || 0}
-                    />
-                  </div>
                 </div>
-              )}
-              
-              <WrapUnwrap />
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="glass-card overflow-hidden animate-fade-in">
+              {/* Table Header */}
+              <div className="grid grid-cols-6 gap-4 px-6 py-4 bg-secondary/30 border-b border-border/50 text-sm font-medium text-muted-foreground">
+                <div className="col-span-2">Pool</div>
+                <div className="text-right">TVL</div>
+                <div className="text-right">Volume 24h</div>
+                <div className="text-right">APY</div>
+                <div className="text-right">Action</div>
+              </div>
+              
+              {/* Table Rows */}
+              {filteredPools.map((pool, index) => {
+                const token0Info = getTokenByAddress(pool.token0);
+                const token1Info = getTokenByAddress(pool.token1);
+                
+                return (
+                  <div
+                    key={pool.pairAddress}
+                    className="grid grid-cols-6 gap-4 px-6 py-4 items-center border-b border-border/30 hover:bg-secondary/30 transition-all animate-fade-in"
+                    style={{ animationDelay: `${index * 0.03}s` }}
+                  >
+                    <div className="col-span-2 flex items-center gap-3">
+                      <div className="flex -space-x-2">
+                        {token0Info?.logo ? (
+                          <img src={token0Info.logo} alt={pool.token0Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-primary-foreground border-2 border-background">
+                            {pool.token0Symbol.charAt(0)}
+                          </div>
+                        )}
+                        {token1Info?.logo ? (
+                          <img src={token1Info.logo} alt={pool.token1Symbol} className="w-8 h-8 rounded-full border-2 border-background" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-primary flex items-center justify-center text-xs font-bold text-primary-foreground border-2 border-background">
+                            {pool.token1Symbol.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-semibold">{pool.token0Symbol}/{pool.token1Symbol}</div>
+                        <div className="text-xs text-muted-foreground">Fee: 0.3%</div>
+                      </div>
+                    </div>
+                    <div className="text-right font-medium">${pool.tvl.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                    <div className="text-right">${pool.volume24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                    <div className="text-right text-[hsl(var(--success))]">{pool.apy.toFixed(2)}%</div>
+                    <div className="text-right">
+                      <Link to={`/pools/${pool.pairAddress}`}>
+                        <Button variant="outline" size="sm">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
     </div>
