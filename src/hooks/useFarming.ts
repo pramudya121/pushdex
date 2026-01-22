@@ -98,7 +98,7 @@ export const useFarming = () => {
     return new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, provider);
   }, []);
 
-  // Fetch all user LP positions from factory
+  // Fetch all user LP positions from factory - optimized with batching
   const fetchUserLPPositions = useCallback(async (farmPoolAddresses: string[]): Promise<UserLPPosition[]> => {
     if (!address) return [];
 
@@ -107,9 +107,10 @@ export const useFarming = () => {
       const factory = new ethers.Contract(CONTRACTS.FACTORY, FACTORY_ABI, provider);
       
       const pairsLength = await factory.allPairsLength();
-      const positions: UserLPPosition[] = [];
-
-      for (let i = 0; i < Number(pairsLength); i++) {
+      const totalPairs = Math.min(Number(pairsLength), 20); // Limit to 20 pairs max
+      
+      // Fetch all pairs in parallel
+      const pairPromises = Array.from({ length: totalPairs }, async (_, i) => {
         try {
           const pairAddress = await factory.allPairs(i);
           const pairContract = new ethers.Contract(pairAddress, PAIR_ABI, provider);
@@ -122,23 +123,15 @@ export const useFarming = () => {
               pairContract.token1(),
             ]);
 
-            const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
-            const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
-
-            // Try to get symbol from TOKEN_LIST first, then from contract
-            const token0SymbolFromList = getTokenSymbol(token0);
-            const token1SymbolFromList = getTokenSymbol(token1);
-            
-            const [token0Symbol, token1Symbol] = await Promise.all([
-              token0SymbolFromList ? Promise.resolve(token0SymbolFromList) : token0Contract.symbol().catch(() => 'Unknown'),
-              token1SymbolFromList ? Promise.resolve(token1SymbolFromList) : token1Contract.symbol().catch(() => 'Unknown'),
-            ]);
+            // Try to get symbol from TOKEN_LIST first
+            const token0Symbol = getTokenSymbol(token0) || 'Token';
+            const token1Symbol = getTokenSymbol(token1) || 'Token';
 
             const farmPidIndex = farmPoolAddresses.findIndex(
               addr => addr.toLowerCase() === pairAddress.toLowerCase()
             );
 
-            positions.push({
+            return {
               lpToken: pairAddress,
               lpSymbol: `${token0Symbol}-${token1Symbol} LP`,
               balance,
@@ -150,14 +143,16 @@ export const useFarming = () => {
               token1Address: token1,
               isStakeable: farmPidIndex >= 0,
               farmPid: farmPidIndex >= 0 ? farmPidIndex : undefined,
-            });
+            } as UserLPPosition;
           }
-        } catch (e) {
-          console.log(`Error fetching pair ${i}:`, e);
+          return null;
+        } catch {
+          return null;
         }
-      }
+      });
 
-      return positions;
+      const results = await Promise.all(pairPromises);
+      return results.filter((p): p is UserLPPosition => p !== null);
     } catch (error) {
       console.error('Error fetching user LP positions:', error);
       return [];
@@ -220,7 +215,7 @@ export const useFarming = () => {
 
       const farmPoolAddresses: string[] = [];
       
-      // Fetch all pool info in parallel
+      // Fetch all pool info in parallel - optimized
       const poolPromises = Array.from({ length: Number(poolLength) }, async (_, i) => {
         try {
           const poolInfo = await contract.poolInfo(i);
@@ -229,29 +224,16 @@ export const useFarming = () => {
           
           const lpContract = new ethers.Contract(lpTokenAddress, PAIR_ABI, provider);
           
+          // Batch all LP contract calls
           const [token0, token1, lpTotalStaked] = await Promise.all([
             lpContract.token0(),
             lpContract.token1(),
             lpContract.balanceOf(CONTRACTS.FARMING),
           ]);
 
-          // Get token symbols in parallel
-          const token0SymbolFromList = getTokenSymbol(token0);
-          const token1SymbolFromList = getTokenSymbol(token1);
-          
-          let token0Symbol = token0SymbolFromList;
-          let token1Symbol = token1SymbolFromList;
-          
-          if (!token0Symbol || !token1Symbol) {
-            const token0Contract = new ethers.Contract(token0, ERC20_ABI, provider);
-            const token1Contract = new ethers.Contract(token1, ERC20_ABI, provider);
-            const [s0, s1] = await Promise.all([
-              token0Symbol ? Promise.resolve(token0Symbol) : token0Contract.symbol().catch(() => 'Unknown'),
-              token1Symbol ? Promise.resolve(token1Symbol) : token1Contract.symbol().catch(() => 'Unknown'),
-            ]);
-            token0Symbol = s0;
-            token1Symbol = s1;
-          }
+          // Use cached token symbols from TOKEN_LIST
+          const token0Symbol = getTokenSymbol(token0) || 'Token';
+          const token1Symbol = getTokenSymbol(token1) || 'Token';
 
           let userStaked = BigInt(0);
           let userPendingReward = BigInt(0);

@@ -1,18 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { HeroSection } from '@/components/HeroSection';
 import { FarmCard } from '@/components/FarmCard';
 import { FarmingCountdown } from '@/components/FarmingCountdown';
-import { RewardSetupGuide } from '@/components/RewardSetupGuide';
-import { RewardStatusCard } from '@/components/RewardStatusCard';
 import { useFarming, UserLPPosition } from '@/hooks/useFarming';
 import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Leaf, 
   Sparkles, 
@@ -22,17 +19,12 @@ import {
   Wallet,
   ExternalLink,
   TreeDeciduous,
-  Sprout,
-  AlertCircle,
   Layers,
   ArrowRight,
-  Zap,
-  ChevronRight,
-  Clock
+  Zap
 } from 'lucide-react';
 import { ethers } from 'ethers';
-import { BLOCK_EXPLORER, CONTRACTS, RPC_URL } from '@/config/contracts';
-import { FARMING_ABI } from '@/config/abis';
+import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -168,8 +160,6 @@ const Farming: React.FC = () => {
     rewardPerBlock,
     startBlock,
     isLoading,
-    error,
-    contractRewardBalance,
     hasEnoughRewards,
     stake,
     unstake,
@@ -177,73 +167,12 @@ const Farming: React.FC = () => {
     harvestAll,
     emergencyWithdraw,
     getLpBalance,
-    updatePool,
-    getContractRewardBalance,
     refreshPools,
     isStaking,
     isUnstaking,
     isHarvesting,
     isHarvestingAll,
   } = useFarming();
-
-  const [hasUpdateFunction, setHasUpdateFunction] = useState(false);
-  const [isCheckingFunction, setIsCheckingFunction] = useState(true);
-  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-  
-  // Check if contract has updateRewardPerBlock function
-  useEffect(() => {
-    const checkUpdateFunction = async () => {
-      try {
-        const provider = new ethers.JsonRpcProvider(RPC_URL);
-        const functionNames = [
-          'updateRewardPerBlock',
-          'setRewardPerBlock', 
-          'updateEmissionRate',
-          'setEmissionRate'
-        ];
-        
-        for (const funcName of functionNames) {
-          const minAbi = [{
-            inputs: [{ type: 'uint256', name: '_value' }],
-            name: funcName,
-            outputs: [],
-            stateMutability: 'nonpayable',
-            type: 'function',
-          }];
-          
-          try {
-            const contract = new ethers.Contract(CONTRACTS.FARMING, minAbi, provider);
-            await contract[funcName].estimateGas(0);
-            setHasUpdateFunction(true);
-            break;
-          } catch (e: any) {
-            // If we get a revert (not "function not found"), it means function exists
-            if (e.message && !e.message.includes('no matching function')) {
-              setHasUpdateFunction(true);
-              break;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking update function:', error);
-      } finally {
-        setIsCheckingFunction(false);
-      }
-    };
-    
-    checkUpdateFunction();
-  }, []);
-  
-  // Manual refresh handler
-  const handleManualRefresh = async () => {
-    if (isManualRefreshing) return;
-    setIsManualRefreshing(true);
-    try {
-      await refreshPools();
-    } finally {
-      setIsManualRefreshing(false);
-    }
-  };
 
   // Calculate total stats
   const totalUserStaked = pools.reduce((acc, pool) => acc + pool.userStaked, BigInt(0));
@@ -253,10 +182,6 @@ const Farming: React.FC = () => {
     : 0;
   const hasPendingRewards = totalPendingRewards > BigInt(0);
   const stakeableLPs = userLPPositions.filter(p => p.isStakeable);
-  const rewardBalanceFormatted = parseFloat(ethers.formatEther(contractRewardBalance)).toFixed(4);
-  
-  // Check if rewards are not fully configured
-  const needsSetup = !isLoading && !isCheckingFunction && (rewardPerBlock === BigInt(0) || !hasEnoughRewards || !hasUpdateFunction);
 
   return (
     <div className="min-h-screen bg-background wave-bg">
@@ -277,68 +202,18 @@ const Farming: React.FC = () => {
           }}
         />
 
-        {/* Countdown Timer */}
-        {startBlock > BigInt(0) && (
-          <FarmingCountdown startBlock={startBlock} className="mb-8" />
-        )}
-
-        {/* Reward Setup Guide - Comprehensive guide for enabling earned rewards */}
-        {needsSetup && (
-          <RewardSetupGuide
-            rewardPerBlock={rewardPerBlock}
-            contractRewardBalance={contractRewardBalance}
-            rewardTokenSymbol={rewardTokenSymbol}
-            hasUpdateFunction={hasUpdateFunction}
-          />
-        )}
-
-        {/* Reward Balance Warning */}
-        {!hasEnoughRewards && rewardPerBlock > BigInt(0) && (
-          <Alert variant="destructive" className="mb-6 animate-fade-in">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Contract has insufficient reward tokens ({rewardBalanceFormatted} {rewardTokenSymbol}).</strong>
-              <br />
-              Staking, unstaking, and harvesting will fail until the admin funds the contract.
-              Use "Emergency Withdraw" to withdraw your LP tokens without rewards.
-              <Link to="/admin" className="ml-2 underline text-destructive-foreground hover:no-underline">
-                Go to Admin →
-              </Link>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Error Alert */}
-        {error && hasEnoughRewards && rewardPerBlock > BigInt(0) && (
-          <Alert variant="destructive" className="mb-6 animate-fade-in">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {/* Reward Status Card - Always visible */}
-          <div className="md:col-span-1">
-            <RewardStatusCard
-              rewardPerBlock={rewardPerBlock}
-              contractRewardBalance={contractRewardBalance}
-              rewardTokenSymbol={rewardTokenSymbol}
-              hasUpdateFunction={hasUpdateFunction}
-              className="h-full"
-            />
-          </div>
-          
-          {/* Stats Cards */}
           {isLoading ? (
             <>
+              <StatsSkeleton />
               <StatsSkeleton />
               <StatsSkeleton />
               <StatsSkeleton />
             </>
           ) : (
             <>
-              <Card className="glass-card hover:border-primary/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <Card className="glass-card hover:border-primary/30 transition-all duration-300 animate-fade-in">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center transition-transform hover:scale-110">
@@ -352,7 +227,7 @@ const Farming: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card hover:border-accent/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <Card className="glass-card hover:border-accent/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center transition-transform hover:scale-110">
@@ -368,7 +243,7 @@ const Farming: React.FC = () => {
                 </CardContent>
               </Card>
 
-              <Card className="glass-card hover:border-success/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              <Card className="glass-card hover:border-success/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.2s' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center transition-transform hover:scale-110">
@@ -383,40 +258,41 @@ const Farming: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="glass-card hover:border-warning/30 transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center transition-transform hover:scale-110">
+                      <Sparkles className="w-6 h-6 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Pending Rewards</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        {isConnected ? parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4) : '0.00'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </>
           )}
         </div>
 
         {/* Action Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.5s' }}>
-          <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <div className="flex items-center gap-3">
             <Link to="/staking">
               <Button variant="outline" size="sm" className="hover:border-primary/50 transition-all">
                 <Coins className="w-4 h-4 mr-2" />
                 Single Staking
-                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
-            <Link to="/admin">
-              <Button variant="outline" size="sm" className="hover:border-warning/50 transition-all">
-                <Zap className="w-4 h-4 mr-2" />
-                Admin
-              </Button>
-            </Link>
-            <Badge 
-              variant={rewardPerBlock > BigInt(0) ? "outline" : "destructive"} 
-              className={`py-2 px-4 transition-all ${rewardPerBlock > BigInt(0) ? 'hover:bg-muted/50' : 'animate-pulse'}`}
-            >
-              <Sprout className="w-4 h-4 mr-2" />
-              Reward: {rewardPerBlock > 0 ? parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(6) : '0 (NOT SET)'} {rewardTokenSymbol}/block
-            </Badge>
-            <Badge 
-              variant={hasEnoughRewards ? "outline" : "destructive"} 
-              className={`py-2 px-4 transition-all ${hasEnoughRewards ? 'hover:bg-muted/50' : 'animate-pulse'}`}
-            >
-              <Coins className="w-4 h-4 mr-2" />
-              Contract Balance: {rewardBalanceFormatted} {rewardTokenSymbol}
-            </Badge>
+            {rewardPerBlock > BigInt(0) && (
+              <Badge variant="outline" className="py-2 px-3">
+                <Zap className="w-3 h-3 mr-1 text-primary" />
+                {parseFloat(ethers.formatEther(rewardPerBlock)).toFixed(4)} {rewardTokenSymbol}/block
+              </Badge>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
@@ -424,14 +300,14 @@ const Farming: React.FC = () => {
               <Button
                 onClick={harvestAll}
                 disabled={isHarvestingAll}
-                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all hover:scale-105 animate-glow-pulse"
+                className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all hover:scale-105"
               >
                 {isHarvestingAll ? (
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
                   <Sparkles className="w-4 h-4 mr-2" />
                 )}
-                Harvest All ({parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4)} {rewardTokenSymbol})
+                Harvest All ({parseFloat(ethers.formatEther(totalPendingRewards)).toFixed(4)})
               </Button>
             )}
             <Button
@@ -441,8 +317,7 @@ const Farming: React.FC = () => {
               disabled={isLoading}
               className="hover:border-primary/50 transition-all"
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
             </Button>
             <a
               href={`${BLOCK_EXPLORER}/address/${CONTRACTS.FARMING}`}
@@ -450,8 +325,7 @@ const Farming: React.FC = () => {
               rel="noopener noreferrer"
             >
               <Button variant="outline" size="sm" className="hover:border-primary/50 transition-all">
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Contract
+                <ExternalLink className="w-4 h-4" />
               </Button>
             </a>
           </div>
