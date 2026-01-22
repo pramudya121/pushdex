@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
+import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { TokenSelector } from '@/components/TokenSelector';
 import { ImportToken } from '@/components/ImportToken';
+import { RouteDisplay } from '@/components/RouteDisplay';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -12,9 +14,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus } from 'lucide-react';
+import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus, Route } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MovingBorder } from '@/components/ui/aceternity/moving-border';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 export const SwapCard: React.FC = () => {
   const {
@@ -45,8 +53,20 @@ export const SwapCard: React.FC = () => {
   } = useSwap();
 
   const { switchNetwork } = useWallet();
+  const { bestRoute, allRoutes, isSearching, findBestRoute } = useSmartRouter();
   const [showSettings, setShowSettings] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRoutes, setShowRoutes] = useState(false);
+
+  // Auto-find best route when inputs change
+  useEffect(() => {
+    if (amountIn && parseFloat(amountIn) > 0 && tokenIn && tokenOut) {
+      const debounceTimer = setTimeout(() => {
+        findBestRoute(tokenIn, tokenOut, amountIn);
+      }, 300);
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [amountIn, tokenIn, tokenOut, findBestRoute]);
 
   const handleMaxClick = () => {
     setAmountIn(balanceIn);
@@ -54,8 +74,10 @@ export const SwapCard: React.FC = () => {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    if (amountIn && parseFloat(amountIn) > 0) {
+      await findBestRoute(tokenIn, tokenOut, amountIn);
+    }
+    await new Promise(resolve => setTimeout(resolve, 300));
     setIsRefreshing(false);
   };
 
@@ -339,11 +361,59 @@ export const SwapCard: React.FC = () => {
         </div>
       </div>
 
+      {/* Smart Route Display */}
+      {amountIn && parseFloat(amountIn) > 0 && (bestRoute || isSearching) && (
+        <div className="mt-4 animate-fade-in">
+          {isSearching ? (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-surface/80 border border-border">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Finding best route...</span>
+            </div>
+          ) : bestRoute && (
+            <Collapsible open={showRoutes} onOpenChange={setShowRoutes}>
+              <CollapsibleTrigger className="w-full">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface/80 border border-border hover:border-primary/30 transition-all duration-200">
+                  <div className="flex items-center gap-2">
+                    <Route className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium">Smart Route</span>
+                    {allRoutes.length > 1 && (
+                      <span className="text-xs text-muted-foreground">
+                        ({allRoutes.length} routes found)
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RouteDisplay 
+                      routes={[bestRoute]} 
+                      bestRoute={bestRoute} 
+                      isCompact={true} 
+                    />
+                    <ChevronDown className={cn(
+                      "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                      showRoutes && "rotate-180"
+                    )} />
+                  </div>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 p-4 rounded-xl bg-surface/50 border border-border/50">
+                  <RouteDisplay 
+                    routes={allRoutes} 
+                    bestRoute={bestRoute}
+                    selectedRoute={bestRoute}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </div>
+      )}
+
       {/* Price Info */}
       {amountIn && amountOut && !error && (
         <div className="mt-4 space-y-2 animate-fade-in">
           {/* High Price Impact Warning */}
-          {priceImpact > 5 && (
+          {(bestRoute?.priceImpact || priceImpact) > 5 && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/30 animate-shake">
               <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
               <div>
@@ -353,10 +423,10 @@ export const SwapCard: React.FC = () => {
             </div>
           )}
           
-          {priceImpact > 3 && priceImpact <= 5 && (
+          {(bestRoute?.priceImpact || priceImpact) > 3 && (bestRoute?.priceImpact || priceImpact) <= 5 && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-warning/10 border border-warning/30">
               <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
-              <p className="text-xs text-warning">Price impact is high ({priceImpact.toFixed(2)}%).</p>
+              <p className="text-xs text-warning">Price impact is high ({(bestRoute?.priceImpact || priceImpact).toFixed(2)}%).</p>
             </div>
           )}
           
@@ -371,12 +441,12 @@ export const SwapCard: React.FC = () => {
               <span className="text-muted-foreground">Price Impact</span>
               <span className={cn(
                 'font-medium transition-colors duration-200',
-                priceImpact <= 1 && 'text-success',
-                priceImpact > 1 && priceImpact <= 3 && 'text-foreground',
-                priceImpact > 3 && priceImpact <= 5 && 'text-warning',
-                priceImpact > 5 && 'text-destructive'
+                (bestRoute?.priceImpact || priceImpact) <= 1 && 'text-success',
+                (bestRoute?.priceImpact || priceImpact) > 1 && (bestRoute?.priceImpact || priceImpact) <= 3 && 'text-foreground',
+                (bestRoute?.priceImpact || priceImpact) > 3 && (bestRoute?.priceImpact || priceImpact) <= 5 && 'text-warning',
+                (bestRoute?.priceImpact || priceImpact) > 5 && 'text-destructive'
               )}>
-                {priceImpact > 0 ? `~${priceImpact.toFixed(2)}%` : '-'}
+                {(bestRoute?.priceImpact || priceImpact) > 0 ? `~${(bestRoute?.priceImpact || priceImpact).toFixed(2)}%` : '-'}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm group/item hover:bg-surface/50 -mx-2 px-2 py-1 rounded-lg transition-colors duration-200">
@@ -391,8 +461,14 @@ export const SwapCard: React.FC = () => {
             </div>
             <div className="flex items-center justify-between text-sm group/item hover:bg-surface/50 -mx-2 px-2 py-1 rounded-lg transition-colors duration-200">
               <span className="text-muted-foreground">Trading Fee</span>
-              <span className="font-medium">0.3%</span>
+              <span className="font-medium">{bestRoute?.fee || 0.3}%</span>
             </div>
+            {bestRoute && bestRoute.pathSymbols.length > 2 && (
+              <div className="flex items-center justify-between text-sm group/item hover:bg-surface/50 -mx-2 px-2 py-1 rounded-lg transition-colors duration-200">
+                <span className="text-muted-foreground">Route Hops</span>
+                <span className="font-medium">{bestRoute.pathSymbols.length - 1}</span>
+              </div>
+            )}
           </div>
         </div>
       )}
