@@ -5,6 +5,8 @@ import { Header } from '@/components/Header';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { PortfolioChart } from '@/components/PortfolioChart';
 import { PortfolioValueChart } from '@/components/PortfolioValueChart';
+import { TransactionHistory } from '@/components/TransactionHistory';
+import { LimitOrderCard } from '@/components/LimitOrderCard';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/contexts/WalletContext';
 import { TOKEN_LIST, CONTRACTS, BLOCK_EXPLORER, RPC_URL } from '@/config/contracts';
@@ -28,7 +30,8 @@ import {
   Sprout,
   Lock,
   Gift,
-  Crown
+  Crown,
+  Target
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -966,6 +969,12 @@ const Portfolio = () => {
                       </Link>
                     </div>
                   </div>
+
+                  {/* Transaction History */}
+                  <TransactionHistory compact maxItems={5} />
+                  
+                  {/* Limit Orders */}
+                  <LimitOrderCard />
                 </div>
               </div>
             </div>
