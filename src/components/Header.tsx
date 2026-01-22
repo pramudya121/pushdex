@@ -76,11 +76,10 @@ export const Header: React.FC = memo(() => {
       </header>
 
       {/* Mobile Navigation - Floating Dock */}
-      <div className="lg:hidden fixed bottom-4 left-0 right-0 z-50 flex justify-center">
+      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 flex justify-center">
         <FloatingDock 
           items={DOCK_ITEMS}
-          desktopClassName="hidden"
-          mobileClassName="flex"
+          mobileClassName="flex overflow-x-auto max-w-full scrollbar-hide"
         />
       </div>
     </>
