@@ -55,23 +55,31 @@ interface AnalyticsData {
 
 const CHART_COLORS = ['hsl(330, 100%, 50%)', 'hsl(330, 100%, 65%)', 'hsl(280, 80%, 50%)', 'hsl(210, 100%, 55%)'];
 
-// Generate historical data with more realistic patterns
-const generateHistoricalData = (days: number, baseTVL: number, baseVolume: number) => {
+// Memoized historical data generator to prevent recreation on every render
+const createHistoricalData = (days: number, baseTVL: number, baseVolume: number) => {
   const data = [];
   const now = Date.now();
   let currentTVL = baseTVL * 0.7;
   let currentVolume = baseVolume * 0.5;
   
+  // Use a seeded random for consistent data between renders
+  const seededRandom = (seed: number) => {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  };
+  
   for (let i = days; i >= 0; i--) {
     const date = new Date(now - i * 24 * 60 * 60 * 1000);
+    const seed = i * 1000 + days;
+    
     // Add some randomness with upward trend
-    currentTVL = Math.max(0, currentTVL + (Math.random() - 0.4) * baseTVL * 0.1);
-    currentVolume = Math.max(0, currentVolume + (Math.random() - 0.5) * baseVolume * 0.2);
+    currentTVL = Math.max(0, currentTVL + (seededRandom(seed) - 0.4) * baseTVL * 0.1);
+    currentVolume = Math.max(0, currentVolume + (seededRandom(seed + 1) - 0.5) * baseVolume * 0.2);
     
     data.push({
       date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      tvl: currentTVL,
-      volume: currentVolume,
+      tvl: Math.round(currentTVL),
+      volume: Math.round(currentVolume),
     });
   }
   return data;
@@ -115,9 +123,10 @@ const Analytics = memo(() => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Memoize historical data to prevent regeneration on every render
   const historicalData = useMemo(() => {
     const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-    return generateHistoricalData(days, data?.totalTVL || 10000, data?.totalVolume24h || 1000);
+    return createHistoricalData(days, data?.totalTVL || 10000, data?.totalVolume24h || 1000);
   }, [timeRange, data?.totalTVL, data?.totalVolume24h]);
 
   const fetchAnalytics = useCallback(async () => {

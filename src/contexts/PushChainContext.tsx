@@ -1,7 +1,13 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
 import { ethers } from 'ethers';
 import { CHAIN_ID, PUSHCHAIN_CONFIG, RPC_URL } from '@/config/contracts';
 import { toast } from 'sonner';
+
+// Fallback RPC URLs for better reliability
+const RPC_URLS = [
+  RPC_URL,
+  'https://rpc.push.org',
+];
 
 // PushChain Universal Wallet Types
 interface PushChainAccount {
@@ -57,6 +63,11 @@ export const PushChainProvider: React.FC<{ children: ReactNode }> = ({ children 
     activeAccount: null,
   });
 
+  // Refs for cleanup and retry logic
+  const balanceIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const rpcRetryCountRef = useRef(0);
+  const maxRetries = 3;
+
   const isConnected = !!address;
   const isCorrectNetwork = chainId === CHAIN_ID;
 
@@ -80,13 +91,21 @@ export const PushChainProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   };
 
-  // Update balance
+  // Update balance with retry logic and error handling
   const updateBalance = useCallback(async (provider: ethers.BrowserProvider, address: string) => {
     try {
       const bal = await provider.getBalance(address);
       setBalance(ethers.formatEther(bal));
-    } catch (error) {
-      console.error('Failed to fetch balance:', error);
+      rpcRetryCountRef.current = 0; // Reset retry count on success
+    } catch (error: any) {
+      // Only log error once after max retries to avoid spam
+      if (rpcRetryCountRef.current < maxRetries) {
+        rpcRetryCountRef.current++;
+        // Silent retry - don't spam console
+      } else if (rpcRetryCountRef.current === maxRetries) {
+        console.warn('Balance fetch temporarily unavailable - will retry');
+        rpcRetryCountRef.current++; // Prevent repeated warnings
+      }
     }
   }, []);
 
@@ -245,20 +264,25 @@ export const PushChainProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [signer, universalSigner]);
 
-  // Get Universal Balance (supports multiple chains)
+  // Get Universal Balance (supports multiple chains) with retry logic
   const getUniversalBalance = useCallback(async (chainId?: string): Promise<string> => {
     if (!address) return '0';
     
-    try {
-      // For now, return local balance - in production would query multiple chains
-      const rpcProvider = new ethers.JsonRpcProvider(RPC_URL);
-      const bal = await rpcProvider.getBalance(address);
-      return ethers.formatEther(bal);
-    } catch (error) {
-      console.error('Failed to get universal balance:', error);
-      return '0';
+    // Try each RPC URL until one works
+    for (const rpcUrl of RPC_URLS) {
+      try {
+        const rpcProvider = new ethers.JsonRpcProvider(rpcUrl);
+        const bal = await rpcProvider.getBalance(address);
+        return ethers.formatEther(bal);
+      } catch (error) {
+        // Try next RPC
+        continue;
+      }
     }
-  }, [address]);
+    
+    // All RPCs failed
+    return balance; // Return cached balance
+  }, [address, balance]);
 
   // Auto-connect if previously connected
   useEffect(() => {
@@ -266,6 +290,7 @@ export const PushChainProvider: React.FC<{ children: ReactNode }> = ({ children 
     if (savedWalletType) {
       connect(savedWalletType as any);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save wallet type
@@ -275,13 +300,28 @@ export const PushChainProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [walletType]);
 
-  // Update balance periodically
+  // Update balance periodically with proper cleanup
   useEffect(() => {
     if (provider && address) {
-      const interval = setInterval(() => {
+      // Clear any existing interval
+      if (balanceIntervalRef.current) {
+        clearInterval(balanceIntervalRef.current);
+      }
+      
+      // Initial fetch
+      updateBalance(provider, address);
+      
+      // Set up interval
+      balanceIntervalRef.current = setInterval(() => {
         updateBalance(provider, address);
-      }, 15000);
-      return () => clearInterval(interval);
+      }, 30000); // Increased to 30s to reduce RPC load
+      
+      return () => {
+        if (balanceIntervalRef.current) {
+          clearInterval(balanceIntervalRef.current);
+          balanceIntervalRef.current = null;
+        }
+      };
     }
   }, [provider, address, updateBalance]);
 

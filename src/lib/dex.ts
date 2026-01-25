@@ -2,14 +2,30 @@ import { ethers } from 'ethers';
 import { CONTRACTS, TOKENS, TokenInfo, TOKEN_LIST, RPC_URL } from '@/config/contracts';
 import { ROUTER_ABI, FACTORY_ABI, ERC20_ABI, PAIR_ABI, WETH_ABI, MULTICALL_ABI } from '@/config/abis';
 
+// RPC Provider cache for better performance
+let cachedProvider: ethers.JsonRpcProvider | null = null;
+let providerLastUsed = 0;
+const PROVIDER_CACHE_TTL = 60000; // 1 minute
+
 // Get Multicall contract instance
 export const getMulticallContract = (signerOrProvider: ethers.Signer | ethers.Provider) => {
   return new ethers.Contract(CONTRACTS.MULTICALL, MULTICALL_ABI, signerOrProvider);
 };
 
-// Get read-only provider
-export const getReadProvider = () => {
-  return new ethers.JsonRpcProvider(RPC_URL);
+// Get read-only provider with caching
+export const getReadProvider = (): ethers.JsonRpcProvider => {
+  const now = Date.now();
+  if (cachedProvider && (now - providerLastUsed) < PROVIDER_CACHE_TTL) {
+    providerLastUsed = now;
+    return cachedProvider;
+  }
+  
+  cachedProvider = new ethers.JsonRpcProvider(RPC_URL, undefined, {
+    staticNetwork: true, // Prevent network detection calls
+    batchMaxCount: 10,   // Batch RPC calls
+  });
+  providerLastUsed = now;
+  return cachedProvider;
 };
 
 // Get contract instances
@@ -44,14 +60,43 @@ export const getTokenBySymbol = (symbol: string): TokenInfo | undefined => {
 
 // Format utilities
 export const formatAmount = (amount: bigint, decimals: number = 18): string => {
-  return ethers.formatUnits(amount, decimals);
+  try {
+    return ethers.formatUnits(amount, decimals);
+  } catch {
+    return '0';
+  }
+};
+
+// Validate and sanitize numeric input
+export const sanitizeNumericInput = (value: string): string => {
+  // Remove any non-numeric characters except decimal point
+  const sanitized = value.replace(/[^\d.]/g, '');
+  // Ensure only one decimal point
+  const parts = sanitized.split('.');
+  if (parts.length > 2) {
+    return parts[0] + '.' + parts.slice(1).join('');
+  }
+  // Limit decimal places to 18
+  if (parts.length === 2 && parts[1].length > 18) {
+    return parts[0] + '.' + parts[1].slice(0, 18);
+  }
+  return sanitized;
 };
 
 export const parseAmount = (amount: string, decimals: number = 18): bigint => {
-  return ethers.parseUnits(amount || '0', decimals);
+  try {
+    const sanitized = sanitizeNumericInput(amount || '0');
+    if (!sanitized || sanitized === '.' || isNaN(parseFloat(sanitized))) {
+      return 0n;
+    }
+    return ethers.parseUnits(sanitized, decimals);
+  } catch {
+    return 0n;
+  }
 };
 
 export const shortenAddress = (address: string, chars: number = 4): string => {
+  if (!address || address.length < chars * 2 + 2) return address;
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
 };
 
