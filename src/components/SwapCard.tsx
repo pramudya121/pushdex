@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
+import { useGasEstimation } from '@/hooks/useGasEstimation';
+import { useSlippageProtection, SlippageAnalysis } from '@/hooks/useSlippageProtection';
 import { TokenSelector } from '@/components/TokenSelector';
 import { ImportToken } from '@/components/ImportToken';
 import { RouteDisplay } from '@/components/RouteDisplay';
+import { GasEstimateDisplay } from '@/components/GasEstimateDisplay';
+import { SlippageProtectionBadge } from '@/components/SlippageProtectionBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -14,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus, Route } from 'lucide-react';
+import { ArrowDown, Settings, RefreshCw, AlertTriangle, Loader2, Plus, Route, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MovingBorder } from '@/components/ui/aceternity/moving-border';
 import {
@@ -23,6 +27,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
+import { ethers } from 'ethers';
+import { CONTRACTS } from '@/config/contracts';
 
 export const SwapCard: React.FC = () => {
   const {
@@ -54,19 +60,74 @@ export const SwapCard: React.FC = () => {
 
   const { switchNetwork } = useWallet();
   const { bestRoute, allRoutes, isSearching, findBestRoute } = useSmartRouter();
+  const { gasEstimate, isLoading: gasLoading, error: gasError, estimateSwapGas } = useGasEstimation();
+  const { analyzeSlippageRisk, validateSlippage, getRecommendedDeadline } = useSlippageProtection();
+  
   const [showSettings, setShowSettings] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showRoutes, setShowRoutes] = useState(false);
+  const [slippageAnalysis, setSlippageAnalysis] = useState<SlippageAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // Auto-find best route when inputs change
+  // Auto-find best route and estimate gas when inputs change
   useEffect(() => {
     if (amountIn && parseFloat(amountIn) > 0 && tokenIn && tokenOut) {
-      const debounceTimer = setTimeout(() => {
+      const debounceTimer = setTimeout(async () => {
         findBestRoute(tokenIn, tokenOut, amountIn);
+        
+        // Estimate gas for the swap
+        if (isConnected) {
+          estimateSwapGas(
+            tokenIn.address,
+            tokenOut.address,
+            ethers.parseUnits(amountIn, tokenIn.decimals)
+          );
+        }
       }, 300);
       return () => clearTimeout(debounceTimer);
     }
-  }, [amountIn, tokenIn, tokenOut, findBestRoute]);
+  }, [amountIn, tokenIn, tokenOut, findBestRoute, isConnected, estimateSwapGas]);
+
+  // Analyze slippage risk when we have a quote
+  useEffect(() => {
+    const analyzeRisk = async () => {
+      if (amountIn && amountOut && parseFloat(amountIn) > 0 && parseFloat(amountOut) > 0) {
+        setIsAnalyzing(true);
+        try {
+          // Use the factory to get pair address (simplified - in production use proper pair lookup)
+          const pairAddress = bestRoute?.path?.[0] || CONTRACTS.FACTORY;
+          const analysis = await analyzeSlippageRisk(
+            pairAddress,
+            ethers.parseUnits(amountIn, tokenIn.decimals),
+            ethers.parseUnits(amountOut, tokenOut.decimals)
+          );
+          setSlippageAnalysis(analysis);
+        } catch (error) {
+          console.error('Slippage analysis error:', error);
+          setSlippageAnalysis(null);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      } else {
+        setSlippageAnalysis(null);
+      }
+    };
+    
+    const timer = setTimeout(analyzeRisk, 500);
+    return () => clearTimeout(timer);
+  }, [amountIn, amountOut, tokenIn, tokenOut, bestRoute, analyzeSlippageRisk]);
+
+  // Validate current slippage against analysis
+  const slippageValidation = useMemo(() => {
+    if (!slippageAnalysis) return null;
+    return validateSlippage(slippage, slippageAnalysis);
+  }, [slippage, slippageAnalysis, validateSlippage]);
+
+  // Get recommended deadline based on risk
+  const recommendedDeadline = useMemo(() => {
+    if (!slippageAnalysis) return deadline;
+    return getRecommendedDeadline(slippageAnalysis.riskLevel);
+  }, [slippageAnalysis, deadline, getRecommendedDeadline]);
 
   const handleMaxClick = () => {
     setAmountIn(balanceIn);
@@ -405,6 +466,52 @@ export const SwapCard: React.FC = () => {
                 </div>
               </CollapsibleContent>
             </Collapsible>
+          )}
+        </div>
+      )}
+
+      {/* MEV Protection & Gas Estimation */}
+      {amountIn && parseFloat(amountIn) > 0 && (
+        <div className="mt-4 space-y-3 animate-fade-in">
+          {/* Slippage Protection Badge */}
+          {(slippageAnalysis || isAnalyzing) && (
+            <div className="p-3 rounded-xl bg-surface/80 border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">MEV Protection</span>
+              </div>
+              {isAnalyzing ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Analyzing risk...</span>
+                </div>
+              ) : (
+                <SlippageProtectionBadge analysis={slippageAnalysis} showDetails={true} />
+              )}
+              
+              {/* Slippage Validation Warning */}
+              {slippageValidation && !slippageValidation.isValid && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-warning">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>{slippageValidation.message}</span>
+                </div>
+              )}
+              {slippageValidation && slippageValidation.isValid && slippageValidation.message && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {slippageValidation.message}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gas Estimation */}
+          {isConnected && (
+            <GasEstimateDisplay
+              estimatedCost={gasEstimate?.estimatedCost || '0'}
+              estimatedCostUSD={gasEstimate?.estimatedCostUSD || 0}
+              isLoading={gasLoading}
+              error={gasError}
+            />
           )}
         </div>
       )}

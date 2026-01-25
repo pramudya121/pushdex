@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { getReadProvider } from '@/lib/dex';
+import { CONTRACTS } from '@/config/contracts';
+import { ROUTER_ABI } from '@/config/abis';
 
 export interface GasEstimate {
   gasLimit: bigint;
@@ -9,21 +11,14 @@ export interface GasEstimate {
   maxPriorityFeePerGas?: bigint;
   estimatedCost: string;
   estimatedCostUSD: number;
-  isLoading: boolean;
-  error: string | null;
 }
 
 const PC_USD_PRICE = 1.5; // Mock price for Push Coin
 
 export const useGasEstimation = () => {
-  const [estimate, setEstimate] = useState<GasEstimate>({
-    gasLimit: 0n,
-    gasPrice: 0n,
-    estimatedCost: '0',
-    estimatedCostUSD: 0,
-    isLoading: false,
-    error: null,
-  });
+  const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const estimateGas = useCallback(async (
     contract: ethers.Contract,
@@ -31,7 +26,8 @@ export const useGasEstimation = () => {
     args: any[],
     value?: bigint
   ): Promise<GasEstimate | null> => {
-    setEstimate(prev => ({ ...prev, isLoading: true, error: null }));
+    setIsLoading(true);
+    setError(null);
 
     try {
       const provider = getReadProvider();
@@ -90,22 +86,67 @@ export const useGasEstimation = () => {
         maxPriorityFeePerGas: feeData.maxPriorityFeePerGas || undefined,
         estimatedCost,
         estimatedCostUSD,
-        isLoading: false,
-        error: null,
       };
 
-      setEstimate(result);
+      setGasEstimate(result);
+      setIsLoading(false);
       return result;
-    } catch (error: any) {
-      const errorResult: GasEstimate = {
-        gasLimit: 0n,
-        gasPrice: 0n,
-        estimatedCost: '0',
-        estimatedCostUSD: 0,
-        isLoading: false,
-        error: error.message || 'Failed to estimate gas',
+    } catch (err: any) {
+      setError(err.message || 'Failed to estimate gas');
+      setIsLoading(false);
+      return null;
+    }
+  }, []);
+
+  // Simplified swap gas estimation
+  const estimateSwapGas = useCallback(async (
+    tokenInAddress: string,
+    tokenOutAddress: string,
+    amountIn: bigint
+  ): Promise<GasEstimate | null> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadProvider();
+      const feeData = await provider.getFeeData();
+      const gasPrice = feeData.gasPrice || 0n;
+
+      // Determine swap type and get appropriate gas limit
+      const isNativeIn = tokenInAddress.toLowerCase() === CONTRACTS.WETH.toLowerCase();
+      const isNativeOut = tokenOutAddress.toLowerCase() === CONTRACTS.WETH.toLowerCase();
+
+      let gasLimit: bigint;
+      if (isNativeIn) {
+        gasLimit = 200000n; // swapExactETHForTokens
+      } else if (isNativeOut) {
+        gasLimit = 200000n; // swapExactTokensForETH
+      } else {
+        gasLimit = 250000n; // swapExactTokensForTokens
+      }
+
+      // Add buffer for multi-hop routes
+      gasLimit = gasLimit * 120n / 100n;
+
+      const estimatedCostWei = gasLimit * gasPrice;
+      const estimatedCost = ethers.formatEther(estimatedCostWei);
+      const estimatedCostUSD = parseFloat(estimatedCost) * PC_USD_PRICE;
+
+      const result: GasEstimate = {
+        gasLimit,
+        gasPrice,
+        maxFeePerGas: feeData.maxFeePerGas || undefined,
+        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas || undefined,
+        estimatedCost,
+        estimatedCostUSD,
       };
-      setEstimate(errorResult);
+
+      setGasEstimate(result);
+      setIsLoading(false);
+      return result;
+    } catch (err: any) {
+      setError(err.message || 'Failed to estimate gas');
+      setIsLoading(false);
       return null;
     }
   }, []);
@@ -136,8 +177,11 @@ export const useGasEstimation = () => {
   }, []);
 
   return {
-    estimate,
+    gasEstimate,
+    isLoading,
+    error,
     estimateGas,
+    estimateSwapGas,
     fetchGasPrice,
     formatGasCost,
   };
