@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { getReadProvider } from '@/lib/dex';
 import { CONTRACTS } from '@/config/contracts';
-import { ROUTER_ABI } from '@/config/abis';
 
 export interface GasEstimate {
   gasLimit: bigint;
@@ -13,12 +12,23 @@ export interface GasEstimate {
   estimatedCostUSD: number;
 }
 
+interface GasEstimationState {
+  gasEstimate: GasEstimate | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
 const PC_USD_PRICE = 1.5; // Mock price for Push Coin
 
+const initialState: GasEstimationState = {
+  gasEstimate: null,
+  isLoading: false,
+  error: null,
+};
+
 export const useGasEstimation = () => {
-  const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Single state object to maintain consistent hook count for HMR
+  const [state, setState] = useState<GasEstimationState>(initialState);
 
   const estimateGas = useCallback(async (
     contract: ethers.Contract,
@@ -26,8 +36,7 @@ export const useGasEstimation = () => {
     args: any[],
     value?: bigint
   ): Promise<GasEstimate | null> => {
-    setIsLoading(true);
-    setError(null);
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
       const provider = getReadProvider();
@@ -53,7 +62,7 @@ export const useGasEstimation = () => {
         
         // Add 20% buffer for safety
         gasLimit = gasLimit * 120n / 100n;
-      } catch (err) {
+      } catch {
         // Fallback to default gas limits based on method type
         const defaultLimits: Record<string, bigint> = {
           'swap': 200000n,
@@ -88,12 +97,10 @@ export const useGasEstimation = () => {
         estimatedCostUSD,
       };
 
-      setGasEstimate(result);
-      setIsLoading(false);
+      setState({ gasEstimate: result, isLoading: false, error: null });
       return result;
     } catch (err: any) {
-      setError(err.message || 'Failed to estimate gas');
-      setIsLoading(false);
+      setState({ gasEstimate: null, isLoading: false, error: err.message || 'Failed to estimate gas' });
       return null;
     }
   }, []);
@@ -102,10 +109,9 @@ export const useGasEstimation = () => {
   const estimateSwapGas = useCallback(async (
     tokenInAddress: string,
     tokenOutAddress: string,
-    amountIn: bigint
+    _amountIn: bigint
   ): Promise<GasEstimate | null> => {
-    setIsLoading(true);
-    setError(null);
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
       const provider = getReadProvider();
@@ -141,12 +147,10 @@ export const useGasEstimation = () => {
         estimatedCostUSD,
       };
 
-      setGasEstimate(result);
-      setIsLoading(false);
+      setState({ gasEstimate: result, isLoading: false, error: null });
       return result;
     } catch (err: any) {
-      setError(err.message || 'Failed to estimate gas');
-      setIsLoading(false);
+      setState({ gasEstimate: null, isLoading: false, error: err.message || 'Failed to estimate gas' });
       return null;
     }
   }, []);
@@ -177,9 +181,9 @@ export const useGasEstimation = () => {
   }, []);
 
   return {
-    gasEstimate,
-    isLoading,
-    error,
+    gasEstimate: state.gasEstimate,
+    isLoading: state.isLoading,
+    error: state.error,
     estimateGas,
     estimateSwapGas,
     fetchGasPrice,
