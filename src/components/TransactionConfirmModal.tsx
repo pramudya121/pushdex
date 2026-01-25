@@ -112,25 +112,31 @@ export const TransactionConfirmModal: React.FC<TransactionConfirmModalProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md animate-card-in">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {status === 'success' ? (
-              <CheckCircle className="w-5 h-5 text-success" />
+              <CheckCircle className="w-5 h-5 text-success animate-scale-in" />
             ) : status === 'error' ? (
-              <AlertTriangle className="w-5 h-5 text-destructive" />
+              <AlertTriangle className="w-5 h-5 text-destructive animate-shake" />
             ) : status === 'pending' || status === 'confirming' ? (
               <Loader2 className="w-5 h-5 text-primary animate-spin" />
             ) : (
               <Info className="w-5 h-5 text-primary" />
             )}
-            {status === 'success' ? 'Transaction Successful' :
-             status === 'error' ? 'Transaction Failed' :
-             status === 'pending' ? 'Transaction Pending' :
-             status === 'confirming' ? 'Confirm in Wallet' :
-             `Confirm ${getTypeLabel()}`}
+            <span className={cn(
+              "transition-all duration-300",
+              status === 'success' && "text-success",
+              status === 'error' && "text-destructive"
+            )}>
+              {status === 'success' ? 'Transaction Successful' :
+               status === 'error' ? 'Transaction Failed' :
+               status === 'pending' ? 'Transaction Pending' :
+               status === 'confirming' ? 'Confirm in Wallet' :
+               `Confirm ${getTypeLabel()}`}
+            </span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="animate-fade-in">
             {status === 'preview' && 'Review the transaction details before confirming'}
             {status === 'confirming' && 'Please confirm this transaction in your wallet'}
             {status === 'pending' && 'Your transaction is being processed on the blockchain'}
@@ -332,38 +338,43 @@ export const TransactionConfirmModal: React.FC<TransactionConfirmModalProps> = (
 
           {/* Pending Progress */}
           {status === 'pending' && (
-            <div className="space-y-3">
+            <div className="space-y-3 animate-fade-in">
               <Progress value={66} className="h-2" />
-              <p className="text-sm text-center text-muted-foreground">
-                Waiting for blockchain confirmation...
-              </p>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <span>Waiting for blockchain confirmation</span>
+                <span className="loading-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              </div>
             </div>
           )}
 
           {/* Success State */}
           {status === 'success' && txHash && (
-            <div className="p-4 rounded-xl bg-success/10 border border-success/20 space-y-3">
+            <div className="p-4 rounded-xl bg-success/10 border border-success/20 space-y-3 animate-card-in">
               <div className="flex items-center justify-center">
-                <div className="p-3 rounded-full bg-success/20">
+                <div className="p-3 rounded-full bg-success/20 animate-scale-in">
                   <CheckCircle className="w-8 h-8 text-success" />
                 </div>
               </div>
-              <p className="text-center text-sm text-success font-medium">
+              <p className="text-center text-sm text-success font-medium animate-fade-in">
                 Transaction confirmed successfully!
               </p>
               <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
                 <p className="text-xs font-mono text-muted-foreground truncate flex-1">
                   {txHash}
                 </p>
-                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyTxHash}>
-                  {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform" onClick={copyTxHash}>
+                  {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
                 </Button>
                 <a
                   href={`${BLOCK_EXPLORER}/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform">
                     <ExternalLink className="w-3 h-3" />
                   </Button>
                 </a>
@@ -373,12 +384,12 @@ export const TransactionConfirmModal: React.FC<TransactionConfirmModalProps> = (
 
           {/* Error State */}
           {status === 'error' && error && (
-            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2">
+            <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 space-y-2 animate-shake">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-destructive" />
                 <p className="text-sm font-medium text-destructive">Transaction Failed</p>
               </div>
-              <p className="text-xs text-destructive/80">{error}</p>
+              <p className="text-xs text-destructive/80 break-words">{error}</p>
             </div>
           )}
 
