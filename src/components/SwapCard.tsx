@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
@@ -9,6 +9,7 @@ import { ImportToken } from '@/components/ImportToken';
 import { RouteDisplay } from '@/components/RouteDisplay';
 import { GasEstimateDisplay } from '@/components/GasEstimateDisplay';
 import { SlippageProtectionBadge } from '@/components/SlippageProtectionBadge';
+import { TransactionConfirmModal, TransactionStatus } from '@/components/TransactionConfirmModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -68,6 +69,12 @@ export const SwapCard: React.FC = () => {
   const [showRoutes, setShowRoutes] = useState(false);
   const [slippageAnalysis, setSlippageAnalysis] = useState<SlippageAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Transaction confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [txStatus, setTxStatus] = useState<TransactionStatus>('preview');
+  const [txHash, setTxHash] = useState<string | undefined>();
+  const [txError, setTxError] = useState<string | undefined>();
 
   // Auto-find best route and estimate gas when inputs change
   useEffect(() => {
@@ -202,8 +209,31 @@ export const SwapCard: React.FC = () => {
       await approve();
       return;
     }
-    await swap();
+    // Open confirmation modal instead of swapping directly
+    setTxStatus('preview');
+    setTxHash(undefined);
+    setTxError(undefined);
+    setShowConfirmModal(true);
   };
+
+  const handleConfirmSwap = useCallback(async () => {
+    setTxStatus('confirming');
+    try {
+      setTxStatus('pending');
+      await swap();
+      setTxStatus('success');
+      // Note: txHash would ideally come from the swap function
+      // For now we show success without hash
+    } catch (err: any) {
+      setTxStatus('error');
+      setTxError(err.reason || err.message || 'Transaction failed');
+    }
+  }, [swap]);
+
+  const handleCancelSwap = useCallback(() => {
+    setShowConfirmModal(false);
+    setTxStatus('preview');
+  }, []);
 
   // Skeleton loading for amounts
   const AmountSkeleton = () => (
@@ -600,6 +630,28 @@ export const SwapCard: React.FC = () => {
         {getButtonContent()}
       </Button>
     </div>
+    
+    {/* Transaction Confirmation Modal */}
+    <TransactionConfirmModal
+      open={showConfirmModal}
+      onOpenChange={setShowConfirmModal}
+      type="swap"
+      tokenIn={tokenIn}
+      tokenOut={tokenOut}
+      amountIn={amountIn}
+      amountOut={amountOut}
+      slippage={slippage}
+      deadline={deadline}
+      priceImpact={bestRoute?.priceImpact || priceImpact}
+      gasEstimate={gasEstimate}
+      slippageAnalysis={slippageAnalysis}
+      route={bestRoute?.pathSymbols}
+      status={txStatus}
+      txHash={txHash}
+      error={txError}
+      onConfirm={handleConfirmSwap}
+      onCancel={handleCancelSwap}
+    />
     </MovingBorder>
   );
 };
