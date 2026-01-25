@@ -13,6 +13,7 @@ import {
   calculateMinimumReceived,
   getDeadline,
 } from '@/lib/dex';
+import { getStoredSettings } from '@/hooks/useSettings';
 import { toast } from 'sonner';
 
 export interface SwapState {
@@ -35,13 +36,16 @@ export interface SwapState {
 export const useSwap = () => {
   const { address, signer, isConnected, isCorrectNetwork, provider } = useWallet();
   
+  // Get default settings from stored preferences
+  const storedSettings = getStoredSettings();
+  
   const [state, setState] = useState<SwapState>({
     tokenIn: TOKENS.PC,
     tokenOut: TOKENS.PSDX,
     amountIn: '',
     amountOut: '',
-    slippage: 0.5,
-    deadline: 20,
+    slippage: storedSettings.defaultSlippage,
+    deadline: storedSettings.defaultDeadline,
     isLoading: false,
     isApproving: false,
     isSwapping: false,

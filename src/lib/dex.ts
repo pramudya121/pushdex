@@ -1,10 +1,12 @@
 import { ethers } from 'ethers';
 import { CONTRACTS, TOKENS, TokenInfo, TOKEN_LIST, RPC_URL } from '@/config/contracts';
 import { ROUTER_ABI, FACTORY_ABI, ERC20_ABI, PAIR_ABI, WETH_ABI, MULTICALL_ABI } from '@/config/abis';
+import { getStoredSettings } from '@/hooks/useSettings';
 
 // RPC Provider cache for better performance
 let cachedProvider: ethers.JsonRpcProvider | null = null;
 let providerLastUsed = 0;
+let cachedRpcUrl = '';
 const PROVIDER_CACHE_TTL = 60000; // 1 minute
 
 // Get Multicall contract instance
@@ -12,18 +14,31 @@ export const getMulticallContract = (signerOrProvider: ethers.Signer | ethers.Pr
   return new ethers.Contract(CONTRACTS.MULTICALL, MULTICALL_ABI, signerOrProvider);
 };
 
+// Get effective RPC URL based on settings
+export const getEffectiveRpcUrl = (): string => {
+  const settings = getStoredSettings();
+  if (settings.useCustomRpc && settings.customRpcUrl) {
+    return settings.customRpcUrl;
+  }
+  return RPC_URL;
+};
+
 // Get read-only provider with caching
 export const getReadProvider = (): ethers.JsonRpcProvider => {
   const now = Date.now();
-  if (cachedProvider && (now - providerLastUsed) < PROVIDER_CACHE_TTL) {
+  const currentRpcUrl = getEffectiveRpcUrl();
+  
+  // Invalidate cache if RPC URL changed or TTL expired
+  if (cachedProvider && cachedRpcUrl === currentRpcUrl && (now - providerLastUsed) < PROVIDER_CACHE_TTL) {
     providerLastUsed = now;
     return cachedProvider;
   }
   
-  cachedProvider = new ethers.JsonRpcProvider(RPC_URL, undefined, {
+  cachedProvider = new ethers.JsonRpcProvider(currentRpcUrl, undefined, {
     staticNetwork: true, // Prevent network detection calls
     batchMaxCount: 10,   // Batch RPC calls
   });
+  cachedRpcUrl = currentRpcUrl;
   providerLastUsed = now;
   return cachedProvider;
 };
