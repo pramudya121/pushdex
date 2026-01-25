@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { ethers } from 'ethers';
 import { getReadProvider, getTokenContract } from '@/lib/dex';
-import { Plus, Search, AlertTriangle, CheckCircle, Loader2, Coins } from 'lucide-react';
+import { TOKEN_LIST } from '@/config/contracts';
+import { Plus, Search, AlertTriangle, CheckCircle, Loader2, Coins, Shield, ShieldCheck, ShieldAlert, Copy, ExternalLink } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { BLOCK_EXPLORER } from '@/config/contracts';
 
 interface ImportedToken {
   address: string;
@@ -22,6 +25,8 @@ interface ImportedToken {
   symbol: string;
   decimals: number;
   logo?: string;
+  totalSupply?: string;
+  isVerified?: boolean;
 }
 
 interface ImportTokenProps {
@@ -55,12 +60,18 @@ export const removeImportedToken = (address: string) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 };
 
+// Check if token is in the default verified list
+const isVerifiedToken = (address: string): boolean => {
+  return TOKEN_LIST.some(t => t.address.toLowerCase() === address.toLowerCase());
+};
+
 export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigger }) => {
   const [open, setOpen] = useState(false);
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<ImportedToken | null>(null);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   const resetState = () => {
@@ -68,6 +79,7 @@ export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigg
     setTokenInfo(null);
     setError('');
     setLoading(false);
+    setCopied(false);
   };
 
   const handleClose = (isOpen: boolean) => {
@@ -77,14 +89,43 @@ export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigg
     }
   };
 
-  const searchToken = async () => {
-    if (!address) {
+  const searchToken = useCallback(async (tokenAddress: string) => {
+    if (!tokenAddress) {
       setError('Please enter a token address');
       return;
     }
 
-    if (!ethers.isAddress(address)) {
-      setError('Invalid address format');
+    // Clean the address (remove whitespace)
+    const cleanAddress = tokenAddress.trim();
+
+    if (!ethers.isAddress(cleanAddress)) {
+      setError('Invalid address format. Please enter a valid Ethereum address.');
+      return;
+    }
+
+    // Check if already in default list
+    if (isVerifiedToken(cleanAddress)) {
+      const existingToken = TOKEN_LIST.find(t => t.address.toLowerCase() === cleanAddress.toLowerCase());
+      if (existingToken) {
+        setTokenInfo({
+          address: existingToken.address,
+          name: existingToken.name,
+          symbol: existingToken.symbol,
+          decimals: existingToken.decimals,
+          logo: existingToken.logo,
+          isVerified: true,
+        });
+        return;
+      }
+    }
+
+    // Check if already imported
+    const alreadyImported = getImportedTokens().find(
+      t => t.address.toLowerCase() === cleanAddress.toLowerCase()
+    );
+    if (alreadyImported) {
+      setTokenInfo({ ...alreadyImported, isVerified: false });
+      setError('This token is already in your list');
       return;
     }
 
@@ -94,25 +135,91 @@ export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigg
 
     try {
       const provider = getReadProvider();
-      const token = getTokenContract(address, provider);
+      const token = getTokenContract(cleanAddress, provider);
 
-      const [name, symbol, decimals] = await Promise.all([
-        token.name(),
-        token.symbol(),
-        token.decimals()
-      ]);
+      // Fetch token metadata with timeout
+      const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
+      );
+
+      const [name, symbol, decimals, totalSupply] = await Promise.race([
+        Promise.all([
+          token.name(),
+          token.symbol(),
+          token.decimals(),
+          token.totalSupply().catch(() => null),
+        ]),
+        timeout,
+      ]) as [string, string, bigint, bigint | null];
+
+      // Validate the response
+      if (!name || !symbol) {
+        throw new Error('Invalid token contract - missing name or symbol');
+      }
+
+      const formattedSupply = totalSupply 
+        ? ethers.formatUnits(totalSupply, Number(decimals))
+        : undefined;
 
       setTokenInfo({
-        address: address,
+        address: cleanAddress,
         name,
         symbol,
-        decimals: Number(decimals)
+        decimals: Number(decimals),
+        totalSupply: formattedSupply,
+        isVerified: false,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching token:', err);
-      setError('Could not fetch token information. Make sure this is a valid ERC20 token.');
+      if (err.message?.includes('timeout')) {
+        setError('Request timed out. Please check your connection and try again.');
+      } else {
+        setError('Could not fetch token information. Make sure this is a valid ERC-20 token on Push Chain.');
+      }
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Auto-search when a valid address is pasted
+  useEffect(() => {
+    const trimmedAddress = address.trim();
+    if (trimmedAddress.length === 42 && ethers.isAddress(trimmedAddress)) {
+      searchToken(trimmedAddress);
+    }
+  }, [address, searchToken]);
+
+  const handleAddressChange = (value: string) => {
+    setAddress(value);
+    setError('');
+    setTokenInfo(null);
+  };
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setAddress(text);
+    } catch {
+      toast({
+        title: 'Clipboard Error',
+        description: 'Could not read from clipboard',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const copyAddress = async () => {
+    if (!tokenInfo) return;
+    try {
+      await navigator.clipboard.writeText(tokenInfo.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({
+        title: 'Copy Failed',
+        description: 'Could not copy address',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -164,23 +271,33 @@ export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigg
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="token-address">Token Address</Label>
+            <Label htmlFor="token-address">Token Contract Address</Label>
             <div className="flex gap-2">
-              <Input
-                id="token-address"
-                placeholder="0x..."
-                value={address}
-                onChange={(e) => {
-                  setAddress(e.target.value);
-                  setError('');
-                  setTokenInfo(null);
-                }}
-                className="flex-1"
-              />
+              <div className="relative flex-1">
+                <Input
+                  id="token-address"
+                  placeholder="0x..."
+                  value={address}
+                  onChange={(e) => handleAddressChange(e.target.value)}
+                  className={cn(
+                    "pr-16",
+                    loading && "animate-pulse"
+                  )}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handlePaste}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Paste
+                </Button>
+              </div>
               <Button 
-                onClick={searchToken} 
+                onClick={() => searchToken(address)} 
                 disabled={loading || !address}
                 size="icon"
+                className="shrink-0"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -189,51 +306,140 @@ export const ImportToken: React.FC<ImportTokenProps> = ({ onTokenImported, trigg
                 )}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Paste a token contract address to automatically detect its details
+            </p>
           </div>
 
-          {error && (
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-surface/80 border border-border animate-pulse">
+              <div className="w-10 h-10 rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-24 bg-muted rounded" />
+                <div className="h-3 w-32 bg-muted rounded" />
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
             <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-              <AlertTriangle className="w-4 h-4 text-destructive" />
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
               <p className="text-sm text-destructive">{error}</p>
             </div>
           )}
 
-          {tokenInfo && (
-            <div className="p-4 rounded-xl bg-surface border border-border/50 space-y-3">
+          {/* Token Info Display */}
+          {tokenInfo && !loading && (
+            <div className="p-4 rounded-xl bg-surface border border-border/50 space-y-4 animate-fade-in">
+              {/* Token Header */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-lg font-bold text-primary">
-                    {tokenInfo.symbol.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-semibold">{tokenInfo.name}</h4>
-                    <Badge variant="secondary">{tokenInfo.symbol}</Badge>
+                {tokenInfo.logo ? (
+                  <img 
+                    src={tokenInfo.logo} 
+                    alt={tokenInfo.symbol}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/20"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center ring-2 ring-primary/20">
+                    <span className="text-xl font-bold text-primary">
+                      {tokenInfo.symbol.charAt(0)}
+                    </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold truncate">{tokenInfo.name}</h4>
+                    <Badge variant="secondary" className="shrink-0">{tokenInfo.symbol}</Badge>
+                    {tokenInfo.isVerified ? (
+                      <Badge variant="outline" className="gap-1 text-success border-success/30 bg-success/10 shrink-0">
+                        <ShieldCheck className="w-3 h-3" />
+                        Verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10 shrink-0">
+                        <ShieldAlert className="w-3 h-3" />
+                        Unverified
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Decimals: {tokenInfo.decimals}
+                    {tokenInfo.totalSupply && (
+                      <span className="ml-2">• Supply: {Number(tokenInfo.totalSupply).toLocaleString()}</span>
+                    )}
                   </p>
                 </div>
               </div>
               
-              <div className="p-2 rounded-lg bg-muted/50">
-                <p className="text-xs font-mono text-muted-foreground break-all">
+              {/* Contract Address */}
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                <p className="text-xs font-mono text-muted-foreground break-all flex-1">
                   {tokenInfo.address}
                 </p>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={copyAddress}
+                  >
+                    {copied ? (
+                      <CheckCircle className="w-3 h-3 text-success" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-muted-foreground" />
+                    )}
+                  </Button>
+                  <a
+                    href={`${BLOCK_EXPLORER}/token/${tokenInfo.address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                      <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                    </Button>
+                  </a>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
-                <AlertTriangle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
-                <p className="text-xs text-yellow-500">
-                  Anyone can create a token. Make sure you trust this token before trading.
-                </p>
-              </div>
+              {/* Warning for unverified tokens */}
+              {!tokenInfo.isVerified && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <Shield className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium text-yellow-500">Unverified Token</p>
+                    <p className="text-xs text-yellow-500/80 mt-0.5">
+                      Anyone can create a token with any name. Make sure you trust this token before trading.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-              <Button onClick={handleImport} className="w-full gap-2">
-                <CheckCircle className="w-4 h-4" />
-                Import {tokenInfo.symbol}
-              </Button>
+              {/* Verified token message */}
+              {tokenInfo.isVerified && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
+                  <ShieldCheck className="w-4 h-4 text-success shrink-0" />
+                  <p className="text-xs text-success">
+                    This token is on the verified token list.
+                  </p>
+                </div>
+              )}
+
+              {/* Import Button */}
+              {!tokenInfo.isVerified && (
+                <Button onClick={handleImport} className="w-full gap-2 bg-gradient-pink hover:opacity-90">
+                  <CheckCircle className="w-4 h-4" />
+                  Import {tokenInfo.symbol}
+                </Button>
+              )}
+
+              {tokenInfo.isVerified && (
+                <Button disabled className="w-full gap-2" variant="secondary">
+                  <CheckCircle className="w-4 h-4" />
+                  Already in Token List
+                </Button>
+              )}
             </div>
           )}
         </div>
