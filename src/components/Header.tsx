@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings } from 'lucide-react';
 import { FloatingDock } from '@/components/ui/aceternity/floating-dock';
 
 const NAV_ITEMS = [
@@ -67,8 +67,19 @@ export const Header: React.FC = memo(() => {
               })}
             </nav>
 
-            {/* Wallet */}
-            <div className="flex items-center gap-3">
+            {/* Wallet & Settings */}
+            <div className="flex items-center gap-2">
+              <NavLink
+                to="/settings"
+                className={cn(
+                  'hidden lg:flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200',
+                  location.pathname === '/settings'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-surface'
+                )}
+              >
+                <Settings className="w-5 h-5" />
+              </NavLink>
               <WalletButton />
             </div>
           </div>

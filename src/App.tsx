@@ -22,6 +22,7 @@ const Staking = lazy(() => import("./pages/Staking"));
 const Docs = lazy(() => import("./pages/Docs"));
 const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
+const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/pushchain-docs" element={<PushChainDocs />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
