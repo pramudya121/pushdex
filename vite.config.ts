@@ -68,4 +68,28 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    cssCodeSplit: true,
+    cssMinify: 'lightningcss',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: mode === 'production',
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-tooltip'],
+          'vendor-charts': ['recharts'],
+          'vendor-motion': ['framer-motion'],
+        },
+      },
+    },
+  },
+  css: {
+    devSourcemap: true,
+  },
 }));
