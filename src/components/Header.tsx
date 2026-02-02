@@ -3,11 +3,11 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings, Home } from 'lucide-react';
 import { FloatingDock } from '@/components/ui/aceternity/floating-dock';
 
 const NAV_ITEMS = [
-  { path: '/', label: 'Swap', icon: ArrowLeftRight },
+  { path: '/swap', label: 'Swap', icon: ArrowLeftRight },
   { path: '/liquidity', label: 'Liquidity', icon: Droplets },
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/farming', label: 'Farming', icon: Leaf },
@@ -17,12 +17,15 @@ const NAV_ITEMS = [
   { path: '/docs', label: 'Docs', icon: BookOpen },
 ];
 
-// Transform NAV_ITEMS for FloatingDock format
-const DOCK_ITEMS = NAV_ITEMS.map((item) => ({
-  title: item.label,
-  icon: <item.icon className="w-full h-full" />,
-  href: item.path,
-}));
+// Transform NAV_ITEMS for FloatingDock format (include Home for mobile)
+const DOCK_ITEMS = [
+  { title: 'Home', icon: <Home className="w-full h-full" />, href: '/' },
+  ...NAV_ITEMS.map((item) => ({
+    title: item.label,
+    icon: <item.icon className="w-full h-full" />,
+    href: item.path,
+  })),
+];
 
 export const Header: React.FC = memo(() => {
   const location = useLocation();
