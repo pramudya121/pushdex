@@ -11,6 +11,7 @@ import { SkipLink, LiveRegion } from "@/components/AccessibleSkipLink";
 import { AnimatePresence, motion } from "framer-motion";
 
 // Lazy load pages for better performance
+const Home = lazy(() => import("./pages/Home"));
 const Index = lazy(() => import("./pages/Index"));
 const Liquidity = lazy(() => import("./pages/Liquidity"));
 const Pools = lazy(() => import("./pages/Pools"));
@@ -87,7 +88,8 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><Index /></PageTransition>} />
+        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+        <Route path="/swap" element={<PageTransition><Index /></PageTransition>} />
         <Route path="/liquidity" element={<PageTransition><Liquidity /></PageTransition>} />
         <Route path="/pools" element={<PageTransition><Pools /></PageTransition>} />
         <Route path="/pools/create" element={<PageTransition><CreatePool /></PageTransition>} />
