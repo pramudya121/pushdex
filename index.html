@@ -10,7 +10,6 @@
 
     <!-- Security Headers via Meta Tags -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta name="referrer" content="strict-origin-when-cross-origin">
 
@@ -19,6 +18,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+    <link rel="dns-prefetch" href="https://evm.donut.rpc.push.org" />
+    
+    <!-- Preload critical token assets for 3D Globe -->
+    <link rel="preload" href="/tokens/eth.png" as="image" type="image/png" />
+    <link rel="preload" href="/tokens/bnb.png" as="image" type="image/png" />
+    <link rel="preload" href="/tokens/psdx.png" as="image" type="image/png" />
+    <link rel="preload" href="/tokens/sui.png" as="image" type="image/png" />
     
     <!-- Load fonts directly in HTML to avoid CSS import chain -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
