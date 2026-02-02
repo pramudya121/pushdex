@@ -253,6 +253,10 @@
     animation: float 8s ease-in-out infinite;
   }
 
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
   @keyframes float {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     25% { transform: translateY(-8px) rotate(0.5deg); }
