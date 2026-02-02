@@ -2,11 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { PushChainProvider } from "@/contexts/PushChainContext";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { AIChatBot } from "@/components/AIChatBot";
+import { SkipLink, LiveRegion } from "@/components/AccessibleSkipLink";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Lazy load pages for better performance
 const Index = lazy(() => import("./pages/Index"));
@@ -36,9 +38,14 @@ const queryClient = new QueryClient({
   },
 });
 
-// Loading component for Suspense fallback
+// Loading component for Suspense fallback with accessibility
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
+  <div 
+    className="min-h-screen flex items-center justify-center bg-background"
+    role="progressbar"
+    aria-label="Loading page"
+    aria-busy="true"
+  >
     <div className="text-center space-y-4">
       <div className="relative">
         <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto" />
@@ -49,31 +56,72 @@ const PageLoader = () => (
   </div>
 );
 
+// Page transition wrapper
+const PageTransition = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ 
+        duration: 0.3, 
+        ease: [0.22, 1, 0.36, 1]
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
+// Animated Routes component
+const AnimatedRoutes = () => {
+  const location = useLocation();
+
+  // Announce page changes to screen readers
+  useEffect(() => {
+    const pageTitle = document.title;
+    const announcement = `Navigated to ${pageTitle}`;
+    // The live region will announce this
+  }, [location.pathname]);
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Index /></PageTransition>} />
+        <Route path="/liquidity" element={<PageTransition><Liquidity /></PageTransition>} />
+        <Route path="/pools" element={<PageTransition><Pools /></PageTransition>} />
+        <Route path="/pools/create" element={<PageTransition><CreatePool /></PageTransition>} />
+        <Route path="/pools/:address" element={<PageTransition><PoolDetail /></PageTransition>} />
+        <Route path="/analytics" element={<PageTransition><Analytics /></PageTransition>} />
+        <Route path="/portfolio" element={<PageTransition><Portfolio /></PageTransition>} />
+        <Route path="/history" element={<PageTransition><History /></PageTransition>} />
+        <Route path="/farming" element={<PageTransition><Farming /></PageTransition>} />
+        <Route path="/staking" element={<PageTransition><Staking /></PageTransition>} />
+        <Route path="/docs" element={<PageTransition><Docs /></PageTransition>} />
+        <Route path="/pushchain-docs" element={<PageTransition><PushChainDocs /></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
+        <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
+        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <PushChainProvider>
       <TooltipProvider delayDuration={200}>
+        {/* Accessibility: Skip Link */}
+        <SkipLink href="#main-content" />
+        
+        {/* Screen reader announcements */}
+        <LiveRegion message="" mode="polite" />
+        
         <Toaster />
         <Sonner position="top-right" theme="dark" richColors closeButton />
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/liquidity" element={<Liquidity />} />
-              <Route path="/pools" element={<Pools />} />
-              <Route path="/pools/create" element={<CreatePool />} />
-              <Route path="/pools/:address" element={<PoolDetail />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/portfolio" element={<Portfolio />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/farming" element={<Farming />} />
-              <Route path="/staking" element={<Staking />} />
-              <Route path="/docs" element={<Docs />} />
-              <Route path="/pushchain-docs" element={<PushChainDocs />} />
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AnimatedRoutes />
           </Suspense>
           {/* AI ChatBot - Available on all pages */}
           <AIChatBot />

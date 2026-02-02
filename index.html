@@ -8,9 +8,17 @@
     <meta name="author" content="PUSHDEX" />
     <meta name="keywords" content="DEX, decentralized exchange, Push Chain, swap, liquidity, DeFi, AMM">
 
+    <!-- Security Headers via Meta Tags -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
     <!-- Preconnect to external origins for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
     
     <!-- Load fonts directly in HTML to avoid CSS import chain -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
@@ -44,7 +52,11 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <!-- Skip link for accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-pink-500 focus:text-white focus:font-medium">
+      Skip to main content
+    </a>
+    <div id="root" role="application" aria-label="PUSHDEX Decentralized Exchange"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
