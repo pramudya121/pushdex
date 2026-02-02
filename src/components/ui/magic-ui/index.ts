@@ -5,3 +5,5 @@ export { BorderBeam } from "./border-beam";
 export { Meteors } from "./meteors";
 export { TypingAnimation } from "./typing-animation";
 export { NumberTicker } from "./number-ticker";
+export { Particles } from "./particles";
+export { AuroraBackground } from "./aurora-background";
