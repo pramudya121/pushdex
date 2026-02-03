@@ -1,5 +1,6 @@
 import React from 'react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { WaveBackground } from '@/components/WaveBackground';
 import { HeroSection } from '@/components/HeroSection';
 import { FarmCard } from '@/components/FarmCard';
@@ -482,6 +483,8 @@ const Farming: React.FC = () => {
           ))}
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { SwapCard } from '@/components/SwapCard';
 import { WolfLogo } from '@/components/WolfLogo';
 import { TokenMarquee } from '@/components/TokenMarquee';
@@ -138,6 +139,8 @@ const Index = () => {
           </section>
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 };

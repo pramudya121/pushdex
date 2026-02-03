@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { PortfolioChart } from '@/components/PortfolioChart';
 import { PortfolioValueChart } from '@/components/PortfolioValueChart';
@@ -981,6 +982,8 @@ const Portfolio = () => {
           )}
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 };

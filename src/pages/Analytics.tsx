@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { CONTRACTS, TOKEN_LIST } from '@/config/contracts';
 import { FACTORY_ABI, FARMING_ABI, STAKING_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
@@ -9,7 +10,7 @@ import { getMultiplePairReserves } from '@/lib/multicall';
 import { LoadingSkeleton, PulseDot, EmptyState } from '@/components/ui/loading-skeleton';
 import { NumberTicker } from '@/components/ui/magic-ui/number-ticker';
 import { GlowingStarsBackgroundCard } from '@/components/ui/aceternity/glowing-stars';
-import { 
+import {
   BarChart3, 
   TrendingUp, 
   Droplets, 
@@ -574,6 +575,8 @@ const Analytics = memo(() => {
           )}
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 });
