@@ -8,7 +8,9 @@ import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { AIChatBot } from "@/components/AIChatBot";
 import { SkipLink, LiveRegion } from "@/components/AccessibleSkipLink";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
+import { PageTransition } from "@/components/PageTransition";
+import { WolfLogo } from "@/components/WolfLogo";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home"));
@@ -49,30 +51,16 @@ const PageLoader = () => (
   >
     <div className="text-center space-y-4">
       <div className="relative">
-        <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin mx-auto" />
-        <Loader2 className="w-8 h-8 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+        <WolfLogo className="w-16 h-16 mx-auto animate-pulse" />
+        <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
       </div>
-      <p className="text-muted-foreground text-sm font-medium animate-pulse">Loading PUSHDEX...</p>
+      <div className="space-y-2">
+        <p className="text-foreground font-semibold text-lg">PUSHDEX</p>
+        <p className="text-muted-foreground text-sm animate-pulse">Loading...</p>
+      </div>
     </div>
   </div>
 );
-
-// Page transition wrapper
-const PageTransition = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ 
-        duration: 0.3, 
-        ease: [0.22, 1, 0.36, 1]
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-};
 
 // Animated Routes component
 const AnimatedRoutes = () => {

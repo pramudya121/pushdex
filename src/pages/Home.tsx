@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { WaveBackground } from '@/components/WaveBackground';
 import { TokenGlobe } from '@/components/TokenGlobe';
 import { TokenMarquee } from '@/components/TokenMarquee';
@@ -310,6 +311,9 @@ const Home = () => {
           </motion.div>
         </section>
       </main>
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
