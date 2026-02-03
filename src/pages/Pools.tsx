@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { HeroSection } from '@/components/HeroSection';
 import { PoolCard } from '@/components/PoolCard';
 import { QuickStats } from '@/components/QuickStats';
@@ -410,6 +411,8 @@ const Pools = memo(() => {
           )}
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 });

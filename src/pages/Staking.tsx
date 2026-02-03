@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { WaveBackground } from '@/components/WaveBackground';
 import { HeroSection } from '@/components/HeroSection';
 import { StakeCard } from '@/components/StakeCard';
@@ -390,6 +391,8 @@ const Staking: React.FC = () => {
           </Card>
         </div>
       </main>
+      
+      <Footer />
     </div>
   );
 };
