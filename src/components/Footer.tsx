@@ -79,7 +79,7 @@ export const Footer: React.FC = memo(() => {
   ];
   
   const socialLinks = [
-    { href: 'https://twitter.com/pushprotocol', icon: <Twitter className="w-5 h-5" />, label: 'Twitter' },
+    { href: 'https://x.com/pushdex', icon: <Twitter className="w-5 h-5" />, label: 'Twitter' },
     { href: 'https://github.com/push-protocol', icon: <Github className="w-5 h-5" />, label: 'GitHub' },
     { href: 'https://discord.gg/pushprotocol', icon: <MessageCircle className="w-5 h-5" />, label: 'Discord' },
   ];

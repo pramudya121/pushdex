@@ -38,17 +38,17 @@ export const SocialSharing = memo(({ type, data, className = '' }: SocialSharing
   const generateShareText = () => {
     switch (type) {
       case 'swap':
-        return `🔄 Just swapped ${data.amountIn} ${data.tokenIn} for ${data.amountOut} ${data.tokenOut} on @PushDex! 🚀\n\nThe best DEX on Push Chain ⚡\n\n#DeFi #PushChain #PUSHDEX`;
+        return `🔄 Just swapped ${data.amountIn} ${data.tokenIn} for ${data.amountOut} ${data.tokenOut} on @pushdex! 🚀\n\nThe best DEX on Push Chain ⚡\n\n#DeFi #PushChain #PUSHDEX`;
       case 'liquidity':
-        return `💧 Added liquidity to ${data.poolName} pool on @PushDex!\n\nEarning trading fees automatically 📈\n\n#DeFi #LiquidityProvider #PushChain`;
+        return `💧 Added liquidity to ${data.poolName} pool on @pushdex!\n\nEarning trading fees automatically 📈\n\n#DeFi #LiquidityProvider #PushChain`;
       case 'stake':
-        return `🔒 Staking on @PushDex with ${data.apy} APY! 💰\n\nSecure your tokens and earn rewards ✨\n\n#Staking #DeFi #PushChain`;
+        return `🔒 Staking on @pushdex with ${data.apy} APY! 💰\n\nSecure your tokens and earn rewards ✨\n\n#Staking #DeFi #PushChain`;
       case 'farm':
-        return `🌾 Yield farming on @PushDex!\n\nEarning ${data.apy} APY in the ${data.poolName} farm 🚜\n\n#YieldFarming #DeFi #PushChain`;
+        return `🌾 Yield farming on @pushdex!\n\nEarning ${data.apy} APY in the ${data.poolName} farm 🚜\n\n#YieldFarming #DeFi #PushChain`;
       case 'trade':
-        return `📊 Made a ${data.profit} profit trade on @PushDex! 🎯\n\nTrade smarter, not harder ⚡\n\n#Trading #DeFi #PushChain`;
+        return `📊 Made a ${data.profit} profit trade on @pushdex! 🎯\n\nTrade smarter, not harder ⚡\n\n#Trading #DeFi #PushChain`;
       default:
-        return `Trading on @PushDex - The best DEX on Push Chain! 🚀\n\n#DeFi #PushChain`;
+        return `Trading on @pushdex - The best DEX on Push Chain! 🚀\n\n#DeFi #PushChain`;
     }
   };
 

@@ -4,7 +4,7 @@ import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { cn } from '@/lib/utils';
-import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings, Home, Wrench } from 'lucide-react';
+import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings, Home } from 'lucide-react';
 import { FloatingDock } from '@/components/ui/aceternity/floating-dock';
 
 const NAV_ITEMS = [
@@ -13,7 +13,6 @@ const NAV_ITEMS = [
   { path: '/pools', label: 'Pools', icon: LayoutGrid },
   { path: '/farming', label: 'Farming', icon: Leaf },
   { path: '/staking', label: 'Staking', icon: Coins },
-  { path: '/tools', label: 'Tools', icon: Wrench },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
   { path: '/docs', label: 'Docs', icon: BookOpen },
