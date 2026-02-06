@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { WolfLogoText } from '@/components/WolfLogo';
 import { WalletButton } from '@/components/WalletButton';
+import { NotificationCenter } from '@/components/NotificationCenter';
 import { cn } from '@/lib/utils';
 import { ArrowLeftRight, Droplets, LayoutGrid, BarChart3, Wallet, BookOpen, Leaf, Coins, Settings, Home, Wrench } from 'lucide-react';
 import { FloatingDock } from '@/components/ui/aceternity/floating-dock';
@@ -73,6 +74,7 @@ export const Header: React.FC = memo(() => {
 
             {/* Wallet & Settings */}
             <div className="flex items-center gap-2">
+              <NotificationCenter />
               <NavLink
                 to="/settings"
                 className={cn(

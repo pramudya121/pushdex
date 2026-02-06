@@ -10,6 +10,7 @@ import { WhaleTracker } from '@/components/WhaleTracker';
 import { TokenSecurityScanner } from '@/components/TokenSecurityScanner';
 import { DCAAutomation } from '@/components/DCAAutomation';
 import { TradingViewChart } from '@/components/TradingViewChart';
+import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Trophy, 
@@ -19,7 +20,8 @@ import {
   Shield, 
   CalendarClock,
   BarChart3,
-  Wrench
+  Wrench,
+  ArrowDownUp
 } from 'lucide-react';
 
 const Tools = () => {
@@ -86,6 +88,13 @@ const Tools = () => {
                 <CalendarClock className="w-4 h-4" />
                 DCA
               </TabsTrigger>
+              <TabsTrigger 
+                value="wrap" 
+                className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                <ArrowDownUp className="w-4 h-4" />
+                Wrap/Unwrap
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="charts" className="mt-6">
@@ -123,6 +132,12 @@ const Tools = () => {
             <TabsContent value="dca" className="mt-6">
               <div className="max-w-2xl mx-auto">
                 <DCAAutomation />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="wrap" className="mt-6">
+              <div className="max-w-xl mx-auto">
+                <WrapUnwrap />
               </div>
             </TabsContent>
           </Tabs>
