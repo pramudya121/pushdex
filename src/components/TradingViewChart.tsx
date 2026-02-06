@@ -262,11 +262,20 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 tickLine={false}
               />
               <YAxis 
+                yAxisId="price"
                 stroke="hsl(240, 5%, 60%)" 
                 fontSize={11}
                 tickLine={false}
                 domain={['auto', 'auto']}
                 tickFormatter={(v) => `$${v.toFixed(0)}`}
+              />
+              <YAxis 
+                yAxisId="volume"
+                orientation="right"
+                stroke="hsl(240, 5%, 60%)" 
+                fontSize={11}
+                tickLine={false}
+                hide
               />
               <Tooltip content={<CustomTooltip />} />
               
@@ -285,6 +294,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 <Area
                   type="monotone"
                   dataKey="close"
+                  yAxisId="price"
                   stroke="hsl(330, 100%, 55%)"
                   strokeWidth={2}
                   fill="url(#colorPrice)"
@@ -293,6 +303,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 <Line
                   type="monotone"
                   dataKey="close"
+                  yAxisId="price"
                   stroke="hsl(330, 100%, 55%)"
                   strokeWidth={2}
                   dot={false}
@@ -304,6 +315,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 <Line
                   type="monotone"
                   dataKey="sma20"
+                  yAxisId="price"
                   stroke="hsl(210, 100%, 55%)"
                   strokeWidth={1}
                   strokeDasharray="3 3"
@@ -314,6 +326,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 <Line
                   type="monotone"
                   dataKey="sma50"
+                  yAxisId="price"
                   stroke="hsl(45, 100%, 50%)"
                   strokeWidth={1}
                   strokeDasharray="3 3"
