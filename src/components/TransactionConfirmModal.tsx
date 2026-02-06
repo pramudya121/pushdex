@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { SocialSharing } from '@/components/SocialSharing';
 import { 
   ArrowDown, 
   ArrowRight, 
@@ -23,7 +24,8 @@ import {
   Info,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  PartyPopper
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TokenInfo, BLOCK_EXPLORER } from '@/config/contracts';
@@ -352,33 +354,59 @@ export const TransactionConfirmModal: React.FC<TransactionConfirmModalProps> = (
           )}
 
           {/* Success State */}
-          {status === 'success' && txHash && (
-            <div className="p-4 rounded-xl bg-success/10 border border-success/20 space-y-3 animate-card-in">
+          {status === 'success' && (
+            <div className="p-4 rounded-xl bg-success/10 border border-success/20 space-y-4 animate-card-in">
               <div className="flex items-center justify-center">
-                <div className="p-3 rounded-full bg-success/20 animate-scale-in">
+                <div className="p-3 rounded-full bg-success/20 animate-scale-in relative">
                   <CheckCircle className="w-8 h-8 text-success" />
+                  <PartyPopper className="absolute -top-1 -right-1 w-5 h-5 text-amber-400 animate-bounce" />
                 </div>
               </div>
               <p className="text-center text-sm text-success font-medium animate-fade-in">
                 Transaction confirmed successfully!
               </p>
-              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
-                <p className="text-xs font-mono text-muted-foreground truncate flex-1">
-                  {txHash}
-                </p>
-                <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform" onClick={copyTxHash}>
-                  {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-                </Button>
-                <a
-                  href={`${BLOCK_EXPLORER}/tx/${txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform">
-                    <ExternalLink className="w-3 h-3" />
+              
+              {/* Transaction Hash */}
+              {txHash && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                  <p className="text-xs font-mono text-muted-foreground truncate flex-1">
+                    {txHash}
+                  </p>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform" onClick={copyTxHash}>
+                    {copied ? <Check className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
                   </Button>
-                </a>
-              </div>
+                  <a
+                    href={`${BLOCK_EXPLORER}/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:scale-110 transition-transform">
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </a>
+                </div>
+              )}
+              
+              {/* Social Sharing */}
+              {tokenIn && tokenOut && (
+                <div className="pt-2 border-t border-border/30">
+                  <p className="text-xs text-muted-foreground text-center mb-2">
+                    Share your trade with the community!
+                  </p>
+                  <div className="flex justify-center">
+                    <SocialSharing
+                      type={type === 'swap' ? 'swap' : 'trade'}
+                      data={{
+                        tokenIn: tokenIn.symbol,
+                        tokenOut: tokenOut.symbol,
+                        amountIn: amountIn,
+                        amountOut: amountOut,
+                      }}
+                      className="bg-primary/10 hover:bg-primary/20"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
