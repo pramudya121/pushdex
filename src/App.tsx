@@ -26,7 +26,6 @@ const Farming = lazy(() => import("./pages/Farming"));
 const Staking = lazy(() => import("./pages/Staking"));
 const Docs = lazy(() => import("./pages/Docs"));
 const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
-const Tools = lazy(() => import("./pages/Tools"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -88,7 +87,6 @@ const AnimatedRoutes = () => {
         <Route path="/history" element={<PageTransition><History /></PageTransition>} />
         <Route path="/farming" element={<PageTransition><Farming /></PageTransition>} />
         <Route path="/staking" element={<PageTransition><Staking /></PageTransition>} />
-        <Route path="/tools" element={<PageTransition><Tools /></PageTransition>} />
         <Route path="/docs" element={<PageTransition><Docs /></PageTransition>} />
         <Route path="/pushchain-docs" element={<PageTransition><PushChainDocs /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
