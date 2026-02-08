@@ -9,7 +9,6 @@ import { TokenMarquee } from '@/components/TokenMarquee';
 import { WolfLogo } from '@/components/WolfLogo';
 import { ShimmerButton, Spotlight } from '@/components/ui/magic-ui';
 import { Particles } from '@/components/ui/magic-ui/particles';
-import { FloatingParticles } from '@/components/ui/aceternity/floating-particles';
 import { TypingAnimation } from '@/components/ui/magic-ui/typing-animation';
 import { NumberTicker } from '@/components/ui/magic-ui/number-ticker';
 import { HoverGlowCard, TextScramble } from '@/components/ui/pushdex';
@@ -102,21 +101,14 @@ const Home = () => {
     <div className="min-h-screen relative overflow-hidden">
       <WaveBackground />
       
-      {/* Interactive Particle Systems */}
+      {/* Interactive Particle Systems - reduced for performance */}
       {!prefersReducedMotion && (
-        <>
-          <Particles 
-            className="z-0" 
-            quantity={80} 
-            color="hsl(330, 100%, 55%)"
-            staticity={25}
-          />
-          <FloatingParticles 
-            className="z-0 opacity-30" 
-            quantity={25}
-            color="hsl(280, 80%, 60%)"
-          />
-        </>
+        <Particles 
+          className="z-0" 
+          quantity={50} 
+          color="hsl(330, 100%, 55%)"
+          staticity={35}
+        />
       )}
       
       {/* Spotlight Effects */}
