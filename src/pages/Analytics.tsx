@@ -3,6 +3,7 @@ import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { TradingViewChart } from '@/components/TradingViewChart';
 import { CONTRACTS, TOKEN_LIST } from '@/config/contracts';
 import { FACTORY_ABI, FARMING_ABI, STAKING_ABI } from '@/config/abis';
 import { getReadProvider, getPairContract, getTokenByAddress, formatAmount } from '@/lib/dex';
@@ -28,6 +29,7 @@ import {
   Layers
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 interface PoolData {
@@ -466,6 +468,28 @@ const Analytics = memo(() => {
                 </div>
               </div>
 
+              {/* Trading View Chart Section */}
+              <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.15s' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-bold">Price Charts</h3>
+                </div>
+                <Tabs defaultValue="ETH" className="w-full">
+                  <TabsList className="bg-surface mb-4">
+                    {['ETH', 'BNB', 'WPC', 'PSDX'].map((symbol) => (
+                      <TabsTrigger key={symbol} value={symbol} className="text-sm">
+                        {symbol}/USD
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  {['ETH', 'BNB', 'WPC', 'PSDX'].map((symbol) => (
+                    <TabsContent key={symbol} value={symbol}>
+                      <TradingViewChart tokenSymbol={symbol} />
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </div>
+
               {/* Top Tokens & Pools */}
               <div className="grid lg:grid-cols-3 gap-6 mb-8">
                 {/* Top Tokens */}
@@ -487,7 +511,7 @@ const Analytics = memo(() => {
                         </div>
                         <div className="text-right">
                           <div className="font-medium">${token.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
-                          <div className={`text-xs ${token.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          <div className={`text-xs ${token.change >= 0 ? 'text-success' : 'text-destructive'}`}>
                             {token.change >= 0 ? '+' : ''}{token.change.toFixed(2)}%
                           </div>
                         </div>
@@ -536,7 +560,7 @@ const Analytics = memo(() => {
                               <td className="py-4 text-right font-medium">${pool.tvl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                               <td className="py-4 text-right">${pool.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                               <td className="py-4 text-right">
-                                <span className="text-green-400 font-medium">{pool.apr.toFixed(2)}%</span>
+                                <span className="text-success font-medium">{pool.apr.toFixed(2)}%</span>
                               </td>
                             </tr>
                           ))}
