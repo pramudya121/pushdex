@@ -1,16 +1,19 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { SwapCard } from '@/components/SwapCard';
 import { WolfLogo } from '@/components/WolfLogo';
 import { TokenMarquee } from '@/components/TokenMarquee';
+import { WhaleTracker } from '@/components/WhaleTracker';
+import { TokenSecurityScanner } from '@/components/TokenSecurityScanner';
 import { ShimmerButton, Spotlight } from '@/components/ui/magic-ui';
 import { TypingAnimation } from '@/components/ui/magic-ui/typing-animation';
 import { Particles } from '@/components/ui/magic-ui/particles';
 import { FloatingParticles } from '@/components/ui/aceternity/floating-particles';
 import { Card3D } from '@/components/ui/aceternity/3d-card';
-import { Zap, ArrowRight } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Zap, ArrowRight, Shield, Fish } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -137,6 +140,39 @@ const Index = () => {
             <h2 id="swap-section-title" className="sr-only">Token Swap</h2>
             <SwapCard />
           </section>
+        </div>
+
+        {/* Security Tools Section */}
+        <div className="max-w-5xl mx-auto mt-16">
+          <div className="text-center mb-8 animate-fade-in">
+            <h2 className="text-2xl md:text-3xl font-bold mb-2">
+              <span className="gradient-text">Trading Intelligence</span>
+            </h2>
+            <p className="text-muted-foreground">
+              Advanced tools to trade safely and monitor whale activity
+            </p>
+          </div>
+          
+          <Tabs defaultValue="scanner" className="w-full animate-fade-in">
+            <TabsList className="bg-surface/80 backdrop-blur-sm mx-auto w-fit mb-6">
+              <TabsTrigger value="scanner" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Security Scanner
+              </TabsTrigger>
+              <TabsTrigger value="whale" className="flex items-center gap-2">
+                <Fish className="w-4 h-4" />
+                Whale Tracker
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="scanner" className="animate-fade-in">
+              <TokenSecurityScanner />
+            </TabsContent>
+            
+            <TabsContent value="whale" className="animate-fade-in">
+              <WhaleTracker />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
       
