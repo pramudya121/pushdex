@@ -44,7 +44,7 @@ const Index = () => {
         <TokenMarquee />
       </div>
       
-      <main id="main-content" className="relative z-10 pt-8 md:pt-4 pb-20 px-4" role="main">
+      <main id="main-content" className="relative z-10 pt-8 md:pt-4 pb-28 md:pb-20 px-4" role="main">
         <div className="max-w-md mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-8 animate-fade-in">

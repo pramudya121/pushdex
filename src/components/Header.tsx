@@ -92,7 +92,7 @@ export const Header: React.FC = memo(() => {
       </header>
 
       {/* Mobile Navigation - Floating Dock */}
-      <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50 flex justify-center">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom,8px)] px-3 pt-1 pb-2 bg-gradient-to-t from-background/90 to-transparent">
         <FloatingDock 
           items={DOCK_ITEMS}
           mobileClassName="flex overflow-x-auto max-w-full scrollbar-hide"
