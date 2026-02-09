@@ -80,25 +80,25 @@ export function QuickStats({ className }: QuickStatsProps) {
       icon: Droplets,
       label: 'Total Pools',
       value: stats.totalPools.toString(),
-      color: 'text-blue-500',
+      color: 'text-primary',
     },
     {
       icon: DollarSign,
       label: 'Total TVL',
       value: formatNumber(stats.totalTVL),
-      color: 'text-green-500',
+      color: 'text-success',
     },
     {
       icon: Activity,
       label: '24h Volume',
       value: formatNumber(stats.volume24h),
-      color: 'text-purple-500',
+      color: 'text-accent',
     },
     {
       icon: stats.priceChange >= 0 ? TrendingUp : TrendingDown,
       label: 'PC Price',
       value: `${stats.priceChange >= 0 ? '+' : ''}${stats.priceChange.toFixed(2)}%`,
-      color: stats.priceChange >= 0 ? 'text-green-500' : 'text-red-500',
+      color: stats.priceChange >= 0 ? 'text-success' : 'text-destructive',
     },
   ];
 

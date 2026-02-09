@@ -101,24 +101,23 @@ const Home = () => {
     <div className="min-h-screen relative overflow-hidden">
       <WaveBackground />
       
-      {/* Interactive Particle Systems - reduced for performance */}
+      {/* Interactive Particle Systems - reduced on mobile */}
       {!prefersReducedMotion && (
         <Particles 
           className="z-0" 
-          quantity={50} 
+          quantity={30} 
           color="hsl(330, 100%, 55%)"
           staticity={35}
         />
       )}
       
-      {/* Spotlight Effects */}
-      <Spotlight className="-top-40 -left-10 md:-left-32 md:-top-20" />
-      <Spotlight className="top-10 right-0 md:right-20" fill="hsl(280, 80%, 50%)" />
-      <Spotlight className="bottom-20 left-1/3" fill="hsl(330, 100%, 45%)" />
+      {/* Spotlight Effects - hidden on mobile for perf */}
+      <Spotlight className="hidden md:block -top-40 -left-10 md:-left-32 md:-top-20" />
+      <Spotlight className="hidden md:block top-10 right-0 md:right-20" fill="hsl(280, 80%, 50%)" />
       
       <Header />
       
-      <main id="main-content" className="relative z-10 pt-24 pb-20 px-4" role="main">
+      <main id="main-content" className="relative z-10 pt-20 pb-28 md:pb-20 px-4" role="main">
         {/* Hero Section */}
         <section className="max-w-7xl mx-auto mb-20">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8">
@@ -145,7 +144,7 @@ const Home = () => {
               </div>
               
               {/* Tagline */}
-              <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-6 leading-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold mb-4 md:mb-6 leading-tight">
                 <span className="text-foreground">Trade Crypto</span>
                 <br />
                 <span className="gradient-text">Without Limits</span>
@@ -208,20 +207,19 @@ const Home = () => {
               </motion.div>
             </motion.div>
             
-            {/* Right - 3D Globe */}
+            {/* Right - 3D Globe - hidden on small mobile */}
             <motion.div 
-              className="flex-1 flex items-center justify-center"
+              className="hidden sm:flex flex-1 items-center justify-center"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.3 }}
             >
               <div className="relative">
-                {/* Glow behind globe */}
                 <div 
                   className="absolute inset-[-20%] rounded-full blur-3xl opacity-40"
                   style={{ background: 'radial-gradient(circle, hsl(330, 100%, 50%) 0%, hsl(280, 80%, 50%) 50%, transparent 70%)' }}
                 />
-                <TokenGlobe size={380} />
+                <TokenGlobe size={320} />
               </div>
             </motion.div>
           </div>
