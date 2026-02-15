@@ -33,31 +33,22 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
       retry: 1,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     },
   },
 });
 
-// Loading component for Suspense fallback with accessibility
+// Lightweight loading fallback - minimal DOM for fast paint
 const PageLoader = () => (
-  <div 
-    className="min-h-screen flex items-center justify-center bg-background"
-    role="progressbar"
-    aria-label="Loading page"
-    aria-busy="true"
-  >
-    <div className="text-center space-y-4">
-      <div className="relative">
-        <WolfLogo className="w-16 h-16 mx-auto animate-pulse" />
-        <div className="absolute inset-0 w-16 h-16 mx-auto rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
-      </div>
-      <div className="space-y-2">
-        <p className="text-foreground font-semibold text-lg">PUSHDEX</p>
-        <p className="text-muted-foreground text-sm animate-pulse">Loading...</p>
-      </div>
+  <div className="min-h-screen flex items-center justify-center bg-background" role="progressbar" aria-busy="true">
+    <div className="text-center space-y-3">
+      <div className="w-10 h-10 mx-auto rounded-full border-3 border-primary/20 border-t-primary animate-spin" />
+      <p className="text-muted-foreground text-sm">Loading...</p>
     </div>
   </div>
 );
@@ -74,7 +65,7 @@ const AnimatedRoutes = () => {
   }, [location.pathname]);
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/swap" element={<PageTransition><Index /></PageTransition>} />

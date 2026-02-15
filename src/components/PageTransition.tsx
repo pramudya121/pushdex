@@ -71,8 +71,8 @@ export const PageTransition: React.FC<PageTransitionProps> = ({
       animate={variantConfig.animate}
       exit={variantConfig.exit}
       transition={{
-        duration: prefersReducedMotion ? 0.15 : 0.35,
-        ease: [0.22, 1, 0.36, 1], // Custom easing for smooth feel
+        duration: prefersReducedMotion ? 0.1 : 0.2,
+        ease: "easeOut",
       }}
       className={cn("w-full", className)}
     >

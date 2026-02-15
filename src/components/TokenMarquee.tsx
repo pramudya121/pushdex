@@ -81,7 +81,7 @@ const TokenPriceCard = memo(({ token }: { token: TokenPrice }) => {
 TokenPriceCard.displayName = 'TokenPriceCard';
 
 export const TokenMarquee: React.FC = memo(() => {
-  const { pools, isLoading: poolsLoading, isConnected } = useRealtimePrices(30000);
+  const { pools, isLoading: poolsLoading, isConnected } = useRealtimePrices(60000);
   const [prices, setPrices] = useState<TokenPrice[]>([]);
 
   // Build prices from on-chain pool data + fallback
