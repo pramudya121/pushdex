@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { TokenSelector } from '@/components/TokenSelector';
 import { WrapUnwrap } from '@/components/WrapUnwrap';
 import { SlippageSettings } from '@/components/SlippageSettings';
@@ -21,10 +22,13 @@ import {
   getDeadline,
 } from '@/lib/dex';
 import { toast } from 'sonner';
-import { Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
-import { TextGenerateEffect } from '@/components/ui/aceternity/text-generate-effect';
+import { 
+  Plus, Minus, Loader2, AlertTriangle, Info, Sparkles, RefreshCw, 
+  Link as LinkIcon, Droplets, Shield, TrendingUp, Wallet, ArrowDownUp,
+  Percent, Clock, CheckCircle2, ChevronRight
+} from 'lucide-react';
 import { HeroSection } from '@/components/HeroSection';
-import { Spotlight } from '@/components/ui/magic-ui/spotlight';
+import { motion } from 'framer-motion';
 
 const Liquidity = () => {
   const { address, signer, isConnected, isCorrectNetwork, switchNetwork, balance } = useWallet();
@@ -389,43 +393,79 @@ const Liquidity = () => {
     handleAmountBChange(maxAmount);
   };
 
+  // Steps indicator for Add Liquidity
+  const getStep = () => {
+    if (!isConnected) return 0;
+    if (!isCorrectNetwork) return 0;
+    if (!amountA || !amountB) return 1;
+    if (needsApprovalA || needsApprovalB) return 2;
+    return 3;
+  };
+  const currentStep = getStep();
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
       <WaveBackground />
-      
-      {/* Spotlight Effects */}
-      <Spotlight className="-top-40 left-0 md:left-60" fill="hsl(330, 100%, 50%)" />
-      <Spotlight className="top-20 right-0 md:right-40" fill="hsl(280, 80%, 50%)" />
-      
       <Header />
       
-      <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
-        <div className="max-w-6xl mx-auto">
+      <main id="main-content" className="relative z-10 pt-32 md:pt-24 pb-28 md:pb-20 px-4 flex-1">
+        <div className="max-w-7xl mx-auto">
+          {/* Hero */}
           <HeroSection
             title="Liquidity"
-            description="Add or remove liquidity to earn trading fees from every swap"
+            description="Provide liquidity to earn 0.3% trading fees on every swap"
             showSpotlight={false}
             showStars={true}
           />
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            {/* Main Liquidity Card */}
-            <div className="lg:col-span-2">
-              <div className="glass-card p-6 animate-scale-in">
-                <Tabs defaultValue="add" className="w-full">
-                  <div className="flex items-center justify-between mb-6">
-                    <TabsList>
-                      <TabsTrigger value="add" className="gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add
-                      </TabsTrigger>
-                      <TabsTrigger value="remove" className="gap-2">
-                        <Minus className="w-4 h-4" />
-                        Remove
-                      </TabsTrigger>
-                    </TabsList>
+          {/* Stats Bar */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8"
+          >
+            {[
+              { icon: <Droplets className="w-4 h-4" />, label: 'Your LP Tokens', value: parseFloat(lpBalance).toFixed(4), accent: true },
+              { icon: <Percent className="w-4 h-4" />, label: 'Fee Tier', value: '0.30%' },
+              { icon: <Shield className="w-4 h-4" />, label: 'Slippage', value: `${slippage}%` },
+              { icon: <Clock className="w-4 h-4" />, label: 'Deadline', value: `${deadline} min` },
+            ].map((stat, i) => (
+              <div key={i} className="glass-card p-4 text-center group hover:border-primary/30 transition-all duration-300">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="text-muted-foreground group-hover:text-primary transition-colors">{stat.icon}</span>
+                  <span className="text-xs text-muted-foreground">{stat.label}</span>
+                </div>
+                <p className={`text-lg font-bold ${stat.accent ? 'text-primary' : 'text-foreground'}`}>
+                  {stat.value}
+                </p>
+              </div>
+            ))}
+          </motion.div>
+
+          <div className="grid lg:grid-cols-12 gap-6">
+            {/* Main Card */}
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="lg:col-span-7"
+            >
+              <div className="glass-card overflow-hidden">
+                {/* Card Header */}
+                <div className="p-5 md:p-6 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Droplets className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">Manage Liquidity</h2>
+                        <p className="text-xs text-muted-foreground">Add or remove liquidity positions</p>
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
+                      <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
                         <RefreshCw className="w-4 h-4" />
                       </Button>
                       <SlippageSettings
@@ -436,264 +476,361 @@ const Liquidity = () => {
                       />
                     </div>
                   </div>
+                </div>
 
-                  <TabsContent value="add" className="space-y-4">
-                    {/* New Pool Badge */}
-                    {isNewPool && amountA && amountB && (
-                      <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-2 text-sm text-primary animate-fade-in">
-                        <Sparkles className="w-4 h-4" />
-                        You are creating a new liquidity pool!
-                      </div>
-                    )}
+                <div className="p-5 md:p-6">
+                  <Tabs defaultValue="add" className="w-full">
+                    <TabsList className="w-full mb-6 h-12 p-1 bg-surface rounded-xl">
+                      <TabsTrigger value="add" className="flex-1 gap-2 rounded-lg h-10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+                        <Plus className="w-4 h-4" />
+                        Add Liquidity
+                      </TabsTrigger>
+                      <TabsTrigger value="remove" className="flex-1 gap-2 rounded-lg h-10 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
+                        <Minus className="w-4 h-4" />
+                        Remove
+                      </TabsTrigger>
+                    </TabsList>
 
-                    {/* Token A */}
-                    <div className="token-input transition-smooth">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Token A</span>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-muted-foreground">
-                            Balance: {parseFloat(balanceA).toFixed(4)} {tokenA.symbol}
-                          </span>
-                          <button
-                            onClick={setMaxA}
-                            className="text-primary hover:text-primary/80 font-medium transition-colors"
-                          >
-                            MAX
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 relative">
-                          <Input
-                            type="number"
-                            placeholder="0.0"
-                            value={amountA}
-                            onChange={(e) => handleAmountAChange(e.target.value)}
-                            className="border-0 bg-transparent text-xl font-semibold p-0 h-auto focus-visible:ring-0"
-                          />
-                          {isCalculating && activeInput === 'B' && (
-                            <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
-                          )}
-                        </div>
-                        <TokenSelector
-                          selectedToken={tokenA}
-                          onSelect={setTokenA}
-                          excludeToken={tokenB}
-                        />
-                      </div>
-                    </div>
+                    <TabsContent value="add" className="space-y-4 mt-0">
+                      {/* New Pool Alert */}
+                      {isNewPool && amountA && amountB && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-2 text-sm text-primary"
+                        >
+                          <Sparkles className="w-4 h-4 shrink-0" />
+                          <span>You are creating a new liquidity pool! You set the initial price.</span>
+                        </motion.div>
+                      )}
 
-                    {/* Price Rate Display */}
-                    {priceRate && !isNewPool && (
-                      <div className="flex items-center justify-center gap-2 py-2 animate-fade-in">
-                        <LinkIcon className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          1 {tokenA.symbol} = {priceRate.toFixed(6)} {tokenB.symbol}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-center">
-                      <div className="p-2 rounded-xl bg-surface border border-border">
-                        <Plus className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </div>
-
-                    {/* Token B */}
-                    <div className="token-input transition-smooth">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Token B</span>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-muted-foreground">
-                            Balance: {parseFloat(balanceB).toFixed(4)} {tokenB.symbol}
-                          </span>
-                          <button
-                            onClick={setMaxB}
-                            className="text-primary hover:text-primary/80 font-medium transition-colors"
-                          >
-                            MAX
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 relative">
-                          <Input
-                            type="number"
-                            placeholder="0.0"
-                            value={amountB}
-                            onChange={(e) => handleAmountBChange(e.target.value)}
-                            className="border-0 bg-transparent text-xl font-semibold p-0 h-auto focus-visible:ring-0"
-                          />
-                          {isCalculating && activeInput === 'A' && (
-                            <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
-                          )}
-                        </div>
-                        <TokenSelector
-                          selectedToken={tokenB}
-                          onSelect={setTokenB}
-                          excludeToken={tokenA}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Pool Info */}
-                    {reserves && (
-                      <div className="p-4 rounded-xl bg-surface border border-border animate-fade-in">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Info className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Pool Info</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Your LP Balance</span>
-                            <div className="font-semibold">{parseFloat(lpBalance).toFixed(6)}</div>
+                      {/* Token A Input */}
+                      <div className="rounded-2xl bg-surface/80 border border-border/60 p-4 hover:border-primary/30 transition-colors duration-300 focus-within:border-primary/50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">You Deposit</span>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Wallet className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              {parseFloat(balanceA).toFixed(4)} {tokenA.symbol}
+                            </span>
+                            <button
+                              onClick={setMaxA}
+                              className="px-2 py-0.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-semibold transition-colors text-xs"
+                            >
+                              MAX
+                            </button>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Pool Share</span>
-                            <div className="font-semibold text-primary">
-                              {parseFloat(lpBalance) > 0 ? '~0.01%' : '0%'}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 relative">
+                            <Input
+                              type="number"
+                              placeholder="0.0"
+                              value={amountA}
+                              onChange={(e) => handleAmountAChange(e.target.value)}
+                              className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
+                            />
+                            {isCalculating && activeInput === 'B' && (
+                              <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                            )}
+                          </div>
+                          <TokenSelector selectedToken={tokenA} onSelect={setTokenA} excludeToken={tokenB} />
+                        </div>
+                      </div>
+
+                      {/* Connector & Rate */}
+                      <div className="flex items-center justify-center gap-3 py-1">
+                        <div className="flex-1 h-px bg-border/50" />
+                        <div className="p-2.5 rounded-xl bg-surface border border-border shadow-sm">
+                          <Plus className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1 h-px bg-border/50" />
+                      </div>
+
+                      {/* Token B Input */}
+                      <div className="rounded-2xl bg-surface/80 border border-border/60 p-4 hover:border-primary/30 transition-colors duration-300 focus-within:border-primary/50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">You Deposit</span>
+                          <div className="flex items-center gap-2 text-xs">
+                            <Wallet className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-muted-foreground">
+                              {parseFloat(balanceB).toFixed(4)} {tokenB.symbol}
+                            </span>
+                            <button
+                              onClick={setMaxB}
+                              className="px-2 py-0.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-semibold transition-colors text-xs"
+                            >
+                              MAX
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 relative">
+                            <Input
+                              type="number"
+                              placeholder="0.0"
+                              value={amountB}
+                              onChange={(e) => handleAmountBChange(e.target.value)}
+                              className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
+                            />
+                            {isCalculating && activeInput === 'A' && (
+                              <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                            )}
+                          </div>
+                          <TokenSelector selectedToken={tokenB} onSelect={setTokenB} excludeToken={tokenA} />
+                        </div>
+                      </div>
+
+                      {/* Price Rate */}
+                      {priceRate && !isNewPool && (
+                        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-surface/50 border border-border/40 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <TrendingUp className="w-3.5 h-3.5" />
+                            <span>Exchange Rate</span>
+                          </div>
+                          <span className="font-semibold text-foreground">
+                            1 {tokenA.symbol} = {priceRate.toFixed(6)} {tokenB.symbol}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Pool Info Card */}
+                      {reserves && (
+                        <div className="rounded-xl bg-surface/50 border border-border/40 overflow-hidden">
+                          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/30">
+                            <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Position Summary</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-px bg-border/20">
+                            <div className="bg-background/50 p-3">
+                              <span className="text-xs text-muted-foreground">Your LP Tokens</span>
+                              <div className="font-bold text-foreground">{parseFloat(lpBalance).toFixed(6)}</div>
+                            </div>
+                            <div className="bg-background/50 p-3">
+                              <span className="text-xs text-muted-foreground">Pool Share</span>
+                              <div className="font-bold text-primary">
+                                {parseFloat(lpBalance) > 0 ? '~0.01%' : '0%'}
+                              </div>
                             </div>
                           </div>
                         </div>
+                      )}
+
+                      {/* Transaction Details */}
+                      <div className="space-y-2 px-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Slippage Tolerance</span>
+                          <span className="font-medium text-foreground">{slippage}%</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Transaction Deadline</span>
+                          <span className="font-medium text-foreground">{deadline} minutes</span>
+                        </div>
                       </div>
-                    )}
 
-                    {/* Slippage Info */}
-                    <div className="p-3 rounded-xl bg-surface/50 border border-border/50 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Slippage Tolerance</span>
-                      <span className="font-medium text-primary">{slippage}%</span>
-                    </div>
+                      {/* Approval Buttons */}
+                      {isConnected && isCorrectNetwork && (needsApprovalA || needsApprovalB) && (
+                        <div className="space-y-2">
+                          {needsApprovalA && tokenA.address !== ethers.ZeroAddress && (
+                            <Button
+                              className="w-full h-12 rounded-xl gap-2"
+                              variant="outline"
+                              onClick={() => handleApprove(tokenA)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                              Approve {tokenA.symbol}
+                            </Button>
+                          )}
+                          {needsApprovalB && tokenB.address !== ethers.ZeroAddress && (
+                            <Button
+                              className="w-full h-12 rounded-xl gap-2"
+                              variant="outline"
+                              onClick={() => handleApprove(tokenB)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                              Approve {tokenB.symbol}
+                            </Button>
+                          )}
+                        </div>
+                      )}
 
-                    {/* Approvals */}
-                    {isConnected && isCorrectNetwork && (
-                      <div className="space-y-2">
-                        {needsApprovalA && tokenA.address !== ethers.ZeroAddress && (
-                          <Button
-                            className="w-full transition-smooth hover-lift"
-                            variant="outline"
-                            onClick={() => handleApprove(tokenA)}
-                            disabled={isLoading}
-                          >
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Approve {tokenA.symbol}
-                          </Button>
-                        )}
-                        {needsApprovalB && tokenB.address !== ethers.ZeroAddress && (
-                          <Button
-                            className="w-full transition-smooth hover-lift"
-                            variant="outline"
-                            onClick={() => handleApprove(tokenB)}
-                            disabled={isLoading}
-                          >
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                            Approve {tokenB.symbol}
-                          </Button>
-                        )}
-                      </div>
-                    )}
-
-                    <Button
-                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90 transition-smooth hover-lift"
-                      disabled={!isConnected || !isCorrectNetwork || !amountA || !amountB || needsApprovalA || needsApprovalB || isLoading}
-                      onClick={isCorrectNetwork ? handleAddLiquidity : switchNetwork}
-                    >
-                      {!isConnected ? 'Connect Wallet' : !isCorrectNetwork ? 'Switch Network' : isLoading ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          {isNewPool ? 'Creating Pool...' : 'Adding...'}
-                        </span>
-                      ) : isNewPool ? 'Create Pool & Add Liquidity' : 'Add Liquidity'}
-                    </Button>
-                  </TabsContent>
-
-                  <TabsContent value="remove" className="space-y-4">
-                    {/* LP Balance */}
-                    <div className="p-4 rounded-xl bg-surface border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Your LP Balance</span>
-                        <span className="font-semibold">{parseFloat(lpBalance).toFixed(6)}</span>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {tokenA.symbol}/{tokenB.symbol} LP
-                      </div>
-                    </div>
-
-                    {/* Remove Amount */}
-                    <div className="token-input transition-smooth">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-muted-foreground">Amount to remove</span>
-                        <button
-                          onClick={() => setRemoveAmount(lpBalance)}
-                          className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-                        >
-                          MAX
-                        </button>
-                      </div>
-                      <Input
-                        type="number"
-                        placeholder="0.0"
-                        value={removeAmount}
-                        onChange={(e) => setRemoveAmount(e.target.value)}
-                        className="border-0 bg-transparent text-xl font-semibold p-0 h-auto focus-visible:ring-0"
-                      />
-                    </div>
-
-                    {/* Percentage buttons */}
-                    <div className="flex gap-2">
-                      {[25, 50, 75, 100].map((pct) => (
-                        <button
-                          key={pct}
-                          onClick={() => setRemoveAmount((parseFloat(lpBalance) * pct / 100).toString())}
-                          className="flex-1 py-2 rounded-lg bg-surface hover:bg-surface-hover border border-border text-sm font-medium transition-smooth interactive"
-                        >
-                          {pct}%
-                        </button>
-                      ))}
-                    </div>
-
-                    {pairAddress === null && (
-                      <div className="p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2 text-sm text-warning animate-fade-in">
-                        <AlertTriangle className="w-4 h-4" />
-                        Pair does not exist
-                      </div>
-                    )}
-
-                    {needsLPApproval && (
+                      {/* Main CTA */}
                       <Button
-                        className="w-full transition-smooth hover-lift"
-                        variant="outline"
-                        onClick={handleApproveLp}
-                        disabled={isLoading}
+                        className="w-full h-14 text-base font-bold rounded-xl bg-gradient-pink hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:shadow-primary/40"
+                        disabled={!isConnected || !isCorrectNetwork || !amountA || !amountB || needsApprovalA || needsApprovalB || isLoading}
+                        onClick={isCorrectNetwork ? handleAddLiquidity : switchNetwork}
                       >
-                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                        Approve LP Tokens
+                        {!isConnected ? (
+                          <span className="flex items-center gap-2"><Wallet className="w-5 h-5" /> Connect Wallet</span>
+                        ) : !isCorrectNetwork ? (
+                          'Switch to Push Chain'
+                        ) : isLoading ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            {isNewPool ? 'Creating Pool...' : 'Adding Liquidity...'}
+                          </span>
+                        ) : isNewPool ? (
+                          <span className="flex items-center gap-2"><Sparkles className="w-5 h-5" /> Create Pool & Add Liquidity</span>
+                        ) : (
+                          <span className="flex items-center gap-2"><Plus className="w-5 h-5" /> Add Liquidity</span>
+                        )}
                       </Button>
-                    )}
+                    </TabsContent>
 
-                    <Button
-                      className="w-full h-14 text-lg font-semibold bg-gradient-pink hover:opacity-90 transition-smooth hover-lift"
-                      disabled={!isConnected || !isCorrectNetwork || !removeAmount || needsLPApproval || !pairAddress || isLoading}
-                      onClick={isCorrectNetwork ? handleRemoveLiquidity : switchNetwork}
-                    >
-                      {!isConnected ? 'Connect Wallet' : !isCorrectNetwork ? 'Switch Network' : isLoading ? (
-                        <span className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Removing...
-                        </span>
-                      ) : 'Remove Liquidity'}
-                    </Button>
-                  </TabsContent>
-                </Tabs>
+                    <TabsContent value="remove" className="space-y-4 mt-0">
+                      {/* LP Position Card */}
+                      <div className="rounded-2xl bg-surface/80 border border-border/60 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="flex -space-x-2">
+                              {tokenA.logo && <img src={tokenA.logo} alt={tokenA.symbol} className="w-7 h-7 rounded-full border-2 border-background" />}
+                              {tokenB.logo && <img src={tokenB.logo} alt={tokenB.symbol} className="w-7 h-7 rounded-full border-2 border-background" />}
+                            </div>
+                            <span className="font-semibold text-foreground">{tokenA.symbol}/{tokenB.symbol}</span>
+                          </div>
+                          <span className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary font-medium">LP Token</span>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-xs text-muted-foreground">Your Balance</span>
+                          <span className="text-xl font-bold text-foreground">{parseFloat(lpBalance).toFixed(6)}</span>
+                        </div>
+                      </div>
+
+                      {/* Amount Input */}
+                      <div className="rounded-2xl bg-surface/80 border border-border/60 p-4 focus-within:border-primary/50 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Amount to Remove</span>
+                          <button
+                            onClick={() => setRemoveAmount(lpBalance)}
+                            className="px-2 py-0.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 font-semibold transition-colors text-xs"
+                          >
+                            MAX
+                          </button>
+                        </div>
+                        <Input
+                          type="number"
+                          placeholder="0.0"
+                          value={removeAmount}
+                          onChange={(e) => setRemoveAmount(e.target.value)}
+                          className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
+                        />
+                      </div>
+
+                      {/* Percentage Quick Select */}
+                      <div className="grid grid-cols-4 gap-2">
+                        {[25, 50, 75, 100].map((pct) => (
+                          <button
+                            key={pct}
+                            onClick={() => setRemoveAmount((parseFloat(lpBalance) * pct / 100).toString())}
+                            className="py-2.5 rounded-xl bg-surface hover:bg-primary/10 border border-border hover:border-primary/30 text-sm font-semibold transition-all duration-200 text-foreground"
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+                      </div>
+
+                      {pairAddress === null && (
+                        <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-sm text-destructive">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>This pair does not exist yet</span>
+                        </div>
+                      )}
+
+                      {needsLPApproval && (
+                        <Button
+                          className="w-full h-12 rounded-xl gap-2"
+                          variant="outline"
+                          onClick={handleApproveLp}
+                          disabled={isLoading}
+                        >
+                          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          Approve LP Tokens
+                        </Button>
+                      )}
+
+                      <Button
+                        className="w-full h-14 text-base font-bold rounded-xl bg-gradient-pink hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20"
+                        disabled={!isConnected || !isCorrectNetwork || !removeAmount || needsLPApproval || !pairAddress || isLoading}
+                        onClick={isCorrectNetwork ? handleRemoveLiquidity : switchNetwork}
+                      >
+                        {!isConnected ? (
+                          <span className="flex items-center gap-2"><Wallet className="w-5 h-5" /> Connect Wallet</span>
+                        ) : !isCorrectNetwork ? (
+                          'Switch to Push Chain'
+                        ) : isLoading ? (
+                          <span className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" /> Removing...</span>
+                        ) : (
+                          <span className="flex items-center gap-2"><Minus className="w-5 h-5" /> Remove Liquidity</span>
+                        )}
+                      </Button>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Sidebar */}
-            <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="lg:col-span-5 space-y-6"
+            >
+              {/* How It Works */}
+              <div className="glass-card p-5 md:p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Info className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-foreground">How It Works</h3>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { step: '1', title: 'Select Tokens', desc: 'Choose a pair of tokens to provide liquidity for' },
+                    { step: '2', title: 'Enter Amounts', desc: 'Amounts auto-calculate based on pool ratio' },
+                    { step: '3', title: 'Approve & Confirm', desc: 'Approve tokens, then confirm the transaction' },
+                    { step: '4', title: 'Earn Fees', desc: 'Earn 0.3% fee on every swap in your pool' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 group">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                        currentStep >= parseInt(item.step)
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-surface border border-border text-muted-foreground'
+                      }`}>
+                        {currentStep > parseInt(item.step) ? <CheckCircle2 className="w-4 h-4" /> : item.step}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{item.title}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Wrap/Unwrap */}
               <WrapUnwrap />
-            </div>
+
+              {/* Warning Card */}
+              <div className="glass-card p-5 border-l-4 border-l-amber-500">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-foreground text-sm mb-1">Impermanent Loss Risk</h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Providing liquidity carries the risk of impermanent loss. This occurs when the price ratio of tokens changes after you deposit them. Consider using the IL calculator before adding large positions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 };
