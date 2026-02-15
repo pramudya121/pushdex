@@ -33,12 +33,22 @@ const CONTRACTS = {
   WETH: '0x5b0AE944A4Ee6241a5A638C440A0dCD42411bD3C',
   MULTICALL: '0x98cA063a7066Ae68B395ad49B9f05F2Df510d6B5',
   LIBRARY: '0xEa71393074fFCB6d132B8a2b6028CAF952af03A5',
+  FARMING: '0x45eb2C9405A5C07288B8B22343C9a5eA67405579',
+  STAKING: '0xAb40694cA2Cf9DdfD5235109505D1970C48Ce2aA',
 };
 
 const TOKENS = {
+  PC: '0x0000000000000000000000000000000000000000',
+  WPC: '0x5b0AE944A4Ee6241a5A638C440A0dCD42411bD3C',
   ETH: '0x70af1341F5D5c60F913F6a21C669586C38592510',
   BNB: '0x68F2458954032952d2ddd5D8Ee1d671e6E93Ae6C',
   PSDX: '0x2Bf9ae7D36f6D057fC84d7f3165E9EB870f2e2e7',
+  LINK: '0xDa70a94c2976d64b1dDF9E796c3709bC989b7Dc7',
+  HYPE: '0x5E0B3DE95ACeeF2d46CEAF3e287370D23d90B603',
+  ZEC: '0x84fDbFA4322915D82B9e11C0B999d589af2911ae',
+  SUI: '0x260B0d562e5eB66C85ECD19cB0C7269055CFFE0F',
+  UNI: '0xFEBb4524170A78c83A29249992C444A6d21d8c07',
+  OKB: '0x731251C4fcA037F718b24DEFd8AD6C5Abe224C41',
 };
 
 const PHASES = [
@@ -507,6 +517,18 @@ const Docs = () => {
                     <h4 className="font-semibold text-primary">UniswapV2Library</h4>
                     <p className="text-sm text-muted-foreground">
                       Helper library for price calculations, pair address computation, and quote generation.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-primary">Farming</h4>
+                    <p className="text-sm text-muted-foreground">
+                      LP token yield farming contract with allocation points and reward distribution for liquidity providers.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-primary">Staking</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Single-token staking contract with configurable APR, lock periods, and pool status management.
                     </p>
                   </div>
                 </div>

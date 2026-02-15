@@ -165,7 +165,7 @@ const STAR_COLORS = [
   'hsl(330, 100%, 60%)',   // Hot pink
 ];
 
-export const FallingComets = memo(({ quantity = 6, className = '' }: FallingCometsProps) => {
+export const FallingComets = memo(({ quantity = 4, className = '' }: FallingCometsProps) => {
   const prefersReducedMotion = useReducedMotion();
 
   const stars = useMemo(() => {

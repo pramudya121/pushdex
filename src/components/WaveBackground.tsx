@@ -23,8 +23,8 @@ export const WaveBackground: React.FC<{ className?: string; showComets?: boolean
         }}
       />
       
-      {/* Falling Comets - global animation */}
-      {showComets && <FallingComets quantity={6} />}
+      {/* Falling Comets - reduced for performance */}
+      {showComets && !prefersReducedMotion && <FallingComets quantity={3} />}
       
       {/* Animated wave layers - optimized with transform3d for GPU acceleration */}
       {!prefersReducedMotion && (

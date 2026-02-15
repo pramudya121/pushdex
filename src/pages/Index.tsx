@@ -21,8 +21,8 @@ const Index = () => {
     <div className="min-h-screen relative overflow-hidden">
       <WaveBackground />
       
-      {/* Falling Comets Animation */}
-      <FallingComets quantity={8} />
+      {/* Falling Comets Animation - reduced */}
+      {!prefersReducedMotion && <FallingComets quantity={4} />}
       
       {/* Interactive Particle System - reduced quantity for performance */}
       {!prefersReducedMotion && (

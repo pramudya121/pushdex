@@ -384,7 +384,7 @@ console.log('Origin address:', originAccount.address);`}
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Object.entries(CONTRACTS).map(([name, address]) => (
+              {Object.entries({...CONTRACTS}).map(([name, address]) => (
                 <div 
                   key={name}
                   className="flex justify-between items-center p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
