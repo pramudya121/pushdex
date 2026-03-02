@@ -29,7 +29,8 @@ import {
 } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
 import { ethers } from 'ethers';
-import { CONTRACTS } from '@/config/contracts';
+import { CONTRACTS, TOKENS } from '@/config/contracts';
+import { useWETH } from '@/hooks/useWETH';
 
 export const SwapCard: React.FC = () => {
   const {
@@ -60,7 +61,13 @@ export const SwapCard: React.FC = () => {
   } = useSwap();
 
   const { switchNetwork } = useWallet();
+  const { wrap, unwrap, isWrapping, isUnwrapping } = useWETH();
   const { bestRoute, allRoutes, isSearching, findBestRoute } = useSmartRouter();
+
+  // Detect if this is a wrap/unwrap operation (PC ↔ WPC)
+  const isWrapMode = tokenIn.address === ethers.ZeroAddress && tokenOut.address === CONTRACTS.WETH;
+  const isUnwrapMode = tokenIn.address === CONTRACTS.WETH && tokenOut.address === ethers.ZeroAddress;
+  const isWrapUnwrap = isWrapMode || isUnwrapMode;
   const { gasEstimate, isLoading: gasLoading, error: gasError, estimateSwapGas } = useGasEstimation();
   const { analyzeSlippageRisk, validateSlippage, getRecommendedDeadline } = useSlippageProtection();
   
@@ -162,7 +169,7 @@ export const SwapCard: React.FC = () => {
     if (parseFloat(amountIn) > parseFloat(balanceIn)) {
       return 'Insufficient balance';
     }
-    if (error) {
+    if (error && !isWrapUnwrap) {
       return error;
     }
     if (isApproving) {
@@ -173,8 +180,24 @@ export const SwapCard: React.FC = () => {
         </span>
       );
     }
-    if (needsApproval) {
+    if (!isWrapUnwrap && needsApproval) {
       return `Approve ${tokenIn.symbol}`;
+    }
+    if (isWrapping) {
+      return (
+        <span className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Wrapping...
+        </span>
+      );
+    }
+    if (isUnwrapping) {
+      return (
+        <span className="flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Unwrapping...
+        </span>
+      );
     }
     if (isSwapping) {
       return (
@@ -184,6 +207,8 @@ export const SwapCard: React.FC = () => {
         </span>
       );
     }
+    if (isWrapMode) return `Wrap ${tokenIn.symbol} → ${tokenOut.symbol}`;
+    if (isUnwrapMode) return `Unwrap ${tokenIn.symbol} → ${tokenOut.symbol}`;
     return 'Swap';
   };
 
@@ -192,6 +217,7 @@ export const SwapCard: React.FC = () => {
     if (!isCorrectNetwork) return false;
     if (!amountIn || parseFloat(amountIn) === 0) return true;
     if (parseFloat(amountIn) > parseFloat(balanceIn)) return true;
+    if (isWrapUnwrap) return isWrapping || isUnwrapping;
     if (error) return true;
     if (isApproving || isSwapping) return true;
     return false;
@@ -203,6 +229,15 @@ export const SwapCard: React.FC = () => {
     }
     if (!isCorrectNetwork) {
       await switchNetwork();
+      return;
+    }
+    // Handle wrap/unwrap directly
+    if (isWrapMode) {
+      await wrap(amountIn);
+      return;
+    }
+    if (isUnwrapMode) {
+      await unwrap(amountIn);
       return;
     }
     if (needsApproval) {
@@ -429,17 +464,17 @@ export const SwapCard: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex-1 relative">
-            {isLoading ? (
+            {isLoading && !isWrapUnwrap ? (
               <AmountSkeleton />
             ) : (
               <Input
                 type="number"
                 placeholder="0.0"
-                value={amountOut}
+                value={isWrapUnwrap ? amountIn : amountOut}
                 readOnly
                 className={cn(
                   "border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 transition-all duration-300",
-                  amountOut && "animate-fade-in"
+                  (isWrapUnwrap ? amountIn : amountOut) && "animate-fade-in"
                 )}
               />
             )}

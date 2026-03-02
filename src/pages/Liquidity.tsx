@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useWallet } from '@/contexts/WalletContext';
 import { TOKENS, TokenInfo, CONTRACTS } from '@/config/contracts';
 import { ROUTER_ABI, ERC20_ABI } from '@/config/abis';
-import { useWETH } from '@/hooks/useWETH';
 import {
   getPairAddress,
   getReserves,
@@ -24,20 +23,12 @@ import {
 import { toast } from 'sonner';
 import {
   Plus, Minus, Loader2, AlertTriangle, Sparkles, RefreshCw,
-  ArrowDownUp, CheckCircle2, Wallet, RotateCcw
+  CheckCircle2, Wallet, Droplets
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Liquidity = () => {
   const { address, signer, isConnected, isCorrectNetwork, switchNetwork, balance } = useWallet();
-  const {
-    wpcBalance,
-    pcBalance,
-    isWrapping,
-    isUnwrapping,
-    wrap,
-    unwrap,
-  } = useWETH();
 
   const [tokenA, setTokenA] = useState<TokenInfo>(TOKENS.PC);
   const [tokenB, setTokenB] = useState<TokenInfo>(TOKENS.PSDX);
@@ -58,10 +49,6 @@ const Liquidity = () => {
   const [deadline, setDeadline] = useState(20);
   const [isCalculating, setIsCalculating] = useState(false);
   const [activeInput, setActiveInput] = useState<'A' | 'B' | null>(null);
-
-  // Wrap/Unwrap state
-  const [wrapAmount, setWrapAmount] = useState('');
-  const [unwrapAmount, setUnwrapAmount] = useState('');
 
   const fetchBalances = useCallback(async () => {
     if (!address) return;
@@ -144,7 +131,6 @@ const Liquidity = () => {
     }
   }, [isNewPool, reserves, calculateCorrespondingAmount, tokenA, tokenB]);
 
-  // Reserves display
   const reserveDisplay = useMemo(() => {
     if (!reserves) return null;
     const tokenAAddr = tokenA.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenA.address;
@@ -282,18 +268,6 @@ const Liquidity = () => {
     handleAmountBChange(maxAmount);
   };
 
-  const handleWrap = async () => {
-    if (!wrapAmount || parseFloat(wrapAmount) === 0) return;
-    const success = await wrap(wrapAmount);
-    if (success) setWrapAmount('');
-  };
-
-  const handleUnwrap = async () => {
-    if (!unwrapAmount || parseFloat(unwrapAmount) === 0) return;
-    const success = await unwrap(unwrapAmount);
-    if (success) setUnwrapAmount('');
-  };
-
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col">
       <WaveBackground />
@@ -301,32 +275,33 @@ const Liquidity = () => {
 
       <main id="main-content" className="relative z-10 pt-32 md:pt-28 pb-28 md:pb-20 px-4 flex-1 flex items-start justify-center">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.3 }}
           className="w-full max-w-lg"
         >
           {/* Title */}
-          <h1 className="text-2xl md:text-3xl font-bold text-primary text-center mb-6">
-            Manage Liquidity
-          </h1>
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Droplets className="w-7 h-7 text-primary" />
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+              Manage <span className="text-primary">Liquidity</span>
+            </h1>
+          </div>
 
           {/* Main Card */}
           <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-2xl overflow-hidden">
             <Tabs defaultValue="add" className="w-full">
-              {/* Tab Navigation */}
+              {/* Tab Navigation - only Add & Remove */}
               <div className="border-b border-border/40">
-                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-4">
+                <TabsList className="w-full h-auto p-0 bg-transparent rounded-none grid grid-cols-2">
                   {[
-                    { value: 'add', icon: <Plus className="w-4 h-4" />, label: 'Add' },
-                    { value: 'remove', icon: <Minus className="w-4 h-4" />, label: 'Remove' },
-                    { value: 'wrap', icon: <ArrowDownUp className="w-4 h-4" />, label: 'Wrap' },
-                    { value: 'unwrap', icon: <RotateCcw className="w-4 h-4" />, label: 'Unwrap' },
+                    { value: 'add', icon: <Plus className="w-4 h-4" />, label: 'Add Liquidity' },
+                    { value: 'remove', icon: <Minus className="w-4 h-4" />, label: 'Remove Liquidity' },
                   ].map((tab) => (
                     <TabsTrigger
                       key={tab.value}
                       value={tab.value}
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none py-3 gap-1.5 text-muted-foreground hover:text-foreground transition-all"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none py-3.5 gap-2 text-muted-foreground hover:text-foreground transition-all font-medium"
                     >
                       {tab.icon}
                       {tab.label}
@@ -345,11 +320,14 @@ const Liquidity = () => {
                     </div>
                   )}
 
-                  {/* Token A */}
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Token A</span>
-                      <span className="text-sm text-muted-foreground">Balance: {parseFloat(balanceA).toFixed(4)}</span>
+                  {/* Token A Input */}
+                  <div className="rounded-xl bg-muted/40 border border-border/50 p-4 transition-all hover:border-primary/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Token A</span>
+                      <button onClick={setMaxA} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                        Balance: <span className="font-semibold text-foreground">{parseFloat(balanceA).toFixed(4)}</span>
+                        <span className="ml-1 text-primary font-bold">MAX</span>
+                      </button>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 relative">
@@ -358,7 +336,7 @@ const Liquidity = () => {
                           placeholder="0.0"
                           value={amountA}
                           onChange={(e) => handleAmountAChange(e.target.value)}
-                          className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40"
+                          className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
                         />
                         {isCalculating && activeInput === 'B' && (
                           <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
@@ -369,15 +347,20 @@ const Liquidity = () => {
                   </div>
 
                   {/* Plus divider */}
-                  <div className="flex justify-center">
-                    <span className="text-primary text-lg font-bold">+</span>
+                  <div className="flex justify-center -my-1">
+                    <div className="w-8 h-8 rounded-lg bg-muted/60 border border-border/50 flex items-center justify-center">
+                      <Plus className="w-4 h-4 text-primary" />
+                    </div>
                   </div>
 
-                  {/* Token B */}
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Token B</span>
-                      <span className="text-sm text-muted-foreground">Balance: {parseFloat(balanceB).toFixed(4)}</span>
+                  {/* Token B Input */}
+                  <div className="rounded-xl bg-muted/40 border border-border/50 p-4 transition-all hover:border-primary/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Token B</span>
+                      <button onClick={setMaxB} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                        Balance: <span className="font-semibold text-foreground">{parseFloat(balanceB).toFixed(4)}</span>
+                        <span className="ml-1 text-primary font-bold">MAX</span>
+                      </button>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 relative">
@@ -386,7 +369,7 @@ const Liquidity = () => {
                           placeholder="0.0"
                           value={amountB}
                           onChange={(e) => handleAmountBChange(e.target.value)}
-                          className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40"
+                          className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
                         />
                         {isCalculating && activeInput === 'A' && (
                           <Loader2 className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
@@ -396,47 +379,53 @@ const Liquidity = () => {
                     </div>
                   </div>
 
-                  {/* Pool Info / Reserves */}
-                  <div className="rounded-xl bg-muted/30 border border-border/40 p-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Pool exists</span>
-                      {pairAddress ? (
-                        <CheckCircle2 className="w-4 h-4 text-success" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">New Pool</span>
+                  {/* Pool Info */}
+                  <div className="rounded-xl bg-muted/20 border border-border/30 p-4">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pool Information</h4>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Status</span>
+                        {pairAddress ? (
+                          <span className="flex items-center gap-1.5 text-success text-xs font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Active Pool
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium">New Pool</span>
+                        )}
+                      </div>
+                      {reserveDisplay && (
+                        <>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              {tokenA.logo && <img src={tokenA.logo} alt="" className="w-4 h-4 rounded-full" />}
+                              <span className="text-muted-foreground">{tokenA.symbol}</span>
+                            </div>
+                            <span className="font-semibold text-foreground tabular-nums">{parseFloat(reserveDisplay.reserveA).toFixed(4)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              {tokenB.logo && <img src={tokenB.logo} alt="" className="w-4 h-4 rounded-full" />}
+                              <span className="text-muted-foreground">{tokenB.symbol}</span>
+                            </div>
+                            <span className="font-semibold text-foreground tabular-nums">{parseFloat(reserveDisplay.reserveB).toFixed(4)}</span>
+                          </div>
+                        </>
                       )}
                     </div>
-                    {reserveDisplay && (
-                      <>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {tokenA.logo && <img src={tokenA.logo} alt="" className="w-4 h-4 rounded-full" />}
-                            <span className="text-muted-foreground">{tokenA.symbol} Reserve</span>
-                          </div>
-                          <span className="font-semibold text-foreground">{parseFloat(reserveDisplay.reserveA).toFixed(4)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            {tokenB.logo && <img src={tokenB.logo} alt="" className="w-4 h-4 rounded-full" />}
-                            <span className="text-muted-foreground">{tokenB.symbol} Reserve</span>
-                          </div>
-                          <span className="font-semibold text-foreground">{parseFloat(reserveDisplay.reserveB).toFixed(4)}</span>
-                        </div>
-                      </>
-                    )}
                   </div>
 
                   {/* Approvals */}
                   {isConnected && isCorrectNetwork && (needsApprovalA || needsApprovalB) && (
                     <div className="space-y-2">
                       {needsApprovalA && tokenA.address !== ethers.ZeroAddress && (
-                        <Button className="w-full h-12 rounded-xl" variant="outline" onClick={() => handleApprove(tokenA)} disabled={isLoading}>
+                        <Button className="w-full h-12 rounded-xl font-semibold" variant="outline" onClick={() => handleApprove(tokenA)} disabled={isLoading}>
                           {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                           Approve {tokenA.symbol}
                         </Button>
                       )}
                       {needsApprovalB && tokenB.address !== ethers.ZeroAddress && (
-                        <Button className="w-full h-12 rounded-xl" variant="outline" onClick={() => handleApprove(tokenB)} disabled={isLoading}>
+                        <Button className="w-full h-12 rounded-xl font-semibold" variant="outline" onClick={() => handleApprove(tokenB)} disabled={isLoading}>
                           {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                           Approve {tokenB.symbol}
                         </Button>
@@ -458,32 +447,53 @@ const Liquidity = () => {
 
                 {/* ========== REMOVE TAB ========== */}
                 <TabsContent value="remove" className="space-y-4 mt-0">
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Your LP Balance</span>
-                      <span className="text-sm font-semibold text-foreground">{parseFloat(lpBalance).toFixed(6)}</span>
+                  {/* LP Token Info */}
+                  <div className="rounded-xl bg-muted/40 border border-border/50 p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your LP Tokens</span>
+                      <span className="text-lg font-bold text-foreground tabular-nums">{parseFloat(lpBalance).toFixed(6)}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{tokenA.symbol}/{tokenB.symbol} LP</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-1.5">
+                        {tokenA.logo && <img src={tokenA.logo} alt="" className="w-4 h-4 rounded-full border border-background" />}
+                        {tokenB.logo && <img src={tokenB.logo} alt="" className="w-4 h-4 rounded-full border border-background" />}
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium">{tokenA.symbol}/{tokenB.symbol} LP</span>
+                    </div>
                   </div>
 
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Amount to remove</span>
-                      <button onClick={() => setRemoveAmount(lpBalance)} className="text-xs text-primary font-semibold hover:text-primary/80">MAX</button>
+                  {/* Token pair selector */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <span className="text-xs text-muted-foreground mb-1 block">Token A</span>
+                      <TokenSelector selectedToken={tokenA} onSelect={setTokenA} excludeToken={tokenB} />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-xs text-muted-foreground mb-1 block">Token B</span>
+                      <TokenSelector selectedToken={tokenB} onSelect={setTokenB} excludeToken={tokenA} />
+                    </div>
+                  </div>
+
+                  {/* Remove Amount Input */}
+                  <div className="rounded-xl bg-muted/40 border border-border/50 p-4 transition-all hover:border-primary/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Amount to Remove</span>
+                      <button onClick={() => setRemoveAmount(lpBalance)} className="text-xs text-primary font-bold hover:text-primary/80 transition-colors">MAX</button>
                     </div>
                     <Input
                       type="number" placeholder="0.0" value={removeAmount}
                       onChange={(e) => setRemoveAmount(e.target.value)}
-                      className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40"
+                      className="border-0 bg-transparent text-2xl font-bold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30"
                     />
                   </div>
 
+                  {/* Percentage shortcuts */}
                   <div className="grid grid-cols-4 gap-2">
                     {[25, 50, 75, 100].map((pct) => (
                       <button
                         key={pct}
                         onClick={() => setRemoveAmount((parseFloat(lpBalance) * pct / 100).toString())}
-                        className="py-2.5 rounded-xl bg-muted/50 hover:bg-primary/10 border border-border/50 hover:border-primary/30 text-sm font-semibold text-foreground transition-all"
+                        className="py-2.5 rounded-xl bg-muted/40 hover:bg-primary/10 border border-border/50 hover:border-primary/30 text-sm font-bold text-foreground transition-all active:scale-95"
                       >
                         {pct}%
                       </button>
@@ -493,12 +503,12 @@ const Liquidity = () => {
                   {pairAddress === null && (
                     <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-sm text-destructive">
                       <AlertTriangle className="w-4 h-4 shrink-0" />
-                      Pair does not exist
+                      Pair does not exist for this token pair
                     </div>
                   )}
 
                   {needsLPApproval && (
-                    <Button className="w-full h-12 rounded-xl" variant="outline" onClick={handleApproveLp} disabled={isLoading}>
+                    <Button className="w-full h-12 rounded-xl font-semibold" variant="outline" onClick={handleApproveLp} disabled={isLoading}>
                       {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                       Approve LP Tokens
                     </Button>
@@ -514,84 +524,6 @@ const Liquidity = () => {
                     ) : 'Remove Liquidity'}
                   </Button>
                 </TabsContent>
-
-                {/* ========== WRAP TAB ========== */}
-                <TabsContent value="wrap" className="space-y-4 mt-0">
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">PC Balance</span>
-                      <span className="text-sm font-semibold text-foreground">{parseFloat(pcBalance).toFixed(6)} PC</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="number" placeholder="0.0" value={wrapAmount}
-                        onChange={(e) => setWrapAmount(e.target.value)}
-                        className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40"
-                      />
-                      <button onClick={() => setWrapAmount(pcBalance)} className="text-sm text-primary font-semibold hover:text-primary/80">MAX</button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownUp className="w-5 h-5 text-muted-foreground" />
-                  </div>
-
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">You will receive</span>
-                      <span className="text-sm font-semibold text-foreground">{wrapAmount || '0'} WPC</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full h-14 text-base font-bold rounded-xl bg-gradient-pink hover:opacity-90 transition-all shadow-lg shadow-primary/20"
-                    disabled={!isConnected || !isCorrectNetwork || !wrapAmount || parseFloat(wrapAmount) === 0 || isWrapping}
-                    onClick={handleWrap}
-                  >
-                    {isWrapping ? (
-                      <span className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" />Wrapping...</span>
-                    ) : 'Wrap PC → WPC'}
-                  </Button>
-                </TabsContent>
-
-                {/* ========== UNWRAP TAB ========== */}
-                <TabsContent value="unwrap" className="space-y-4 mt-0">
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">WPC Balance</span>
-                      <span className="text-sm font-semibold text-foreground">{parseFloat(wpcBalance).toFixed(6)} WPC</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="number" placeholder="0.0" value={unwrapAmount}
-                        onChange={(e) => setUnwrapAmount(e.target.value)}
-                        className="border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/40"
-                      />
-                      <button onClick={() => setUnwrapAmount(wpcBalance)} className="text-sm text-primary font-semibold hover:text-primary/80">MAX</button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownUp className="w-5 h-5 text-muted-foreground" />
-                  </div>
-
-                  <div className="rounded-xl bg-muted/50 border border-border/50 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">You will receive</span>
-                      <span className="text-sm font-semibold text-foreground">{unwrapAmount || '0'} PC</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full h-14 text-base font-bold rounded-xl bg-gradient-pink hover:opacity-90 transition-all shadow-lg shadow-primary/20"
-                    disabled={!isConnected || !isCorrectNetwork || !unwrapAmount || parseFloat(unwrapAmount) === 0 || isUnwrapping}
-                    onClick={handleUnwrap}
-                  >
-                    {isUnwrapping ? (
-                      <span className="flex items-center gap-2"><Loader2 className="w-5 h-5 animate-spin" />Unwrapping...</span>
-                    ) : 'Unwrap WPC → PC'}
-                  </Button>
-                </TabsContent>
               </div>
             </Tabs>
           </div>
@@ -604,7 +536,7 @@ const Liquidity = () => {
               onSlippageChange={setSlippage}
               onDeadlineChange={setDeadline}
             />
-            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
+            <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground" onClick={() => { fetchPairInfo(); fetchBalances(); }}>
               <RefreshCw className="w-4 h-4" /> Refresh
             </Button>
           </div>
