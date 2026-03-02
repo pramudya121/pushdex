@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/Header';
+import { Footer } from '@/components/Footer';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -350,6 +351,7 @@ export default function HistoryPage() {
           </Card>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

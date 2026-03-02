@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { WrapUnwrap } from '@/components/WrapUnwrap';
+
 import { PortfolioChart } from '@/components/PortfolioChart';
 import { PortfolioValueChart } from '@/components/PortfolioValueChart';
 import { TransactionHistory } from '@/components/TransactionHistory';
@@ -922,8 +922,8 @@ const Portfolio = () => {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="flex -space-x-2">
-                                  <img src={pos.token0Logo} className="w-8 h-8 rounded-full border-2 border-background" />
-                                  <img src={pos.token1Logo} className="w-8 h-8 rounded-full border-2 border-background" />
+                                   <img src={pos.token0Logo} alt="" className="w-8 h-8 rounded-full border-2 border-background" />
+                                   <img src={pos.token1Logo} alt="" className="w-8 h-8 rounded-full border-2 border-background" />
                                 </div>
                                 <div>
                                   <div className="font-semibold">{pos.lpSymbol}</div>
@@ -944,8 +944,6 @@ const Portfolio = () => {
 
                 {/* Sidebar */}
                 <div className="space-y-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-                  <WrapUnwrap />
-                  
                   {/* Quick Actions */}
                   <div className="glass-card p-6">
                     <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
