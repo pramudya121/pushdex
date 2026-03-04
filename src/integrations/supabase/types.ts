@@ -14,7 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      airdrop_completions: {
+        Row: {
+          completed_at: string
+          id: string
+          task_id: string
+          tx_hash: string | null
+          wallet_address: string
+        }
+        Insert: {
+          completed_at?: string
+          id?: string
+          task_id: string
+          tx_hash?: string | null
+          wallet_address: string
+        }
+        Update: {
+          completed_at?: string
+          id?: string
+          task_id?: string
+          tx_hash?: string | null
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "airdrop_completions_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "airdrop_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      airdrop_tasks: {
+        Row: {
+          action: string
+          active: boolean
+          created_at: string
+          description: string
+          id: string
+          link: string | null
+          points: number
+          title: string
+          type: string
+        }
+        Insert: {
+          action: string
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          link?: string | null
+          points?: number
+          title: string
+          type: string
+        }
+        Update: {
+          action?: string
+          active?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          link?: string | null
+          points?: number
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
