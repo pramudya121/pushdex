@@ -28,6 +28,7 @@ const Docs = lazy(() => import("./pages/Docs"));
 const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Airdrop = lazy(() => import("./pages/Airdrop"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -82,6 +83,7 @@ const AnimatedRoutes = () => {
         <Route path="/pushchain-docs" element={<PageTransition><PushChainDocs /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
+        <Route path="/airdrop" element={<PageTransition><Airdrop /></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>

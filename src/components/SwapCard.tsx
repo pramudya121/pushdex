@@ -487,8 +487,8 @@ export const SwapCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Smart Route Display */}
-      {amountIn && parseFloat(amountIn) > 0 && (bestRoute || isSearching) && (
+      {/* Smart Route Display - Hidden during wrap/unwrap */}
+      {!isWrapUnwrap && amountIn && parseFloat(amountIn) > 0 && (bestRoute || isSearching) && (
         <div className="mt-4 animate-fade-in">
           {isSearching ? (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-surface/80 border border-border">
@@ -535,8 +535,8 @@ export const SwapCard: React.FC = () => {
         </div>
       )}
 
-      {/* MEV Protection & Gas Estimation */}
-      {amountIn && parseFloat(amountIn) > 0 && (
+      {/* MEV Protection & Gas Estimation - Hidden during wrap/unwrap */}
+      {!isWrapUnwrap && amountIn && parseFloat(amountIn) > 0 && (
         <div className="mt-4 space-y-3 animate-fade-in">
           {/* Slippage Protection Badge */}
           {(slippageAnalysis || isAnalyzing) && (
@@ -581,8 +581,8 @@ export const SwapCard: React.FC = () => {
         </div>
       )}
 
-      {/* Price Info */}
-      {amountIn && amountOut && !error && (
+      {/* Price Info - Hidden during wrap/unwrap */}
+      {!isWrapUnwrap && amountIn && amountOut && !error && (
         <div className="mt-4 space-y-2 animate-fade-in">
           {/* High Price Impact Warning */}
           {(bestRoute?.priceImpact || priceImpact) > 5 && (

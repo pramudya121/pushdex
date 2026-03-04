@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { useWallet } from '@/contexts/WalletContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Shield, 
   Plus, 
@@ -27,7 +29,9 @@ import {
   DollarSign,
   ArrowUpFromLine,
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  Gift,
+  Trash2
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { CONTRACTS, TOKEN_LIST, BLOCK_EXPLORER, RPC_URL } from '@/config/contracts';
@@ -73,6 +77,173 @@ interface FarmingContractInfo {
 }
 
 const getProvider = () => new ethers.JsonRpcProvider(RPC_URL);
+
+// Airdrop Admin Component
+const AirdropAdmin: React.FC = () => {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [newType, setNewType] = useState<'onchain' | 'social'>('social');
+  const [newAction, setNewAction] = useState('social');
+  const [newPoints, setNewPoints] = useState('1');
+  const [newLink, setNewLink] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('airdrop_tasks').select('*').order('created_at', { ascending: false });
+    setTasks(data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchTasks(); }, []);
+
+  const handleAddTask = async () => {
+    if (!newTitle.trim()) { toast.error('Title is required'); return; }
+    setIsAdding(true);
+    try {
+      const { error } = await supabase.from('airdrop_tasks').insert({
+        title: newTitle,
+        description: newDesc,
+        type: newType,
+        action: newAction,
+        points: parseInt(newPoints) || (newType === 'onchain' ? 2 : 1),
+        link: newLink || null,
+        active: true,
+      });
+      if (error) throw error;
+      toast.success('Task added!');
+      setNewTitle(''); setNewDesc(''); setNewLink('');
+      fetchTasks();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add task');
+    } finally { setIsAdding(false); }
+  };
+
+  const handleToggleActive = async (id: string, active: boolean) => {
+    await supabase.from('airdrop_tasks').update({ active: !active }).eq('id', id);
+    fetchTasks();
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    if (!confirm('Delete this task? This will also remove all completions.')) return;
+    await supabase.from('airdrop_tasks').delete().eq('id', id);
+    toast.success('Task deleted');
+    fetchTasks();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Add Task Form */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Plus className="w-5 h-5" />
+            Add Airdrop Task
+          </CardTitle>
+          <CardDescription>Create on-chain (2 pts) or social (1 pt) tasks</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Task Type</Label>
+              <Select value={newType} onValueChange={(v) => {
+                setNewType(v as 'onchain' | 'social');
+                if (v === 'social') { setNewAction('social'); setNewPoints('1'); }
+                else { setNewAction('swap'); setNewPoints('2'); }
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="onchain">On-Chain (2 pts)</SelectItem>
+                  <SelectItem value="social">Social (1 pt)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {newType === 'onchain' && (
+              <div className="space-y-2">
+                <Label>Action</Label>
+                <Select value={newAction} onValueChange={setNewAction}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="swap">Swap</SelectItem>
+                    <SelectItem value="add_liquidity">Add Liquidity</SelectItem>
+                    <SelectItem value="remove_liquidity">Remove Liquidity</SelectItem>
+                    <SelectItem value="farming">Farming</SelectItem>
+                    <SelectItem value="staking">Staking</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Title</Label>
+            <Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. Follow us on Twitter" />
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Describe the task..." rows={2} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Points</Label>
+              <Input type="number" value={newPoints} onChange={e => setNewPoints(e.target.value)} min="1" />
+            </div>
+            {newType === 'social' && (
+              <div className="space-y-2">
+                <Label>Link (optional)</Label>
+                <Input value={newLink} onChange={e => setNewLink(e.target.value)} placeholder="https://twitter.com/..." />
+              </div>
+            )}
+          </div>
+          <Button onClick={handleAddTask} disabled={isAdding} className="w-full">
+            {isAdding ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Adding...</> : <><Plus className="w-4 h-4 mr-2" /> Add Task</>}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Existing Tasks */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="w-5 h-5" />
+            All Tasks ({tasks.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+          ) : tasks.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No tasks yet</div>
+          ) : (
+            <div className="space-y-3">
+              {tasks.map(task => (
+                <div key={task.id} className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${task.active ? 'bg-surface/40 border-border' : 'bg-muted/20 border-border/30 opacity-60'}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{task.title}</span>
+                      <Badge variant="outline" className={task.type === 'onchain' ? 'text-primary border-primary/30' : 'text-accent border-accent/30'}>
+                        {task.type} · {task.points}pt
+                      </Badge>
+                      {!task.active && <Badge variant="secondary">Disabled</Badge>}
+                    </div>
+                    {task.description && <p className="text-sm text-muted-foreground mt-1">{task.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={task.active} onCheckedChange={() => handleToggleActive(task.id, task.active)} />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteTask(task.id)} className="text-destructive hover:text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 const Admin: React.FC = () => {
   const { signer, address, isConnected } = useWallet();
@@ -840,7 +1011,7 @@ const Admin: React.FC = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="staking" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg mx-auto grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4">
             <TabsTrigger value="staking" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Coins className="w-4 h-4 mr-2" />
               Staking
@@ -852,6 +1023,10 @@ const Admin: React.FC = () => {
             <TabsTrigger value="funding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <DollarSign className="w-4 h-4 mr-2" />
               Funding
+            </TabsTrigger>
+            <TabsTrigger value="airdrop" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Gift className="w-4 h-4 mr-2" />
+              Airdrop
             </TabsTrigger>
           </TabsList>
 
@@ -1607,6 +1782,11 @@ const Admin: React.FC = () => {
                 </Card>
               </div>
             )}
+          </TabsContent>
+
+          {/* Airdrop Tab */}
+          <TabsContent value="airdrop" className="space-y-6 animate-fade-in">
+            <AirdropAdmin />
           </TabsContent>
         </Tabs>
       </main>
