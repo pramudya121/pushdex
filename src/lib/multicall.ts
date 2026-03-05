@@ -92,7 +92,7 @@ export const getMultipleBalances = async (
         }
       }
     } catch (error) {
-      console.error('Multicall failed, falling back to individual calls:', error);
+      // Multicall failed, falling back to individual calls
       // Fallback to individual calls
       for (const tokenAddress of tokenAddresses) {
         if (tokenAddress !== ethers.ZeroAddress) {
@@ -101,7 +101,7 @@ export const getMultipleBalances = async (
             const balance = await contract.balanceOf(userAddress);
             balances.set(tokenAddress.toLowerCase(), balance);
           } catch (err) {
-            console.error(`Failed to get balance for ${tokenAddress}:`, err);
+            // Silently handle individual balance fetch failure
             balances.set(tokenAddress.toLowerCase(), 0n);
           }
         }
@@ -143,7 +143,7 @@ export const getMultiplePairReserves = async (
       });
     }
   } catch (error) {
-    console.error('Multicall getReserves failed:', error);
+    // Silently handle multicall getReserves failure
   }
   
   return reserves;
@@ -158,7 +158,7 @@ export const getEthBalanceMulticall = async (address: string): Promise<bigint> =
     const balance = await multicallContract.getEthBalance(address);
     return balance;
   } catch (error) {
-    console.error('getEthBalance failed:', error);
+    // Silently handle ETH balance fetch failure
     return 0n;
   }
 };
@@ -217,7 +217,7 @@ export const getMultipleTokenInfo = async (
       }
     }
   } catch (error) {
-    console.error('Multicall token info failed:', error);
+    // Silently handle multicall token info failure
   }
   
   return tokenInfo;

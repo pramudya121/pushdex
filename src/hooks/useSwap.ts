@@ -72,7 +72,7 @@ export const useSwap = () => {
         balanceOut: formatAmount(balOut, state.tokenOut.decimals),
       }));
     } catch (error) {
-      console.error('Error fetching balances:', error);
+      // Silently handle balance fetch failure
     }
   }, [address, state.tokenIn, state.tokenOut]);
 
@@ -97,7 +97,7 @@ export const useSwap = () => {
       
       setState(prev => ({ ...prev, needsApproval: allowance < amountInWei }));
     } catch (error) {
-      console.error('Error checking approval:', error);
+      // Silently handle approval check failure
     }
   }, [address, state.amountIn, state.tokenIn]);
 
@@ -146,7 +146,7 @@ export const useSwap = () => {
         }));
       }
     } catch (error: any) {
-      console.error('Error getting quote:', error);
+      // Silently handle quote failure
       setState(prev => ({ 
         ...prev, 
         amountOut: '', 
