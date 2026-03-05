@@ -402,45 +402,37 @@ const Portfolio = () => {
       const stakingContract = new ethers.Contract(CONTRACTS.STAKING, STAKING_ABI, signer);
       const farmingContract = new ethers.Contract(CONTRACTS.FARMING, FARMING_ABI, signer);
       
-      const txPromises: Promise<any>[] = [];
+      let successCount = 0;
       
-      // Claim staking rewards (using unstake with 0 or claimReward if available)
-      for (const pos of stakingPositions) {
+      // Harvest farming rewards (deposit 0 to claim) - one by one with gas limit
+      for (const pos of farmingPositions) {
         if (parseFloat(pos.pendingReward) > 0) {
           try {
-            // Try claimReward first
-            const tx = stakingContract.claimReward(pos.poolId);
-            txPromises.push(tx);
-          } catch {
-            // If claimReward doesn't exist, we can't harvest without unstaking
-            console.log(`Staking pool ${pos.poolId} requires unstake to claim rewards`);
+            const tx = await farmingContract.deposit(pos.pid, 0, { gasLimit: 300000n });
+            await tx.wait();
+            successCount++;
+          } catch (err) {
+            // Skip failed pools silently
           }
         }
       }
       
-      // Harvest farming rewards (deposit 0 to claim)
-      for (const pos of farmingPositions) {
-        if (parseFloat(pos.pendingReward) > 0) {
-          const tx = farmingContract.deposit(pos.pid, 0);
-          txPromises.push(tx);
-        }
-      }
+      // Staking rewards require unstake - skip to avoid losing stake
+      // Just inform user if they have staking rewards
+      const hasStakingRewards = stakingPositions.some(p => parseFloat(p.pendingReward) > 0);
       
-      if (txPromises.length === 0) {
+      if (successCount === 0 && !hasStakingRewards) {
         toast.dismiss(toastId);
         toast.info('No pending rewards to harvest');
         setIsHarvesting(false);
         return;
       }
       
-      // Wait for all transactions to be sent
-      const txs = await Promise.all(txPromises);
-      
-      // Wait for all transactions to be confirmed
-      await Promise.all(txs.map(tx => tx.wait()));
-      
       toast.dismiss(toastId);
-      toast.success(`Successfully harvested rewards from ${txs.length} pools!`);
+      const msgs: string[] = [];
+      if (successCount > 0) msgs.push(`${successCount} farming pool(s)`);
+      if (hasStakingRewards) msgs.push('Staking rewards require unstaking to claim');
+      toast.success(msgs.join('. ') || 'Rewards harvested!');
       
       // Refresh portfolio data
       fetchPortfolio();
