@@ -139,7 +139,7 @@ export const useRealtimePrices = (refreshInterval: number = 10000) => {
             lastUpdate: Date.now(),
           };
         } catch (error) {
-          console.error(`Error fetching pair ${pairAddress}:`, error);
+          // Silently skip failed pairs
           return null;
         }
       });
@@ -155,7 +155,7 @@ export const useRealtimePrices = (refreshInterval: number = 10000) => {
       }
       
     } catch (error) {
-      console.error('Error fetching pool data:', error);
+      // Silently handle pool data fetch failure
       if (mountedRef.current) {
         setIsConnected(false);
         setIsLoading(false);

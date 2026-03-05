@@ -128,7 +128,7 @@ export const useWebSocket = (refreshInterval: number = 5000) => {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('WebSocket price fetch error:', error);
+      // Silently handle price fetch failure
       if (mountedRef.current) {
         setState(prev => ({ ...prev, isConnected: false }));
         setIsLoading(false);

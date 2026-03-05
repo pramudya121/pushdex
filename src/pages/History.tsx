@@ -159,7 +159,7 @@ export default function HistoryPage() {
             });
           }
         } catch (err) {
-          console.error('Error fetching events for pair:', pairAddress, err);
+          console.warn('Skipping pair:', pairAddress);
         }
       }
 
@@ -167,7 +167,7 @@ export default function HistoryPage() {
       txList.sort((a, b) => b.timestamp - a.timestamp);
       setTransactions(txList);
     } catch (error) {
-      console.error('Error fetching transaction history:', error);
+      // Silently handle transaction history fetch failure
     } finally {
       setLoading(false);
     }

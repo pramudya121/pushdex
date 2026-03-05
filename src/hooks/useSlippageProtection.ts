@@ -104,7 +104,7 @@ export const useSlippageProtection = () => {
         warnings,
       };
     } catch (error) {
-      console.error('Error analyzing slippage risk:', error);
+      // Silently handle slippage analysis failure
       return {
         isHighRisk: false,
         riskLevel: 'low',

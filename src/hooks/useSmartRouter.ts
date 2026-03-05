@@ -223,7 +223,7 @@ export const useSmartRouter = () => {
         setBestRoute(routes[0]);
       }
     } catch (error) {
-      console.error('Error finding routes:', error);
+      // Silently handle route finding failure
     } finally {
       setIsSearching(false);
     }

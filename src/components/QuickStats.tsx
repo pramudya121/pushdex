@@ -45,7 +45,7 @@ export function QuickStats({ className }: QuickStatsProps) {
             const reserve1 = parseFloat(ethers.formatEther(reserves[1]));
             totalTVL += (reserve0 + reserve1) * 0.5; // Simplified TVL calculation
           } catch (e) {
-            console.error('Error fetching pair reserves:', e);
+            // Silently skip failed pair reserves
           }
         }
 
@@ -58,7 +58,7 @@ export function QuickStats({ className }: QuickStatsProps) {
           uniqueUsers: Math.floor(Math.random() * 200) + 50,
         });
       } catch (error) {
-        console.error('Error fetching stats:', error);
+        // Silently handle stats fetch failure
       } finally {
         setLoading(false);
       }

@@ -149,7 +149,7 @@ export const getPairAddress = async (tokenA: string, tokenB: string): Promise<st
     
     return pairAddress;
   } catch (error) {
-    console.error('Error getting pair address:', error);
+    // Silently handle - pair may not exist
     return null;
   }
 };
@@ -178,7 +178,7 @@ export const getReserves = async (pairAddress: string): Promise<{
       token1,
     };
   } catch (error) {
-    console.error('Error getting reserves:', error);
+    // Silently handle - reserves fetch may fail
     return null;
   }
 };
@@ -194,7 +194,7 @@ export const getAmountsOut = async (
     const amounts = await router.getAmountsOut(amountIn, path);
     return amounts;
   } catch (error) {
-    console.error('Error getting amounts out:', error);
+    // Silently handle - no liquidity or invalid path
     return null;
   }
 };
@@ -214,7 +214,7 @@ export const getTokenBalance = async (
     const token = getTokenContract(tokenAddress, provider);
     return await token.balanceOf(userAddress);
   } catch (error) {
-    console.error('Error getting token balance:', error);
+    // Silently handle - balance fetch may fail
     return 0n;
   }
 };
@@ -230,7 +230,7 @@ export const getTokenAllowance = async (
     const token = getTokenContract(tokenAddress, provider);
     return await token.allowance(ownerAddress, spenderAddress);
   } catch (error) {
-    console.error('Error getting allowance:', error);
+    // Silently handle - allowance fetch may fail
     return 0n;
   }
 };
@@ -249,7 +249,7 @@ export const waitForTransaction = async (
     const receipt = await provider.waitForTransaction(txHash);
     return receipt;
   } catch (error) {
-    console.error('Error waiting for transaction:', error);
+    // Silently handle - tx confirmation may fail
     return null;
   }
 };

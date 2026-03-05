@@ -70,7 +70,7 @@ export const FarmingCountdown: React.FC<FarmingCountdownProps> = ({ startBlock, 
         
         setIsLoading(false);
       } catch (error) {
-        console.error('Error fetching block info:', error);
+        // Silently handle block info fetch failure
         setIsLoading(false);
       }
     };
