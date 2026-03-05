@@ -319,38 +319,38 @@ const Analytics = memo(() => {
       <WaveBackground />
       <Header />
       
-      <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
+        <main className="relative z-10 pt-28 sm:pt-24 pb-28 sm:pb-20 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-10 animate-fade-in">
+          <div className="text-center mb-8 sm:mb-10 animate-fade-in">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
               <PulseDot color="success" />
               <span className="text-sm text-primary font-medium">Live Analytics</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-3">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3">
               <span className="gradient-text">Protocol Analytics</span>
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-muted-foreground text-sm sm:text-lg">
               Real-time statistics and insights for PUSHDEX
             </p>
           </div>
 
           {/* Action Bar */}
-          <div className="flex items-center justify-between mb-8 animate-fade-in">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 sm:mb-8 animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Updated: {lastUpdate.toLocaleTimeString()}</span>
               </div>
               {data && (
                 <>
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-sm">
-                    <Layers className="w-4 h-4 text-primary" />
-                    <span>{data.farmingPools} Farming Pools</span>
+                  <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full bg-primary/10 text-xs sm:text-sm">
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    <span>{data.farmingPools} Farming</span>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-sm">
-                    <Coins className="w-4 h-4 text-accent" />
-                    <span>{data.stakingPools} Staking Pools</span>
+                  <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full bg-accent/10 text-xs sm:text-sm">
+                    <Coins className="w-3.5 h-3.5 text-accent" />
+                    <span>{data.stakingPools} Staking</span>
                   </div>
                 </>
               )}
