@@ -3,6 +3,7 @@ import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useGasEstimation } from '@/hooks/useGasEstimation';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { useSlippageProtection, SlippageAnalysis } from '@/hooks/useSlippageProtection';
 import { TokenSelector } from '@/components/TokenSelector';
 import { ImportToken } from '@/components/ImportToken';
