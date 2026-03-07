@@ -46,6 +46,33 @@ export type Database = {
           },
         ]
       }
+      airdrop_referrals: {
+        Row: {
+          bonus_points: number
+          created_at: string
+          id: string
+          referral_code: string
+          referred_wallet: string
+          referrer_wallet: string
+        }
+        Insert: {
+          bonus_points?: number
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_wallet: string
+          referrer_wallet: string
+        }
+        Update: {
+          bonus_points?: number
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_wallet?: string
+          referrer_wallet?: string
+        }
+        Relationships: []
+      }
       airdrop_tasks: {
         Row: {
           action: string
