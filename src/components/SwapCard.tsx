@@ -258,13 +258,15 @@ export const SwapCard: React.FC = () => {
       setTxStatus('pending');
       await swap();
       setTxStatus('success');
-      // Note: txHash would ideally come from the swap function
-      // For now we show success without hash
+      // Mark swap as verified for airdrop
+      if (address) {
+        markActionVerified(address, 'swap');
+      }
     } catch (err: any) {
       setTxStatus('error');
       setTxError(err.reason || err.message || 'Transaction failed');
     }
-  }, [swap]);
+  }, [swap, address]);
 
   const handleCancelSwap = useCallback(() => {
     setShowConfirmModal(false);
