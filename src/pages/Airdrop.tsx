@@ -16,6 +16,7 @@ import { AirdropProgressCountdown } from '@/components/airdrop/AirdropProgressCo
 import { AirdropReferral } from '@/components/airdrop/AirdropReferral';
 import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
+import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
 
 interface AirdropTask {
   id: string;
@@ -51,23 +52,29 @@ const Airdrop: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [tab, setTab] = useState('quests');
+  const [twitterConnected, setTwitterState] = useState(false);
+  const [, forceUpdate] = useState(0);
 
-  // Track visited tasks in localStorage
-  const [visitedTasks, setVisitedTasks] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem('airdrop_visited_tasks');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch { return new Set(); }
-  });
+  // Check twitter connection status
+  useEffect(() => {
+    if (address) {
+      setTwitterState(isTwitterConnected(address));
+    }
+  }, [address]);
 
-  const markVisited = (taskId: string) => {
-    setVisitedTasks(prev => {
-      const next = new Set(prev);
-      next.add(taskId);
-      localStorage.setItem('airdrop_visited_tasks', JSON.stringify([...next]));
-      return next;
-    });
-  };
+  // Listen for verified action events to re-render
+  useEffect(() => {
+    const handleVerified = () => forceUpdate(n => n + 1);
+    const handleTwitter = () => {
+      if (address) setTwitterState(isTwitterConnected(address));
+    };
+    window.addEventListener('airdrop-action-verified', handleVerified);
+    window.addEventListener('airdrop-twitter-connected', handleTwitter);
+    return () => {
+      window.removeEventListener('airdrop-action-verified', handleVerified);
+      window.removeEventListener('airdrop-twitter-connected', handleTwitter);
+    };
+  }, [address]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -148,6 +155,20 @@ const Airdrop: React.FC = () => {
     }
   };
 
+  const handleConnectTwitter = () => {
+    if (!address) {
+      toast.error('Connect your wallet first');
+      return;
+    }
+    // Open Twitter follow page, then mark as connected
+    const twitterUrl = 'https://x.com/pushdex';
+    const popup = window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+    // Mark connected after opening (user confirms by clicking Connect X)
+    setTwitterConnected(address);
+    setTwitterState(true);
+    toast.success('X/Twitter connected! You can now claim social tasks 🐦');
+  };
+
   const myPoints = address
     ? leaderboard.find(e => e.wallet_address === address.toLowerCase())?.total_points || 0
     : 0;
@@ -186,13 +207,8 @@ const Airdrop: React.FC = () => {
 
         {isConnected && (
           <>
-            {/* Stats */}
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
-
-            {/* Progress & Countdown */}
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
-
-            {/* Referral */}
             <AirdropReferral walletAddress={address} isConnected={isConnected} />
           </>
         )}
@@ -229,10 +245,11 @@ const Airdrop: React.FC = () => {
                       task={task}
                       index={i}
                       completed={isTaskCompleted(task.id)}
-                      visited={visitedTasks.has(task.id)}
                       claiming={claiming === task.id}
+                      walletAddress={address}
+                      twitterConnected={twitterConnected}
                       onClaim={handleClaimTask}
-                      onVisit={markVisited}
+                      onConnectTwitter={handleConnectTwitter}
                     />
                   ))}
                 </div>
@@ -258,10 +275,11 @@ const Airdrop: React.FC = () => {
                       task={task}
                       index={i}
                       completed={isTaskCompleted(task.id)}
-                      visited={visitedTasks.has(task.id)}
                       claiming={claiming === task.id}
+                      walletAddress={address}
+                      twitterConnected={twitterConnected}
                       onClaim={handleClaimTask}
-                      onVisit={markVisited}
+                      onConnectTwitter={handleConnectTwitter}
                     />
                   ))}
                 </div>

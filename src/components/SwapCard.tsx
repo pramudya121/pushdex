@@ -3,6 +3,7 @@ import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
 import { useGasEstimation } from '@/hooks/useGasEstimation';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { useSlippageProtection, SlippageAnalysis } from '@/hooks/useSlippageProtection';
 import { TokenSelector } from '@/components/TokenSelector';
 import { ImportToken } from '@/components/ImportToken';
@@ -60,7 +61,7 @@ export const SwapCard: React.FC = () => {
     isCorrectNetwork,
   } = useSwap();
 
-  const { switchNetwork } = useWallet();
+  const { switchNetwork, address } = useWallet();
   const { wrap, unwrap, isWrapping, isUnwrapping } = useWETH();
   const { bestRoute, allRoutes, isSearching, findBestRoute } = useSmartRouter();
 
@@ -257,13 +258,15 @@ export const SwapCard: React.FC = () => {
       setTxStatus('pending');
       await swap();
       setTxStatus('success');
-      // Note: txHash would ideally come from the swap function
-      // For now we show success without hash
+      // Mark swap as verified for airdrop
+      if (address) {
+        markActionVerified(address, 'swap');
+      }
     } catch (err: any) {
       setTxStatus('error');
       setTxError(err.reason || err.message || 'Transaction failed');
     }
-  }, [swap]);
+  }, [swap, address]);
 
   const handleCancelSwap = useCallback(() => {
     setShowConfirmModal(false);
