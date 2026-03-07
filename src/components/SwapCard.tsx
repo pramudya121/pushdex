@@ -61,7 +61,7 @@ export const SwapCard: React.FC = () => {
     isCorrectNetwork,
   } = useSwap();
 
-  const { switchNetwork } = useWallet();
+  const { switchNetwork, address } = useWallet();
   const { wrap, unwrap, isWrapping, isUnwrapping } = useWETH();
   const { bestRoute, allRoutes, isSearching, findBestRoute } = useSmartRouter();
 
