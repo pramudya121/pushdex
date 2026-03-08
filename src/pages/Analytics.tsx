@@ -308,11 +308,17 @@ const Analytics = memo(() => {
     },
   ];
 
-  const topTokens = TOKEN_LIST.filter(t => t.symbol !== 'PC').slice(0, 4).map((token, i) => ({
-    ...token,
-    volume: Math.random() * 50000 + 10000,
-    change: (Math.random() - 0.3) * 20,
-  }));
+  const topTokens = useMemo(() => {
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed * 9301 + 49297) * 10000;
+      return x - Math.floor(x);
+    };
+    return TOKEN_LIST.filter(t => t.symbol !== 'PC').slice(0, 4).map((token, i) => ({
+      ...token,
+      volume: seededRandom(i * 7 + 1) * 50000 + 10000,
+      change: (seededRandom(i * 7 + 2) - 0.3) * 20,
+    }));
+  }, []);
 
   return (
     <div className="min-h-screen relative">
@@ -490,7 +496,7 @@ const Analytics = memo(() => {
                 </Tabs>
               </div>
 
-              {/* Top Tokens & Pools */}
+              {/* Top Tokens, TVL Distribution & Pools */}
               <div className="grid lg:grid-cols-3 gap-6 mb-8">
                 {/* Top Tokens */}
                 <div className="glass-card p-6 animate-fade-in">
@@ -541,11 +547,12 @@ const Analytics = memo(() => {
                             <th className="pb-3 font-medium">Pool</th>
                             <th className="pb-3 font-medium text-right">TVL</th>
                             <th className="pb-3 font-medium text-right">Volume 24h</th>
+                            <th className="pb-3 font-medium text-right">Fees 24h</th>
                             <th className="pb-3 font-medium text-right">APR</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {data?.pools.slice(0, 5).map((pool, index) => (
+                          {data?.pools.slice(0, 8).map((pool, index) => (
                             <tr key={pool.address} className="border-b border-border/50 hover:bg-surface/50 transition-colors">
                               <td className="py-4 text-muted-foreground font-mono">{index + 1}</td>
                               <td className="py-4">
@@ -559,6 +566,7 @@ const Analytics = memo(() => {
                               </td>
                               <td className="py-4 text-right font-medium">${pool.tvl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                               <td className="py-4 text-right">${pool.volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                              <td className="py-4 text-right text-muted-foreground">${pool.fees24h.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
                               <td className="py-4 text-right">
                                 <span className="text-success font-medium">{pool.apr.toFixed(2)}%</span>
                               </td>
@@ -571,28 +579,92 @@ const Analytics = memo(() => {
                 </div>
               </div>
 
-              {/* Protocol Stats */}
-              <div className="grid md:grid-cols-3 gap-6 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              {/* TVL Distribution + Protocol Stats */}
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 animate-fade-in" style={{ animationDelay: '0.25s' }}>
+                {/* TVL Distribution Pie Chart */}
+                <div className="md:col-span-2 glass-card p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-bold">TVL Distribution</h3>
+                  </div>
+                  {data?.pools && data.pools.length > 0 ? (
+                    <div className="flex items-center gap-6">
+                      <div className="w-48 h-48 flex-shrink-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={data.pools.slice(0, 4).map((p, i) => ({
+                                name: p.name,
+                                value: Math.round(p.tvl),
+                              }))}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={75}
+                              paddingAngle={3}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {data.pools.slice(0, 4).map((_, i) => (
+                                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'hsl(240, 10%, 8%)',
+                                border: '1px solid hsl(240, 10%, 18%)',
+                                borderRadius: '12px',
+                              }}
+                              formatter={(value: number) => [`$${value.toLocaleString()}`, 'TVL']}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex-1 space-y-3">
+                        {data.pools.slice(0, 4).map((pool, i) => (
+                          <div key={pool.address} className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                              <span className="text-sm font-medium">{pool.name}</span>
+                            </div>
+                            <span className="text-sm text-muted-foreground">
+                              {data.totalTVL > 0 ? ((pool.tvl / data.totalTVL) * 100).toFixed(1) : 0}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">No pool data</div>
+                  )}
+                </div>
+
+                {/* Protocol Stats */}
                 <div className="glass-card p-6 text-center">
                   <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
-                    <Users className="w-6 h-6 text-primary" />
+                    <Droplets className="w-6 h-6 text-primary" />
                   </div>
-                  <div className="text-3xl font-bold mb-2">1,234</div>
-                  <div className="text-muted-foreground">Unique Traders</div>
-                </div>
-                <div className="glass-card p-6 text-center">
-                  <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
-                    <Zap className="w-6 h-6 text-primary" />
+                  <div className="text-3xl font-bold mb-2">
+                    {data?.totalPools || 0}
                   </div>
-                  <div className="text-3xl font-bold mb-2">5,678</div>
-                  <div className="text-muted-foreground">Total Transactions</div>
+                  <div className="text-muted-foreground text-sm">Active Pools</div>
+                  <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                    <div>{data?.farmingPools || 0} Farming</div>
+                    <div>{data?.stakingPools || 0} Staking</div>
+                  </div>
                 </div>
+
                 <div className="glass-card p-6 text-center">
                   <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
                     <BarChart3 className="w-6 h-6 text-primary" />
                   </div>
                   <div className="text-3xl font-bold mb-2">0.3%</div>
-                  <div className="text-muted-foreground">Swap Fee</div>
+                  <div className="text-muted-foreground text-sm">Swap Fee</div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    {data?.rewardPerBlock && parseFloat(data.rewardPerBlock) > 0 
+                      ? `${parseFloat(data.rewardPerBlock).toFixed(4)} PSDX/block` 
+                      : 'Standard AMM fee'}
+                  </div>
                 </div>
               </div>
             </>
