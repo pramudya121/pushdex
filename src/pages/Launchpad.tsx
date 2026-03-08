@@ -465,7 +465,7 @@ const Launchpad = () => {
                     <Button
                       className="w-full gap-2 h-12 text-base bg-gradient-to-r from-primary to-accent hover:opacity-90"
                       onClick={handleDeploy}
-                      disabled={!isFormValid || isProcessing}
+                      disabled={!isFormValid || isProcessing || !isFactoryDeployed}
                     >
                       <Rocket className="w-5 h-5" />
                       Deploy {tokenSymbol || 'Token'}
