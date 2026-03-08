@@ -110,7 +110,9 @@ const Launchpad = () => {
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
-      const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals);
+      const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals, {
+        gasLimit: 3000000n,
+      });
       const receipt = await tx.wait();
 
       // Parse TokenCreated event to get the new token address
