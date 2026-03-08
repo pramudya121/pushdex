@@ -157,6 +157,27 @@ export type Database = {
         }
         Relationships: []
       }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          wallet_address: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          wallet_address: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
