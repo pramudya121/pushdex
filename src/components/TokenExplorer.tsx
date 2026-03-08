@@ -35,8 +35,10 @@ interface TokenExplorerProps {
 export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) => {
   const { address, signer, isConnected, provider } = useWallet();
   const [tokens, setTokens] = useState<TokenDetail[]>([]);
+  const [myCreatedTokens, setMyCreatedTokens] = useState<TokenDetail[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMine, setLoadingMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all');
 
