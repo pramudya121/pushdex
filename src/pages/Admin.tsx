@@ -1084,7 +1084,7 @@ const Admin: React.FC = () => {
       <div className="min-h-screen bg-background wave-bg">
         <WaveBackground />
         <Header />
-        <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
+        <main className="container mx-auto px-4 pt-24 pb-28 sm:pb-16 relative z-10">
           <Card className="glass-card max-w-md mx-auto animate-fade-in">
             <CardContent className="py-12">
               <div className="text-center">
