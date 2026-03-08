@@ -32,7 +32,8 @@ import {
   Sparkles,
   TrendingUp,
   Gift,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { CONTRACTS, TOKEN_LIST, BLOCK_EXPLORER, RPC_URL } from '@/config/contracts';
