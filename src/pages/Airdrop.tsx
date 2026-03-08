@@ -73,6 +73,8 @@ const Airdrop: React.FC = () => {
   const [tab, setTab] = useState('quests');
   const [twitterConnected, setTwitterState] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [rewardAnim, setRewardAnim] = useState<{ points: number; show: boolean }>({ points: 0, show: false });
   const [showTwitterConfirm, setShowTwitterConfirm] = useState(false);
 
   // Check twitter connection status
