@@ -35,8 +35,10 @@ interface TokenExplorerProps {
 export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) => {
   const { address, signer, isConnected, provider } = useWallet();
   const [tokens, setTokens] = useState<TokenDetail[]>([]);
+  const [myCreatedTokens, setMyCreatedTokens] = useState<TokenDetail[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingMine, setLoadingMine] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all');
 
@@ -122,9 +124,76 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
     }
   }, [provider, readProvider, address]);
 
+  // Load tokens created by connected wallet using getTokensByCreator()
+  const loadMyCreatedTokens = useCallback(async () => {
+    if (!address) { setMyCreatedTokens([]); return; }
+    setLoadingMine(true);
+    try {
+      const p = provider || readProvider;
+      const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, p);
+
+      let creatorAddresses: string[] = [];
+      try {
+        creatorAddresses = await factory.getTokensByCreator(address);
+      } catch {
+        // Fallback: filter from all tokens by owner field
+        creatorAddresses = tokens.filter(t => t.owner.toLowerCase() === address.toLowerCase()).map(t => t.address);
+      }
+
+      if (creatorAddresses.length === 0) {
+        setMyCreatedTokens([]);
+        setLoadingMine(false);
+        return;
+      }
+
+      const details: TokenDetail[] = await Promise.all(
+        creatorAddresses.map(async (addr) => {
+          // Check if already loaded in all tokens
+          const existing = tokens.find(t => t.address.toLowerCase() === addr.toLowerCase());
+          if (existing) return existing;
+
+          try {
+            const token = new ethers.Contract(addr, [
+              ...ERC20_ABI,
+              { inputs: [], name: 'owner', outputs: [{ name: '', type: 'address' }], stateMutability: 'view', type: 'function' },
+            ], p);
+            const [name, symbol, decimals, totalSupply, owner, balance] = await Promise.all([
+              token.name().catch(() => 'Unknown'),
+              token.symbol().catch(() => '???'),
+              token.decimals().catch(() => 18),
+              token.totalSupply().catch(() => 0n),
+              token.owner().catch(() => ethers.ZeroAddress),
+              token.balanceOf(address).catch(() => 0n),
+            ]);
+            return {
+              address: addr, name, symbol,
+              decimals: Number(decimals),
+              totalSupply: ethers.formatUnits(totalSupply, Number(decimals)),
+              balance: ethers.formatUnits(balance, Number(decimals)),
+              owner,
+            };
+          } catch {
+            return { address: addr, name: 'Unknown', symbol: '???', decimals: 18, totalSupply: '0', balance: '0', owner: ethers.ZeroAddress };
+          }
+        })
+      );
+      setMyCreatedTokens(details.reverse());
+    } catch (e) {
+      console.error('Failed to load creator tokens:', e);
+    } finally {
+      setLoadingMine(false);
+    }
+  }, [provider, readProvider, address, tokens]);
+
   useEffect(() => {
     loadTokens();
   }, [loadTokens, refreshTrigger]);
+
+  useEffect(() => {
+    if (address && tokens.length > 0) {
+      loadMyCreatedTokens();
+    }
+  }, [address, tokens, loadMyCreatedTokens]);
 
   const handleTransfer = async () => {
     if (!signer || !transferToken || !transferTo || !transferAmount) return;
@@ -176,17 +245,17 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
     toast.success('Copied!');
   };
 
-  const filteredTokens = tokens.filter((t) => {
-    const matchesSearch =
-      !searchQuery ||
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.address.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab = activeTab === 'all' || (activeTab === 'mine' && address && t.owner.toLowerCase() === address.toLowerCase());
-    return matchesSearch && matchesTab;
-  });
+  const filteredTokens = React.useMemo(() => {
+    const source = activeTab === 'mine' ? myCreatedTokens : tokens;
+    return source.filter((t) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return t.name.toLowerCase().includes(q) || t.symbol.toLowerCase().includes(q) || t.address.toLowerCase().includes(q);
+    });
+  }, [tokens, myCreatedTokens, activeTab, searchQuery]);
 
-  const myTokensCount = tokens.filter((t) => address && t.owner.toLowerCase() === address?.toLowerCase()).length;
+  const myTokensCount = myCreatedTokens.length;
+  const isListLoading = activeTab === 'mine' ? loadingMine : loading;
 
   return (
     <div className="space-y-6">
@@ -272,7 +341,7 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
           <Separator />
 
           {/* Token List */}
-          {loading ? (
+          {isListLoading ? (
             <div className="py-12 text-center">
               <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Loading tokens from blockchain...</p>
