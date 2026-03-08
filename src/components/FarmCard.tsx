@@ -69,7 +69,7 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
   isHarvesting,
   hasEnoughRewards = true,
 }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, address } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
