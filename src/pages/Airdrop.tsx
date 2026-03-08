@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
-import { Gift, Zap, Link as LinkIcon, Trophy } from 'lucide-react';
+import { Gift, Zap, Link as LinkIcon, Trophy, Twitter, CheckCircle, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AirdropTaskCard } from '@/components/airdrop/AirdropTaskCard';
