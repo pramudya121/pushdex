@@ -130,6 +130,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_checkins: {
+        Row: {
+          bonus_points: number
+          checkin_date: string
+          created_at: string
+          id: string
+          streak: number
+          wallet_address: string
+        }
+        Insert: {
+          bonus_points?: number
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          streak?: number
+          wallet_address: string
+        }
+        Update: {
+          bonus_points?: number
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          streak?: number
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
