@@ -109,6 +109,16 @@ const Launchpad = () => {
       // Call TokenFactory.createToken(name, symbol, supply, decimals)
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
+      // Try staticCall first to get clear error message if it would revert
+      console.log('Creating token with params:', { name: tokenName, symbol: tokenSymbol, supply: supply.toString(), decimals });
+      try {
+        await factory.createToken.staticCall(tokenName, tokenSymbol, supply, decimals);
+        console.log('staticCall succeeded - transaction should work');
+      } catch (staticErr: any) {
+        console.error('staticCall failed:', staticErr);
+        throw new Error(staticErr.reason || staticErr.message || 'Contract call would revert');
+      }
+
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
       const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals, {
         gasLimit: 3000000n,
