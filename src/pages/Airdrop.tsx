@@ -49,6 +49,7 @@ interface LeaderboardEntry {
 
 const Airdrop: React.FC = () => {
   const { address, isConnected } = useWallet();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<AirdropTask[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
