@@ -153,7 +153,9 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
     setApproving(true);
     try {
       const token = new ethers.Contract(approveToken.address, ERC20_ABI, signer);
-      const amount = ethers.parseUnits(approveAmount, approveToken.decimals);
+      const amount = approveAmount.toLowerCase() === 'unlimited' 
+        ? ethers.MaxUint256 
+        : ethers.parseUnits(approveAmount, approveToken.decimals);
       toast.loading('Approving...', { id: 'approve' });
       const tx = await token.approve(approveSpender, amount, { gasLimit: 100000n });
       await tx.wait();
