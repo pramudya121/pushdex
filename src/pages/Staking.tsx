@@ -397,6 +397,8 @@ const Staking: React.FC = memo(() => {
       <Footer />
     </div>
   );
-};
+});
+
+Staking.displayName = 'Staking';
 
 export default Staking;
