@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { ethers } from 'ethers';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   isUnstaking,
   isClaiming,
 }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, address } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
   const [tokenBalance, setTokenBalance] = useState('0');
@@ -83,6 +84,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
     const success = await onStake(pool.id, stakeAmount);
     if (success) {
       setStakeAmount('');
+      if (address) markActionVerified(address, 'staking');
       onRefresh();
     }
   };

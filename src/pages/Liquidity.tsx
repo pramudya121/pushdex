@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { ethers } from 'ethers';
 import { WaveBackground } from '@/components/WaveBackground';
 import { Header } from '@/components/Header';
@@ -223,6 +224,7 @@ const Liquidity = () => {
       toast.loading(isNewPool ? 'Creating pool...' : 'Adding liquidity...', { id: 'add' });
       await tx.wait();
       toast.success(isNewPool ? 'Pool created!' : 'Liquidity added!', { id: 'add' });
+      if (address) markActionVerified(address, 'add_liquidity');
       setAmountA(''); setAmountB('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {
@@ -247,6 +249,7 @@ const Liquidity = () => {
       toast.loading('Removing liquidity...', { id: 'remove' });
       await tx.wait();
       toast.success('Liquidity removed!', { id: 'remove' });
+      if (address) markActionVerified(address, 'remove_liquidity');
       setRemoveAmount('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {

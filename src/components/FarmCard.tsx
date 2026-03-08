@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { ethers } from 'ethers';
 import { CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
   isHarvesting,
   hasEnoughRewards = true,
 }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, address } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showChart, setShowChart] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
@@ -144,6 +145,7 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
     const success = await onStake(pool.pid, stakeAmount);
     if (success) {
       setStakeAmount('');
+      if (address) markActionVerified(address, 'farming');
       onRefresh();
       const balance = await getLpBalance(pool.lpToken);
       setLpBalance(balance);
