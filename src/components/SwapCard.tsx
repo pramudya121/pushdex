@@ -649,7 +649,7 @@ export const SwapCard: React.FC = () => {
       )}
 
       {/* Error */}
-      {error && (
+      {error && !isWrapUnwrap && (
         <div className="mt-4 p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center gap-2 text-sm text-destructive animate-shake">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
