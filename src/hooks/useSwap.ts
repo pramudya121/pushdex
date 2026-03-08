@@ -6,11 +6,13 @@ import { ROUTER_ABI, ERC20_ABI } from '@/config/abis';
 import {
   getAmountsOut,
   getPairAddress,
+  getReserves,
   getTokenBalance,
   getTokenAllowance,
   parseAmount,
   formatAmount,
   calculateMinimumReceived,
+  calculatePriceImpact,
   getDeadline,
 } from '@/lib/dex';
 import { getStoredSettings } from '@/hooks/useSettings';
