@@ -308,11 +308,17 @@ const Analytics = memo(() => {
     },
   ];
 
-  const topTokens = TOKEN_LIST.filter(t => t.symbol !== 'PC').slice(0, 4).map((token, i) => ({
-    ...token,
-    volume: Math.random() * 50000 + 10000,
-    change: (Math.random() - 0.3) * 20,
-  }));
+  const topTokens = useMemo(() => {
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed * 9301 + 49297) * 10000;
+      return x - Math.floor(x);
+    };
+    return TOKEN_LIST.filter(t => t.symbol !== 'PC').slice(0, 4).map((token, i) => ({
+      ...token,
+      volume: seededRandom(i * 7 + 1) * 50000 + 10000,
+      change: (seededRandom(i * 7 + 2) - 0.3) * 20,
+    }));
+  }, []);
 
   return (
     <div className="min-h-screen relative">
