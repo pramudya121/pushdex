@@ -11,6 +11,7 @@ import { SkipLink, LiveRegion } from "@/components/AccessibleSkipLink";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
 import { WolfLogo } from "@/components/WolfLogo";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home"));
