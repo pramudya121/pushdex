@@ -30,6 +30,7 @@ const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Airdrop = lazy(() => import("./pages/Airdrop"));
+const Launchpad = lazy(() => import("./pages/Launchpad"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
