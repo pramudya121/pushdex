@@ -30,7 +30,7 @@ const PushChainDocs = lazy(() => import("./pages/PushChainDocs"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Airdrop = lazy(() => import("./pages/Airdrop"));
-const Launchpad = lazy(() => import("./pages/Launchpad"));
+
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -70,7 +70,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/staking': 'Staking | PUSHDEX',
   '/docs': 'Documentation | PUSHDEX',
   '/airdrop': 'Airdrop | PUSHDEX',
-  '/launchpad': 'Token Launchpad | PUSHDEX',
+  
   '/settings': 'Settings | PUSHDEX',
   '/admin': 'Admin | PUSHDEX',
 };
@@ -101,7 +101,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
         <Route path="/airdrop" element={<PageTransition><Airdrop /></PageTransition>} />
-        <Route path="/launchpad" element={<PageTransition><Launchpad /></PageTransition>} />
+        
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
