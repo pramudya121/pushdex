@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { MessageCircle, X, Send, Loader2, Bot, User, Minimize2, Maximize2, Sparkles, Trash2, ArrowDown, Copy, Check, Volume2, VolumeX, Mic, MicOff, RefreshCw } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Minimize2, Maximize2, Sparkles, Trash2, Copy, Check, RefreshCw, ExternalLink, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WolfLogo } from '@/components/WolfLogo';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,15 +18,48 @@ interface Message {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pushdex-chat`;
 
 const QUICK_PROMPTS = [
-  { label: '🔄 How to swap?', message: 'How do I swap tokens on PushDex?', icon: '🔄' },
-  { label: '💧 Add liquidity', message: 'How do I add liquidity and earn fees?', icon: '💧' },
-  { label: '🌾 Start farming', message: 'How does farming work on PushDex?', icon: '🌾' },
-  { label: '⛓️ Push Chain', message: 'What is Push Chain and how is it different?', icon: '⛓️' },
-  { label: '📊 Analytics', message: 'How do I read analytics and pool data?', icon: '📊' },
-  { label: '🪂 Airdrop', message: 'How does the airdrop system work?', icon: '🪂' },
+  { message: 'How do I swap tokens on PushDex?', icon: '🔄', label: 'How to swap' },
+  { message: 'How do I add liquidity and earn fees?', icon: '💧', label: 'Add liquidity' },
+  { message: 'How does farming work on PushDex?', icon: '🌾', label: 'Start farming' },
+  { message: 'How does the airdrop system work?', icon: '🪂', label: 'Airdrop guide' },
+  { message: 'What is Push Chain and how is it different?', icon: '⛓️', label: 'Push Chain' },
+  { message: 'How do I stake tokens for rewards?', icon: '🪙', label: 'Staking' },
+  { message: 'Explain impermanent loss with examples', icon: '📉', label: 'IL explained' },
+  { message: 'What tokens are supported on PushDex?', icon: '🪙', label: 'Token list' },
 ];
 
-// Enhanced markdown renderer
+// Suggested follow-up prompts based on context
+const getSuggestedFollowUps = (lastAssistantMsg: string): string[] => {
+  const lower = lastAssistantMsg.toLowerCase();
+  if (lower.includes('swap')) return ['What is slippage?', 'How to set slippage?', 'Show me token list'];
+  if (lower.includes('liquidity')) return ['What is impermanent loss?', 'How to farm LP tokens?', 'Best pools to join'];
+  if (lower.includes('farming') || lower.includes('farm')) return ['How to harvest rewards?', 'What is APR vs APY?', 'How to unstake LP tokens?'];
+  if (lower.includes('airdrop')) return ['How to earn more points?', 'Explain the tier system', 'How does referral work?'];
+  if (lower.includes('staking') || lower.includes('stake')) return ['What APR is available?', 'How to unstake?', 'Staking vs Farming?'];
+  if (lower.includes('push chain') || lower.includes('network')) return ['How to add network?', 'Get testnet tokens', 'What wallets are supported?'];
+  if (lower.includes('impermanent loss')) return ['How to minimize IL?', 'Best pairs for low IL', 'Is IL always bad?'];
+  return ['How to start trading?', 'Explain DeFi basics', 'What makes PushDex unique?'];
+};
+
+// Detect links in text
+const detectAndRenderLinks = (text: string): React.ReactNode => {
+  const urlRegex = /(https?:\/\/[^\s)]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" 
+           className="text-primary hover:underline inline-flex items-center gap-0.5">
+          {part.length > 40 ? part.slice(0, 40) + '...' : part}
+          <ExternalLink className="w-3 h-3 inline" />
+        </a>
+      );
+    }
+    return part;
+  });
+};
+
+// Enhanced markdown renderer with link detection
 const renderContent = (text: string) => {
   const parts = text.split(/(```[\s\S]*?```)/g);
   
@@ -35,13 +69,12 @@ const renderContent = (text: string) => {
       const lang = langMatch?.[1] || '';
       const code = part.replace(/```\w*\n?/, '').replace(/```$/, '');
       return (
-        <div key={i} className="my-3 rounded-xl overflow-hidden border border-border/30">
-          {lang && (
-            <div className="px-3 py-1.5 bg-muted/60 border-b border-border/20 text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-              {lang}
-            </div>
-          )}
-          <pre className="p-3 bg-background/60 text-xs font-mono overflow-x-auto">
+        <div key={i} className="my-3 rounded-xl overflow-hidden border border-border/30 group/code relative">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-muted/60 border-b border-border/20">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">{lang || 'code'}</span>
+            <CodeCopyButton code={code.trim()} />
+          </div>
+          <pre className="p-3 bg-background/60 text-xs font-mono overflow-x-auto leading-relaxed">
             <code>{code.trim()}</code>
           </pre>
         </div>
@@ -49,15 +82,31 @@ const renderContent = (text: string) => {
     }
     
     return part.split('\n').map((line, j) => {
-      if (line.startsWith('### ')) return <h4 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground">{line.slice(4)}</h4>;
-      if (line.startsWith('## ')) return <h3 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground">{line.slice(3)}</h3>;
-      if (line.startsWith('# ')) return <h2 key={`${i}-${j}`} className="font-bold text-base mt-3 mb-1.5 text-foreground">{line.slice(2)}</h2>;
+      // Table support
+      if (line.startsWith('|') && line.endsWith('|')) {
+        const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+        const isSeparator = cells.every(c => /^[-:]+$/.test(c));
+        if (isSeparator) return null;
+        return (
+          <div key={`${i}-${j}`} className="flex gap-0 text-xs">
+            {cells.map((cell, ci) => (
+              <div key={ci} className="flex-1 px-2 py-1 border-b border-border/20 text-muted-foreground">
+                {formatInline(cell)}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      if (line.startsWith('### ')) return <h4 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground flex items-center gap-1.5">{formatInline(line.slice(4))}</h4>;
+      if (line.startsWith('## ')) return <h3 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground">{formatInline(line.slice(3))}</h3>;
+      if (line.startsWith('# ')) return <h2 key={`${i}-${j}`} className="font-bold text-base mt-3 mb-1.5 text-foreground">{formatInline(line.slice(2))}</h2>;
       
       if (line.startsWith('- ') || line.startsWith('* ')) {
         return (
           <div key={`${i}-${j}`} className="flex gap-2 my-0.5 pl-1">
-            <span className="text-primary mt-0.5 text-xs">●</span>
-            <span>{formatInline(line.slice(2))}</span>
+            <span className="text-primary mt-0.5 text-xs shrink-0">●</span>
+            <span className="flex-1">{formatInline(line.slice(2))}</span>
           </div>
         );
       }
@@ -66,8 +115,17 @@ const renderContent = (text: string) => {
       if (numMatch) {
         return (
           <div key={`${i}-${j}`} className="flex gap-2 my-0.5 pl-1">
-            <span className="text-primary font-semibold min-w-[1.2em] text-xs">{numMatch[1]}.</span>
-            <span>{formatInline(line.slice(numMatch[0].length))}</span>
+            <span className="text-primary font-semibold min-w-[1.4em] text-xs shrink-0">{numMatch[1]}.</span>
+            <span className="flex-1">{formatInline(line.slice(numMatch[0].length))}</span>
+          </div>
+        );
+      }
+
+      // Blockquote
+      if (line.startsWith('> ')) {
+        return (
+          <div key={`${i}-${j}`} className="border-l-2 border-primary/40 pl-3 my-1.5 text-muted-foreground italic">
+            {formatInline(line.slice(2))}
           </div>
         );
       }
@@ -80,22 +138,49 @@ const renderContent = (text: string) => {
 };
 
 const formatInline = (text: string): React.ReactNode => {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+  // First handle links
+  const linkParts = text.split(/(https?:\/\/[^\s)]+)/g);
+  return linkParts.map((segment, si) => {
+    if (segment.match(/^https?:\/\//)) {
+      return (
+        <a key={si} href={segment} target="_blank" rel="noopener noreferrer" 
+           className="text-primary hover:underline inline-flex items-center gap-0.5 break-all">
+          {segment.length > 35 ? segment.slice(0, 35) + '...' : segment}
+          <ExternalLink className="w-2.5 h-2.5 inline shrink-0" />
+        </a>
+      );
     }
-    const codeParts = part.split(/(`[^`]+`)/g);
-    return codeParts.map((cp, j) => {
-      if (cp.startsWith('`') && cp.endsWith('`')) {
-        return <code key={`${i}-${j}`} className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-mono border border-primary/10">{cp.slice(1, -1)}</code>;
+    // Then handle bold and inline code
+    const parts = segment.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={`${si}-${i}`} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
       }
-      return cp;
+      const codeParts = part.split(/(`[^`]+`)/g);
+      return codeParts.map((cp, j) => {
+        if (cp.startsWith('`') && cp.endsWith('`')) {
+          return <code key={`${si}-${i}-${j}`} className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-mono border border-primary/10">{cp.slice(1, -1)}</code>;
+        }
+        return cp;
+      });
     });
   });
 };
 
-// Copy button for messages
+// Code block copy button
+const CodeCopyButton = ({ code }: { code: string }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      className="p-1 rounded hover:bg-muted transition-colors"
+    >
+      {copied ? <Check className="w-3 h-3 text-[hsl(var(--success))]" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+    </button>
+  );
+};
+
+// Message copy button
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
   return (
@@ -109,7 +194,7 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
-// Typing indicator with wave animation
+// Typing indicator
 const TypingIndicator = () => (
   <motion.div
     initial={{ opacity: 0, y: 5 }}
@@ -117,23 +202,39 @@ const TypingIndicator = () => (
     className="flex gap-2.5 py-2"
   >
     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/15 flex items-center justify-center shrink-0">
-      <Bot className="w-4 h-4 text-primary" />
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
+        <Zap className="w-4 h-4 text-primary" />
+      </motion.div>
     </div>
     <div className="bg-surface/80 border border-border/30 px-4 py-3 rounded-2xl rounded-bl-md">
       <div className="flex gap-1.5 items-center">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className="w-2 h-2 rounded-full bg-primary/50"
-            animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-          />
-        ))}
-        <span className="text-[10px] text-muted-foreground ml-2">Thinking...</span>
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="w-2 h-2 rounded-full bg-gradient-to-br from-primary to-accent"
+              animate={{ y: [0, -8, 0], scale: [0.8, 1.2, 0.8] }}
+              transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+            />
+          ))}
+        </div>
+        <motion.span 
+          className="text-[10px] text-muted-foreground ml-2"
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          AI is thinking...
+        </motion.span>
       </div>
     </div>
   </motion.div>
 );
+
+// Time formatter
+const formatTime = (date?: Date) => {
+  if (!date) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 export const AIChatBot: React.FC = memo(() => {
   const [isOpen, setIsOpen] = useState(false);
@@ -141,24 +242,20 @@ export const AIChatBot: React.FC = memo(() => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showScrollDown, setShowScrollDown] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (isOpen && !isMinimized && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isOpen && !isMinimized && inputRef.current) inputRef.current.focus();
   }, [isOpen, isMinimized]);
 
   const streamChat = useCallback(async (userMessage: string, allMessages: Message[]) => {
@@ -170,19 +267,13 @@ export const AIChatBot: React.FC = memo(() => {
       },
       body: JSON.stringify({
         message: userMessage,
-        history: allMessages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+        history: allMessages.slice(-14).map(m => ({ role: m.role, content: m.content })),
       }),
     });
 
     if (!resp.ok) {
-      if (resp.status === 429) {
-        toast.error('Rate limit reached. Please wait a moment.');
-        throw new Error('Rate limited');
-      }
-      if (resp.status === 402) {
-        toast.error('AI credits exhausted.');
-        throw new Error('Payment required');
-      }
+      if (resp.status === 429) { toast.error('Rate limit reached. Please wait a moment.'); throw new Error('Rate limited'); }
+      if (resp.status === 402) { toast.error('AI credits exhausted.'); throw new Error('Payment required'); }
       const errData = await resp.json().catch(() => ({}));
       throw new Error(errData.error || 'Failed to get response');
     }
@@ -205,14 +296,11 @@ export const AIChatBot: React.FC = memo(() => {
       while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
         let line = textBuffer.slice(0, newlineIndex);
         textBuffer = textBuffer.slice(newlineIndex + 1);
-
         if (line.endsWith("\r")) line = line.slice(0, -1);
         if (line.startsWith(":") || line.trim() === "") continue;
         if (!line.startsWith("data: ")) continue;
-
         const jsonStr = line.slice(6).trim();
         if (jsonStr === "[DONE]") break;
-
         try {
           const parsed = JSON.parse(jsonStr);
           const content = parsed.choices?.[0]?.delta?.content as string | undefined;
@@ -221,25 +309,18 @@ export const AIChatBot: React.FC = memo(() => {
             setMessages(prev => {
               const updated = [...prev];
               const last = updated[updated.length - 1];
-              if (last?.role === 'assistant') {
-                updated[updated.length - 1] = { ...last, content: assistantContent };
-              }
+              if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, content: assistantContent };
               return updated;
             });
           }
-        } catch {
-          textBuffer = line + "\n" + textBuffer;
-          break;
-        }
+        } catch { textBuffer = line + "\n" + textBuffer; break; }
       }
     }
 
     setMessages(prev => {
       const updated = [...prev];
       const last = updated[updated.length - 1];
-      if (last?.role === 'assistant') {
-        updated[updated.length - 1] = { ...last, isStreaming: false };
-      }
+      if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, isStreaming: false };
       return updated;
     });
   }, []);
@@ -247,36 +328,23 @@ export const AIChatBot: React.FC = memo(() => {
   const sendMessage = useCallback(async (messageText?: string) => {
     const text = (messageText || input).trim();
     if (!text || isLoading) return;
-
     setInput('');
     const userMsg: Message = { role: 'user', content: text, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
-
     try {
       await streamChat(text, [...messages, userMsg]);
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: new Date(),
-      }]);
-    } finally {
-      setIsLoading(false);
-    }
+      setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Sorry, I encountered an error. Please try again.', timestamp: new Date() }]);
+    } finally { setIsLoading(false); }
   }, [input, isLoading, messages, streamChat]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const clearChat = useCallback(() => {
-    setMessages([]);
-  }, []);
+  const clearChat = useCallback(() => setMessages([]), []);
 
   const regenerateLastResponse = useCallback(async () => {
     if (messages.length < 2 || isLoading) return;
@@ -292,17 +360,17 @@ export const AIChatBot: React.FC = memo(() => {
       await streamChat(userMsg, [...previousMessages, userMessage]);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Failed to regenerate. Please try again.', timestamp: new Date() }]);
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   }, [messages, isLoading, streamChat]);
 
   const hasMessages = messages.length > 0;
   const messageCount = messages.filter(m => m.role === 'user').length;
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant' && !m.isStreaming);
+  const suggestedFollowUps = lastAssistantMsg ? getSuggestedFollowUps(lastAssistantMsg.content) : [];
 
   return (
     <>
-      {/* Chat Toggle Button */}
+      {/* Toggle Button */}
       <AnimatePresence>
         {!isOpen && (
           <motion.div
@@ -318,17 +386,13 @@ export const AIChatBot: React.FC = memo(() => {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary via-accent to-primary bg-[length:200%_200%] animate-[gradient-shift_3s_ease_infinite]" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{ rotate: [0, 10, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                >
+                <motion.div animate={{ rotate: [0, 15, -15, 0] }} transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 4 }}>
                   <Sparkles className="w-6 h-6 text-white" />
                 </motion.div>
               </div>
-              <div className="absolute inset-0 rounded-2xl border-2 border-white/20 animate-ping opacity-20" />
             </button>
             <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-[hsl(var(--success))] rounded-full border-2 border-background shadow-sm">
-              <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] animate-ping opacity-60" />
+              <span className="absolute inset-0 rounded-full bg-[hsl(var(--success))] animate-ping opacity-50" />
             </span>
           </motion.div>
         )}
@@ -350,8 +414,8 @@ export const AIChatBot: React.FC = memo(() => {
               isMinimized
                 ? "bottom-20 lg:bottom-6 right-4 lg:right-6 w-72 h-14"
                 : isExpanded
-                  ? "bottom-4 lg:bottom-4 right-4 lg:right-4 w-[520px] h-[700px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]"
-                  : "bottom-20 lg:bottom-6 right-4 lg:right-6 w-[400px] h-[580px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)]"
+                  ? "bottom-4 right-4 w-[560px] h-[720px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]"
+                  : "bottom-20 lg:bottom-6 right-4 lg:right-6 w-[400px] h-[600px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)]"
             )}
           >
             {/* Header */}
@@ -380,48 +444,26 @@ export const AIChatBot: React.FC = memo(() => {
                     {!isMinimized && (
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--success))] inline-block" />
-                        Online • Powered by Gemini
+                        Online • Gemini Flash
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5">
                   {hasMessages && !isMinimized && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-7 h-7 text-muted-foreground hover:text-destructive"
-                      onClick={clearChat}
-                      title="Clear chat"
-                    >
+                    <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-destructive" onClick={clearChat} title="Clear chat">
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
                   {!isMinimized && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-7 h-7 text-muted-foreground hidden lg:flex"
-                      onClick={() => setIsExpanded(!isExpanded)}
-                      title={isExpanded ? 'Compact' : 'Expand'}
-                    >
+                    <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hidden lg:flex" onClick={() => setIsExpanded(!isExpanded)} title={isExpanded ? 'Compact' : 'Expand'}>
                       <Maximize2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-7 h-7 text-muted-foreground"
-                    onClick={() => setIsMinimized(!isMinimized)}
-                  >
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground" onClick={() => setIsMinimized(!isMinimized)}>
                     {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-7 h-7 text-muted-foreground hover:text-destructive"
-                    onClick={() => setIsOpen(false)}
-                  >
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-destructive" onClick={() => setIsOpen(false)}>
                     <X className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -433,13 +475,9 @@ export const AIChatBot: React.FC = memo(() => {
               <>
                 <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
                   <div className="p-4 space-y-1">
-                    {/* Welcome state */}
+                    {/* Welcome */}
                     {!hasMessages && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="text-center py-4 space-y-5"
-                      >
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center py-3 space-y-5">
                         <div className="relative inline-block">
                           <motion.div
                             className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-primary/15 via-accent/10 to-primary/15 border border-primary/15 flex items-center justify-center"
@@ -448,48 +486,35 @@ export const AIChatBot: React.FC = memo(() => {
                           >
                             <WolfLogo size={44} />
                           </motion.div>
-                          <motion.div
-                            className="absolute -inset-3 rounded-3xl border border-primary/10"
-                            animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0, 0.3] }}
-                            transition={{ duration: 2.5, repeat: Infinity }}
-                          />
-                          <motion.div
-                            className="absolute -inset-6 rounded-3xl border border-accent/5"
-                            animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0, 0.2] }}
-                            transition={{ duration: 3, repeat: Infinity, delay: 0.5 }}
-                          />
+                          <motion.div className="absolute -inset-3 rounded-3xl border border-primary/10" animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0, 0.3] }} transition={{ duration: 2.5, repeat: Infinity }} />
                         </div>
                         
                         <div>
-                          <h3 className="text-lg font-bold text-foreground mb-1">
-                            Hey! I'm PushDex AI 👋
-                          </h3>
+                          <h3 className="text-lg font-bold text-foreground mb-1">Hey! I'm PushDex AI 👋</h3>
                           <p className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
-                            Your intelligent DeFi companion. Ask me about trading, liquidity, farming, and everything Push Chain.
+                            Your expert DeFi companion. I know everything about PushDex, DeFi, and Push Chain.
                           </p>
                         </div>
 
-                        {/* Capabilities */}
-                        <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
-                          {['DeFi Expert', 'Real-time Data', 'Multi-language'].map((cap) => (
-                            <span key={cap} className="px-2 py-1 rounded-full bg-secondary/60 border border-border/30">
-                              {cap}
-                            </span>
+                        {/* Capability pills */}
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-muted-foreground px-2">
+                          {['🧠 DeFi Expert', '📊 Analytics', '🔧 Troubleshoot', '🌍 Multi-lang'].map((cap) => (
+                            <span key={cap} className="px-2 py-1 rounded-full bg-secondary/60 border border-border/30">{cap}</span>
                           ))}
                         </div>
                         
-                        {/* Quick prompts */}
-                        <div className="grid grid-cols-2 gap-2 px-1">
+                        {/* Quick prompts grid */}
+                        <div className="grid grid-cols-2 gap-1.5 px-1">
                           {QUICK_PROMPTS.map((prompt) => (
                             <motion.button
                               key={prompt.label}
-                              whileHover={{ scale: 1.02, y: -1 }}
+                              whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.97 }}
                               onClick={() => sendMessage(prompt.message)}
-                              className="text-left px-3 py-2.5 rounded-xl bg-surface/80 border border-border/30 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 text-xs text-muted-foreground hover:text-foreground"
+                              className="text-left px-3 py-2 rounded-xl bg-surface/80 border border-border/30 hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group/prompt"
                             >
-                              <span className="block text-sm mb-0.5">{prompt.icon}</span>
-                              <span className="font-medium">{prompt.label.replace(/^.+\s/, '')}</span>
+                              <span className="text-sm">{prompt.icon}</span>
+                              <span className="block text-[11px] font-medium text-muted-foreground group-hover/prompt:text-foreground transition-colors mt-0.5">{prompt.label}</span>
                             </motion.button>
                           ))}
                         </div>
@@ -504,10 +529,7 @@ export const AIChatBot: React.FC = memo(() => {
                           initial={{ opacity: 0, y: 8, scale: 0.98 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           transition={{ duration: 0.25, ease: 'easeOut' }}
-                          className={cn(
-                            "flex gap-2.5 py-2 group",
-                            msg.role === 'user' ? "justify-end" : "justify-start"
-                          )}
+                          className={cn("flex gap-2.5 py-2 group", msg.role === 'user' ? "justify-end" : "justify-start")}
                         >
                           {msg.role === 'assistant' && (
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/15 flex items-center justify-center shrink-0 mt-0.5">
@@ -515,42 +537,45 @@ export const AIChatBot: React.FC = memo(() => {
                             </div>
                           )}
                           <div className="max-w-[82%] space-y-1">
-                            <div
-                              className={cn(
-                                "px-3.5 py-2.5 text-[13px] leading-relaxed",
-                                msg.role === 'user'
-                                  ? "bg-gradient-to-br from-primary to-primary/85 text-primary-foreground rounded-2xl rounded-br-md shadow-md shadow-primary/10"
-                                  : "bg-surface/80 border border-border/30 rounded-2xl rounded-bl-md"
-                              )}
-                            >
+                            <div className={cn(
+                              "px-3.5 py-2.5 text-[13px] leading-relaxed",
+                              msg.role === 'user'
+                                ? "bg-gradient-to-br from-primary to-primary/85 text-primary-foreground rounded-2xl rounded-br-md shadow-md shadow-primary/10"
+                                : "bg-surface/80 border border-border/30 rounded-2xl rounded-bl-md"
+                            )}>
                               {msg.role === 'assistant' ? (
                                 <div className="prose-sm">
                                   {renderContent(msg.content)}
                                   {msg.isStreaming && (
-                                    <motion.span
-                                      className="inline-block w-1.5 h-4 bg-primary/60 ml-0.5 rounded-full align-middle"
-                                      animate={{ opacity: [1, 0.3, 1] }}
-                                      transition={{ duration: 0.8, repeat: Infinity }}
-                                    />
+                                    <motion.span className="inline-block w-1.5 h-4 bg-primary/60 ml-0.5 rounded-full align-middle"
+                                      animate={{ opacity: [1, 0.2, 1] }} transition={{ duration: 0.7, repeat: Infinity }} />
                                   )}
                                 </div>
                               ) : (
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                               )}
                             </div>
-                            {/* Message actions */}
+                            {/* Actions row */}
                             {msg.role === 'assistant' && !msg.isStreaming && msg.content && (
                               <div className="flex items-center gap-1 ml-1">
                                 <CopyButton text={msg.content} />
                                 {idx === messages.length - 1 && (
-                                  <button
-                                    onClick={regenerateLastResponse}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted/50"
-                                    title="Regenerate"
-                                  >
+                                  <button onClick={regenerateLastResponse} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted/50" title="Regenerate">
                                     <RefreshCw className="w-3 h-3 text-muted-foreground" />
                                   </button>
                                 )}
+                                {msg.timestamp && (
+                                  <span className="text-[9px] text-muted-foreground/40 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {formatTime(msg.timestamp)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {msg.role === 'user' && msg.timestamp && (
+                              <div className="text-right">
+                                <span className="text-[9px] text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {formatTime(msg.timestamp)}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -564,25 +589,40 @@ export const AIChatBot: React.FC = memo(() => {
                     </AnimatePresence>
                     
                     {/* Typing indicator */}
-                    {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                      <TypingIndicator />
+                    {isLoading && messages[messages.length - 1]?.role !== 'assistant' && <TypingIndicator />}
+
+                    {/* Suggested follow-ups */}
+                    {!isLoading && hasMessages && lastAssistantMsg && !lastAssistantMsg.isStreaming && suggestedFollowUps.length > 0 && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 5 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: 0.3 }}
+                        className="flex flex-wrap gap-1.5 pt-2 pl-10"
+                      >
+                        {suggestedFollowUps.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            onClick={() => sendMessage(suggestion)}
+                            className="text-[11px] px-2.5 py-1.5 rounded-lg bg-surface/60 border border-border/30 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-primary/5 transition-all flex items-center gap-1"
+                          >
+                            <ArrowRight className="w-2.5 h-2.5 text-primary" />
+                            {suggestion}
+                          </button>
+                        ))}
+                      </motion.div>
                     )}
                     
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
 
-                {/* Input Area */}
+                {/* Input */}
                 <div className="shrink-0 p-3 border-t border-border/30 bg-gradient-to-t from-card/80 to-card/40 backdrop-blur-sm">
-                  {/* Message count indicator */}
                   {messageCount > 0 && (
                     <div className="flex items-center justify-between mb-2 px-1">
-                      <span className="text-[10px] text-muted-foreground/50">
-                        {messageCount} message{messageCount > 1 ? 's' : ''} in this session
-                      </span>
+                      <span className="text-[10px] text-muted-foreground/40">{messageCount} message{messageCount > 1 ? 's' : ''}</span>
                     </div>
                   )}
-                  
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 relative">
                       <textarea
@@ -617,20 +657,16 @@ export const AIChatBot: React.FC = memo(() => {
                         className={cn(
                           "shrink-0 w-10 h-10 rounded-xl transition-all duration-300",
                           input.trim()
-                            ? "bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:scale-105"
+                            ? "bg-gradient-to-br from-primary to-accent shadow-lg shadow-primary/25 hover:shadow-primary/40"
                             : "bg-muted"
                         )}
                       >
-                        {isLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       </Button>
                     </motion.div>
                   </div>
                   <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
-                    PushDex AI can make mistakes • Verify important info
+                    PushDex AI may make mistakes • Verify important info
                   </p>
                 </div>
               </>
