@@ -178,18 +178,38 @@ const Airdrop: React.FC = () => {
 
     setClaiming(task.id);
     try {
-      const { error } = await supabase.from('airdrop_completions').insert({
-        wallet_address: address.toLowerCase(),
-        task_id: task.id,
-        tx_hash: null,
+      const response = await supabase.functions.invoke('claim-airdrop', {
+        body: { wallet_address: address, task_id: task.id },
       });
 
-      if (error) {
-        if (error.code === '23505') toast.info('Task already completed!');
-        else throw error;
+      if (response.error) {
+        const msg = response.error.message || 'Failed to claim';
+        if (msg.includes('Rate limited')) {
+          toast.error('Too many claims! Please wait a moment.');
+        } else if (msg.includes('already completed')) {
+          toast.info('Task already completed!');
+        } else {
+          throw new Error(msg);
+        }
       } else {
-        toast.success(`+${task.points} points! Task completed 🎉`);
-        await fetchData();
+        // Parse response data
+        const data = response.data;
+        if (data?.error) {
+          if (data.already_completed) {
+            toast.info('Task already completed!');
+          } else if (data.error.includes('Rate limited')) {
+            toast.error('Too many claims! Please wait a moment.');
+          } else {
+            toast.error(data.error);
+          }
+        } else {
+          // Success! Show animations
+          setShowConfetti(true);
+          setRewardAnim({ points: task.points, show: true });
+          toast.success(`+${task.points} points! Task completed 🎉`);
+          setTimeout(() => setRewardAnim({ points: 0, show: false }), 2000);
+          await fetchData();
+        }
       }
     } catch {
       toast.error('Failed to claim task');
