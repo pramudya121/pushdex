@@ -19,6 +19,7 @@ import { AirdropProgressCountdown } from '@/components/airdrop/AirdropProgressCo
 import { AirdropReferral } from '@/components/airdrop/AirdropReferral';
 import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
+import { AirdropAchievements } from '@/components/airdrop/AirdropAchievements';
 import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
 import { isAdminWallet } from '@/config/admin';
 import {
@@ -259,7 +260,11 @@ const Airdrop: React.FC = () => {
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
 
-            {/* Connect X/Twitter Banner */}
+            {/* Achievement Badges */}
+            <div className="max-w-2xl mx-auto mb-8 sm:mb-10">
+              <AirdropAchievements completedCount={myCompleted} totalTasks={tasks.length} />
+            </div>
+
             {!twitterConnected && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
                 <Card className="glass-card max-w-2xl mx-auto mb-8 sm:mb-10 border-primary/20 bg-primary/5">
@@ -375,7 +380,7 @@ const Airdrop: React.FC = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Twitter className="w-5 h-5 text-blue-400" /> Confirm X/Twitter Connection
+              <Twitter className="w-5 h-5 text-primary" /> Confirm X/Twitter Connection
             </AlertDialogTitle>
             <AlertDialogDescription>
               Have you followed @pushdex on X/Twitter? Click confirm to unlock social tasks and earn bonus points.
