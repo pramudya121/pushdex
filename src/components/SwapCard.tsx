@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
 import { useSwap } from '@/hooks/useSwap';
 import { useWallet } from '@/contexts/WalletContext';
 import { useSmartRouter } from '@/hooks/useSmartRouter';
@@ -294,12 +295,15 @@ export const SwapCard: React.FC = () => {
         </h2>
         <div className="flex items-center gap-1">
           <ImportToken
+            onTokenImported={(token) => {
+              toast.success(`${token.symbol} imported! You can now select it for trading.`);
+            }}
             trigger={
               <Button
                 variant="ghost"
                 size="icon"
                 className="text-muted-foreground hover:text-foreground hover:bg-surface/80 transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Import Token"
+                title="Import Custom Token"
               >
                 <Plus className="w-4 h-4" />
               </Button>
