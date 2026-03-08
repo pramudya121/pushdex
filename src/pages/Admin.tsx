@@ -151,8 +151,42 @@ const AirdropAnalytics: React.FC = () => {
 
   const formatAddr = (a: string) => `${a.slice(0, 6)}...${a.slice(-4)}`;
 
+  const exportLeaderboardCSV = () => {
+    const rows = [['Rank', 'Wallet', 'Points', 'Tasks Completed']];
+    stats.topPerformers.forEach((p, i) => rows.push([`${i + 1}`, p.wallet, `${p.points}`, `${p.tasks}`]));
+    downloadCSV(rows, 'airdrop-leaderboard.csv');
+  };
+
+  const exportCompletionsCSV = async () => {
+    const { data } = await supabase.from('airdrop_completions').select('*').order('completed_at', { ascending: false });
+    if (!data || data.length === 0) { toast.info('No completions to export'); return; }
+    const rows = [['Wallet', 'Task ID', 'TX Hash', 'Completed At']];
+    data.forEach(c => rows.push([c.wallet_address, c.task_id, c.tx_hash || '', c.completed_at]));
+    downloadCSV(rows, 'airdrop-completions.csv');
+  };
+
+  const downloadCSV = (rows: string[][], filename: string) => {
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filename}`);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export Buttons */}
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" size="sm" onClick={exportLeaderboardCSV} className="gap-1.5">
+          <Download className="w-3.5 h-3.5" /> Export Leaderboard
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportCompletionsCSV} className="gap-1.5">
+          <Download className="w-3.5 h-3.5" /> Export Completions
+        </Button>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -186,7 +220,7 @@ const AirdropAnalytics: React.FC = () => {
               {stats.topPerformers.map((p, i) => (
                 <div key={p.wallet} className="flex items-center gap-3 p-3 rounded-lg bg-surface/40">
                   <span className="text-sm font-mono text-muted-foreground w-6">#{i + 1}</span>
-                  <span className="font-mono text-sm flex-1">{formatAddr(p.wallet)}</span>
+                  <span className="font-mono text-sm flex-1 truncate">{formatAddr(p.wallet)}</span>
                   <Badge variant="outline" className="text-primary border-primary/30">{p.points} pts</Badge>
                   <span className="text-xs text-muted-foreground">{p.tasks} tasks</span>
                 </div>
