@@ -249,6 +249,7 @@ const Liquidity = () => {
       toast.loading('Removing liquidity...', { id: 'remove' });
       await tx.wait();
       toast.success('Liquidity removed!', { id: 'remove' });
+      if (address) markActionVerified(address, 'remove_liquidity');
       setRemoveAmount('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {

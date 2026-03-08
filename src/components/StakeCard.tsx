@@ -84,6 +84,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
     const success = await onStake(pool.id, stakeAmount);
     if (success) {
       setStakeAmount('');
+      if (address) markActionVerified(address, 'staking');
       onRefresh();
     }
   };
