@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { useWallet } from '@/contexts/WalletContext';
+import { isAdminWallet } from '@/config/admin';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
