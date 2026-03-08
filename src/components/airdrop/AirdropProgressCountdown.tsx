@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Clock, Flame } from 'lucide-react';
 
 // Campaign end date — adjust as needed
-const CAMPAIGN_END = new Date('2025-09-30T23:59:59Z');
+const CAMPAIGN_END = new Date('2026-12-31T23:59:59Z');
 
 const calcTimeLeft = () => {
   const diff = CAMPAIGN_END.getTime() - Date.now();
