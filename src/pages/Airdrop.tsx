@@ -356,6 +356,26 @@ const Airdrop: React.FC = () => {
       </main>
 
       <Footer />
+
+      {/* Twitter Confirmation Dialog */}
+      <AlertDialog open={showTwitterConfirm} onOpenChange={setShowTwitterConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Twitter className="w-5 h-5 text-blue-400" /> Confirm X/Twitter Connection
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Have you followed @pushdex on X/Twitter? Click confirm to unlock social tasks and earn bonus points.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not Yet</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmTwitterConnection}>
+              Yes, I Followed ✓
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
