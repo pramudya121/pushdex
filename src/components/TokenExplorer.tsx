@@ -341,7 +341,7 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
           <Separator />
 
           {/* Token List */}
-          {loading ? (
+          {isListLoading ? (
             <div className="py-12 text-center">
               <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Loading tokens from blockchain...</p>
