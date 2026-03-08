@@ -124,7 +124,7 @@ const Launchpad = () => {
           'function allowance(address owner, address spender) view returns (uint256)',
           'function transferFrom(address from, address to, uint256 amount) returns (bool)',
         ],
-        SIMPLE_ERC20_BYTECODE,
+        ERC20_BYTECODE,
         signer
       );
 
