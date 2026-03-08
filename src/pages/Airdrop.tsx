@@ -254,6 +254,8 @@ const Airdrop: React.FC = () => {
     <div className="min-h-screen bg-background">
       <WaveBackground />
       <Header />
+      <ConfettiExplosion active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      <ClaimRewardAnimation points={rewardAnim.points} show={rewardAnim.show} />
 
       <main id="main-content" className="container mx-auto px-4 pt-24 pb-28 sm:pb-16 relative z-10">
         {/* Hero */}
