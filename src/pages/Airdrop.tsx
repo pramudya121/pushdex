@@ -380,7 +380,7 @@ const Airdrop: React.FC = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Twitter className="w-5 h-5 text-blue-400" /> Confirm X/Twitter Connection
+              <Twitter className="w-5 h-5 text-primary" /> Confirm X/Twitter Connection
             </AlertDialogTitle>
             <AlertDialogDescription>
               Have you followed @pushdex on X/Twitter? Click confirm to unlock social tasks and earn bonus points.
