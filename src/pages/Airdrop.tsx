@@ -261,21 +261,26 @@ const Airdrop: React.FC = () => {
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
-            <Gift className="w-4 h-4 text-primary" />
+            <Gift className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-sm font-medium text-primary">Airdrop Campaign</span>
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-foreground via-primary to-foreground/70 bg-clip-text text-transparent">
             PushDex Airdrop
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-4">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-3">
             Complete quests to earn points. On-chain tasks = 2 pts, Social tasks = 1 pt.
           </p>
-          {/* Admin Panel Link - only for admin wallets */}
-          {isAdminWallet(address) && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
-              <Settings className="w-3.5 h-3.5" /> Admin Panel
-            </Button>
-          )}
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-surface/50 px-3 py-1.5 rounded-full border border-border/30">
+              <Shield className="w-3 h-3 text-success" />
+              Anti-cheat protected
+            </div>
+            {isAdminWallet(address) && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Admin Panel
+              </Button>
+            )}
+          </div>
         </motion.div>
 
         {/* Empty state if not connected */}
