@@ -31,8 +31,8 @@ import {
   Filter,
   ArrowUpDown
 } from 'lucide-react';
-import { ethers } from 'ethers';
-import { Link } from 'react-router-dom';
+import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
+import { isAdminWallet } from '@/config/admin';
 import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
 import {
   Select,
