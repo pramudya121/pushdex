@@ -64,6 +64,7 @@ const Airdrop: React.FC = () => {
   const [tasks, setTasks] = useState<AirdropTask[]>([]);
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const prevRankRef = React.useRef<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [tab, setTab] = useState('quests');
