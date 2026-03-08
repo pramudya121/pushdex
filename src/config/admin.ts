@@ -1,8 +1,8 @@
 // Admin wallet addresses (lowercase) that can access the admin panel
-export const ADMIN_WALLETS = [
+export const ADMIN_WALLETS: string[] = [
   // Add your admin wallet addresses here (lowercase)
   // e.g. '0x1234...abcd'
-] as const;
+];
 
 export const isAdminWallet = (address: string | null): boolean => {
   if (!address) return false;
