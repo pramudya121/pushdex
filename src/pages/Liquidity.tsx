@@ -72,17 +72,25 @@ const Liquidity = () => {
   }, [address, tokenA, tokenB, balance]);
 
   const fetchPairInfo = useCallback(async () => {
-    const tokenAAddr = tokenA.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenA.address;
-    const tokenBAddr = tokenB.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenB.address;
-    const pair = await getPairAddress(tokenAAddr, tokenBAddr);
-    setPairAddress(pair);
-    setIsNewPool(!pair);
-    if (pair && address) {
-      const res = await getReserves(pair);
-      setReserves(res);
-      const lpBal = await getTokenBalance(pair, address);
-      setLpBalance(formatAmount(lpBal));
-    } else {
+    try {
+      const tokenAAddr = tokenA.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenA.address;
+      const tokenBAddr = tokenB.address === ethers.ZeroAddress ? CONTRACTS.WETH : tokenB.address;
+      const pair = await getPairAddress(tokenAAddr, tokenBAddr);
+      setPairAddress(pair);
+      setIsNewPool(!pair);
+      if (pair && address) {
+        const [res, lpBal] = await Promise.all([
+          getReserves(pair),
+          getTokenBalance(pair, address),
+        ]);
+        setReserves(res);
+        setLpBalance(formatAmount(lpBal));
+      } else {
+        setReserves(null);
+        setLpBalance('0');
+      }
+    } catch {
+      setPairAddress(null);
       setReserves(null);
       setLpBalance('0');
     }
