@@ -70,6 +70,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/staking': 'Staking | PUSHDEX',
   '/docs': 'Documentation | PUSHDEX',
   '/airdrop': 'Airdrop | PUSHDEX',
+  '/launchpad': 'Token Launchpad | PUSHDEX',
   '/settings': 'Settings | PUSHDEX',
   '/admin': 'Admin | PUSHDEX',
 };
