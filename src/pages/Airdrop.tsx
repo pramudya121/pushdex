@@ -20,6 +20,17 @@ import { AirdropReferral } from '@/components/airdrop/AirdropReferral';
 import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
 import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
+import { isAdminWallet } from '@/config/admin';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface AirdropTask {
   id: string;
