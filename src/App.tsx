@@ -106,27 +106,29 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <PushChainProvider>
-      <TooltipProvider delayDuration={200}>
-        {/* Accessibility: Skip Link */}
-        <SkipLink href="#main-content" />
-        
-        {/* Screen reader announcements */}
-        <LiveRegion message="" mode="polite" />
-        
-        <Toaster />
-        <Sonner position="top-right" theme="dark" richColors closeButton />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <AnimatedRoutes />
-          </Suspense>
-          {/* AI ChatBot - Available on all pages */}
-          <AIChatBot />
-        </BrowserRouter>
-      </TooltipProvider>
-    </PushChainProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <PushChainProvider>
+        <TooltipProvider delayDuration={200}>
+          {/* Accessibility: Skip Link */}
+          <SkipLink href="#main-content" />
+          
+          {/* Screen reader announcements */}
+          <LiveRegion message="" mode="polite" />
+          
+          <Toaster />
+          <Sonner position="top-right" theme="dark" richColors closeButton />
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <AnimatedRoutes />
+            </Suspense>
+            {/* AI ChatBot - Available on all pages */}
+            <AIChatBot />
+          </BrowserRouter>
+        </TooltipProvider>
+      </PushChainProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
