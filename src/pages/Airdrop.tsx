@@ -134,6 +134,17 @@ const Airdrop: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Realtime subscription for live leaderboard
+  useEffect(() => {
+    const channel = supabase
+      .channel('airdrop-completions-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'airdrop_completions' }, () => {
+        fetchData();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchData]);
+
   const isTaskCompleted = (taskId: string) => {
     if (!address) return false;
     return completions.some(c => c.task_id === taskId && c.wallet_address.toLowerCase() === address.toLowerCase());
