@@ -511,7 +511,7 @@ const Portfolio = () => {
         <WaveBackground />
         <Header />
         
-        <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
+        <main className="relative z-10 pt-32 md:pt-24 pb-28 sm:pb-16 px-4">
           <div className="max-w-2xl mx-auto">
             <div className="glass-card p-12 text-center animate-scale-in">
               <div className="p-4 rounded-2xl bg-primary/10 w-fit mx-auto mb-6">
