@@ -763,3 +763,53 @@ export const STAKING_ABI = [
     type: "event",
   },
 ] as const;
+
+// Token Factory ABI
+export const TOKEN_FACTORY_ABI = [
+  {
+    inputs: [
+      { internalType: "string", name: "_name", type: "string" },
+      { internalType: "string", name: "_symbol", type: "string" },
+      { internalType: "uint8", name: "_decimals", type: "uint8" },
+      { internalType: "uint256", name: "_totalSupply", type: "uint256" },
+    ],
+    name: "createToken",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "token", type: "address" },
+      { indexed: true, internalType: "address", name: "creator", type: "address" },
+      { indexed: false, internalType: "string", name: "name", type: "string" },
+      { indexed: false, internalType: "string", name: "symbol", type: "string" },
+      { indexed: false, internalType: "uint8", name: "decimals", type: "uint8" },
+      { indexed: false, internalType: "uint256", name: "totalSupply", type: "uint256" },
+    ],
+    name: "TokenCreated",
+    type: "event",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "deployedTokens",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getDeployedTokensCount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "creator", type: "address" }],
+    name: "getTokensByCreator",
+    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
