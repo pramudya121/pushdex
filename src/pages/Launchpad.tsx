@@ -305,6 +305,16 @@ const Launchpad = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {/* Factory status */}
+                  {!isFactoryDeployed && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 flex items-start gap-2 text-sm">
+                      <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">
+                        <strong className="text-foreground">TokenFactory belum di-deploy.</strong> Deploy <code className="text-xs bg-muted px-1 py-0.5 rounded">contracts/TokenFactory.sol</code> ke Push Chain lalu update address di <code className="text-xs bg-muted px-1 py-0.5 rounded">contracts.ts</code>.
+                      </span>
+                    </div>
+                  )}
+
                   {/* Warning */}
                   <div className="p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-start gap-2 text-sm">
                     <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
