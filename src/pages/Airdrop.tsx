@@ -187,12 +187,17 @@ const Airdrop: React.FC = () => {
       toast.error('Connect your wallet first');
       return;
     }
-    // Open Twitter follow page, then mark as connected
-    const twitterUrl = 'https://x.com/pushdex';
-    const popup = window.open(twitterUrl, '_blank', 'noopener,noreferrer');
-    // Mark connected after opening (user confirms by clicking Connect X)
+    // Open Twitter follow page
+    window.open('https://x.com/pushdex', '_blank', 'noopener,noreferrer');
+    // Show confirmation dialog
+    setShowTwitterConfirm(true);
+  };
+
+  const confirmTwitterConnection = () => {
+    if (!address) return;
     setTwitterConnected(address);
     setTwitterState(true);
+    setShowTwitterConfirm(false);
     toast.success('X/Twitter connected! You can now claim social tasks 🐦');
   };
 
