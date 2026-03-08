@@ -92,25 +92,10 @@ const Launchpad = () => {
 
     try {
       const decimals = parseInt(tokenDecimals) || 18;
-      // Pass raw supply as BigInt - contract handles decimals multiplication internally
-      const supply = BigInt(totalSupply);
+      const supplyWithDecimals = ethers.parseUnits(totalSupply, decimals);
 
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
-      // Verify contract is accessible first
-      try {
-        const totalCount = await factory.getDeployedTokensCount();
-        console.log('TokenFactory accessible, total tokens deployed:', totalCount.toString());
-      } catch (verifyErr) {
-        console.error('Cannot reach TokenFactory contract:', verifyErr);
-        toast.error('Cannot reach TokenFactory contract. Check network connection.', { id: 'deploy' });
-        setStep('configure');
-        setIsProcessing(false);
-        return;
-      }
-
-      // Contract signature: createToken(string _name, string _symbol, uint8 _decimals, uint256 _totalSupply)
-      const supplyWithDecimals = ethers.parseUnits(totalSupply, decimals);
       console.log('Creating token with params:', { 
         name: tokenName, 
         symbol: tokenSymbol, 
@@ -119,9 +104,34 @@ const Launchpad = () => {
       });
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
-      const tx = await factory.createToken(tokenName, tokenSymbol, decimals, supplyWithDecimals, {
-        gasLimit: 3000000n,
-      });
+      
+      // Try primary signature: createToken(name, symbol, decimals, totalSupply)
+      // If it fails, try alternate: createToken(name, symbol, totalSupply, decimals)
+      let tx;
+      try {
+        tx = await factory.createToken(tokenName, tokenSymbol, decimals, supplyWithDecimals, {
+          gasLimit: 5000000n,
+        });
+      } catch (primaryErr: any) {
+        console.warn('Primary call failed, trying alternate parameter order:', primaryErr.message);
+        // Alternate ABI order for older deployed contracts
+        const altAbi = [{
+          inputs: [
+            { internalType: "string", name: "name", type: "string" },
+            { internalType: "string", name: "symbol", type: "string" },
+            { internalType: "uint256", name: "supply", type: "uint256" },
+            { internalType: "uint8", name: "decimals", type: "uint8" },
+          ],
+          name: "createToken",
+          outputs: [{ internalType: "address", name: "", type: "address" }],
+          stateMutability: "nonpayable",
+          type: "function",
+        }];
+        const altFactory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, altAbi, signer);
+        tx = await altFactory.createToken(tokenName, tokenSymbol, supplyWithDecimals, decimals, {
+          gasLimit: 5000000n,
+        });
+      }
       console.log('TX sent:', tx.hash);
       const receipt = await tx.wait();
       console.log('TX confirmed, status:', receipt.status);
