@@ -559,4 +559,4 @@ const Liquidity = () => {
   );
 };
 
-export default Liquidity;
+export default React.memo(Liquidity);
