@@ -199,12 +199,14 @@ const Staking: React.FC = memo(() => {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
-            <Link to="/admin">
-              <Button variant="outline" size="sm">
-                <Shield className="w-4 h-4 mr-2" />
-                Admin
-              </Button>
-            </Link>
+            {isAdminWallet(address) && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
