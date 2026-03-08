@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { markActionVerified } from '@/lib/airdropTracker';
 import { ethers } from 'ethers';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
