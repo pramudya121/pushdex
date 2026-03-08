@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { X, Send, Loader2, Bot, User, Minimize2, Maximize2, Sparkles, Trash2, Copy, Check, RefreshCw, ExternalLink, Zap, ArrowRight } from 'lucide-react';
+import { X, Send, Loader2, Bot, User, Minimize2, Maximize2, Sparkles, Trash2, Copy, Check, RefreshCw, ExternalLink, Zap, ArrowRight, Mic, MicOff, Volume2, VolumeX, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -28,7 +28,6 @@ const QUICK_PROMPTS = [
   { message: 'What tokens are supported on PushDex?', icon: '🪙', label: 'Token list' },
 ];
 
-// Suggested follow-up prompts based on context
 const getSuggestedFollowUps = (lastAssistantMsg: string): string[] => {
   const lower = lastAssistantMsg.toLowerCase();
   if (lower.includes('swap')) return ['What is slippage?', 'How to set slippage?', 'Show me token list'];
@@ -41,14 +40,13 @@ const getSuggestedFollowUps = (lastAssistantMsg: string): string[] => {
   return ['How to start trading?', 'Explain DeFi basics', 'What makes PushDex unique?'];
 };
 
-// Detect links in text
 const detectAndRenderLinks = (text: string): React.ReactNode => {
   const urlRegex = /(https?:\/\/[^\s)]+)/g;
   const parts = text.split(urlRegex);
   return parts.map((part, i) => {
     if (part.match(urlRegex)) {
       return (
-        <a key={i} href={part} target="_blank" rel="noopener noreferrer" 
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer"
            className="text-primary hover:underline inline-flex items-center gap-0.5">
           {part.length > 40 ? part.slice(0, 40) + '...' : part}
           <ExternalLink className="w-3 h-3 inline" />
@@ -59,10 +57,9 @@ const detectAndRenderLinks = (text: string): React.ReactNode => {
   });
 };
 
-// Enhanced markdown renderer with link detection
 const renderContent = (text: string) => {
   const parts = text.split(/(```[\s\S]*?```)/g);
-  
+
   return parts.map((part, i) => {
     if (part.startsWith('```')) {
       const langMatch = part.match(/```(\w*)\n?/);
@@ -80,9 +77,8 @@ const renderContent = (text: string) => {
         </div>
       );
     }
-    
+
     return part.split('\n').map((line, j) => {
-      // Table support
       if (line.startsWith('|') && line.endsWith('|')) {
         const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
         const isSeparator = cells.every(c => /^[-:]+$/.test(c));
@@ -101,7 +97,7 @@ const renderContent = (text: string) => {
       if (line.startsWith('### ')) return <h4 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground flex items-center gap-1.5">{formatInline(line.slice(4))}</h4>;
       if (line.startsWith('## ')) return <h3 key={`${i}-${j}`} className="font-bold text-sm mt-3 mb-1.5 text-foreground">{formatInline(line.slice(3))}</h3>;
       if (line.startsWith('# ')) return <h2 key={`${i}-${j}`} className="font-bold text-base mt-3 mb-1.5 text-foreground">{formatInline(line.slice(2))}</h2>;
-      
+
       if (line.startsWith('- ') || line.startsWith('* ')) {
         return (
           <div key={`${i}-${j}`} className="flex gap-2 my-0.5 pl-1">
@@ -110,7 +106,7 @@ const renderContent = (text: string) => {
           </div>
         );
       }
-      
+
       const numMatch = line.match(/^(\d+)\.\s/);
       if (numMatch) {
         return (
@@ -121,7 +117,6 @@ const renderContent = (text: string) => {
         );
       }
 
-      // Blockquote
       if (line.startsWith('> ')) {
         return (
           <div key={`${i}-${j}`} className="border-l-2 border-primary/40 pl-3 my-1.5 text-muted-foreground italic">
@@ -129,28 +124,26 @@ const renderContent = (text: string) => {
           </div>
         );
       }
-      
+
       if (line.trim() === '') return <div key={`${i}-${j}`} className="h-2" />;
-      
+
       return <p key={`${i}-${j}`} className="my-0.5 leading-relaxed">{formatInline(line)}</p>;
     });
   });
 };
 
 const formatInline = (text: string): React.ReactNode => {
-  // First handle links
   const linkParts = text.split(/(https?:\/\/[^\s)]+)/g);
   return linkParts.map((segment, si) => {
     if (segment.match(/^https?:\/\//)) {
       return (
-        <a key={si} href={segment} target="_blank" rel="noopener noreferrer" 
+        <a key={si} href={segment} target="_blank" rel="noopener noreferrer"
            className="text-primary hover:underline inline-flex items-center gap-0.5 break-all">
           {segment.length > 35 ? segment.slice(0, 35) + '...' : segment}
           <ExternalLink className="w-2.5 h-2.5 inline shrink-0" />
         </a>
       );
     }
-    // Then handle bold and inline code
     const parts = segment.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -167,7 +160,6 @@ const formatInline = (text: string): React.ReactNode => {
   });
 };
 
-// Code block copy button
 const CodeCopyButton = ({ code }: { code: string }) => {
   const [copied, setCopied] = useState(false);
   return (
@@ -180,7 +172,6 @@ const CodeCopyButton = ({ code }: { code: string }) => {
   );
 };
 
-// Message copy button
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
   return (
@@ -194,7 +185,78 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
-// Typing indicator
+// TTS Button for assistant messages
+const TTSButton = ({ text }: { text: string }) => {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const stripMarkdown = (md: string) => {
+    return md
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[|>-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const speak = useCallback(() => {
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    const clean = stripMarkdown(text);
+    if (!clean) return;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Try to pick a good voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) 
+      || voices.find(v => v.lang.startsWith('en'))
+      || voices[0];
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }, [text, isSpeaking]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (isSpeaking) window.speechSynthesis.cancel();
+    };
+  }, [isSpeaking]);
+
+  return (
+    <button
+      onClick={speak}
+      className={cn(
+        "opacity-0 group-hover:opacity-100 transition-all p-1 rounded-md hover:bg-muted/50",
+        isSpeaking && "opacity-100 text-primary"
+      )}
+      title={isSpeaking ? "Stop speaking" : "Listen to response"}
+    >
+      {isSpeaking ? (
+        <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
+          <VolumeX className="w-3 h-3 text-primary" />
+        </motion.div>
+      ) : (
+        <Volume2 className="w-3 h-3 text-muted-foreground" />
+      )}
+    </button>
+  );
+};
+
 const TypingIndicator = () => (
   <motion.div
     initial={{ opacity: 0, y: 5 }}
@@ -218,7 +280,7 @@ const TypingIndicator = () => (
             />
           ))}
         </div>
-        <motion.span 
+        <motion.span
           className="text-[10px] text-muted-foreground ml-2"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
@@ -230,10 +292,157 @@ const TypingIndicator = () => (
   </motion.div>
 );
 
-// Time formatter
 const formatTime = (date?: Date) => {
   if (!date) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// Voice Input Hook
+const useVoiceInput = (onResult: (text: string) => void) => {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [volume, setVolume] = useState(0);
+  const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number>(0);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const isSupported = typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    setIsListening(false);
+    setVolume(0);
+    setTranscript('');
+  }, []);
+
+  const startListening = useCallback(async () => {
+    if (!isSupported) {
+      toast.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    try {
+      // Get mic for volume visualization
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      const analyser = audioCtx.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 256;
+      const source = audioCtx.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      // Volume animation loop
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const updateVolume = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        setVolume(avg / 255);
+        animFrameRef.current = requestAnimationFrame(updateVolume);
+      };
+      updateVolume();
+
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'id-ID'; // Support Indonesian, falls back gracefully
+
+      let finalText = '';
+
+      recognition.onresult = (event: any) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += t + ' ';
+          } else {
+            interim = t;
+          }
+        }
+        setTranscript((finalText + interim).trim());
+      };
+
+      recognition.onend = () => {
+        const text = finalText.trim();
+        if (text) onResult(text);
+        stopListening();
+      };
+
+      recognition.onerror = (e: any) => {
+        if (e.error !== 'aborted') {
+          console.error('Speech recognition error:', e.error);
+          toast.error(`Voice error: ${e.error}`);
+        }
+        stopListening();
+      };
+
+      recognition.start();
+      setIsListening(true);
+    } catch (err) {
+      console.error('Mic access error:', err);
+      toast.error('Could not access microphone');
+      stopListening();
+    }
+  }, [isSupported, onResult, stopListening]);
+
+  useEffect(() => {
+    return () => stopListening();
+  }, [stopListening]);
+
+  return { isListening, transcript, volume, startListening, stopListening, isSupported };
+};
+
+// Auto-speak new assistant messages
+const useAutoSpeak = (enabled: boolean) => {
+  const speakText = useCallback((text: string) => {
+    if (!enabled) return;
+    
+    const clean = text
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/#{1,6}\s/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[|>-]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!clean) return;
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google'))
+      || voices.find(v => v.lang.startsWith('en'))
+      || voices[0];
+    if (preferred) utterance.voice = preferred;
+
+    window.speechSynthesis.speak(utterance);
+  }, [enabled]);
+
+  return { speakText };
 };
 
 export const AIChatBot: React.FC = memo(() => {
@@ -243,10 +452,26 @@ export const AIChatBot: React.FC = memo(() => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [autoVoiceReply, setAutoVoiceReply] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const { speakText } = useAutoSpeak(autoVoiceReply);
+
+  const handleVoiceResult = useCallback((text: string) => {
+    setInput(text);
+  }, []);
+
+  const { isListening, transcript, volume, startListening, stopListening, isSupported: voiceSupported } = useVoiceInput(handleVoiceResult);
+
+  // Update input with live transcript while listening
+  useEffect(() => {
+    if (isListening && transcript) {
+      setInput(transcript);
+    }
+  }, [isListening, transcript]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -323,12 +548,18 @@ export const AIChatBot: React.FC = memo(() => {
       if (last?.role === 'assistant') updated[updated.length - 1] = { ...last, isStreaming: false };
       return updated;
     });
-  }, []);
+
+    // Auto-speak if enabled
+    if (assistantContent) {
+      speakText(assistantContent);
+    }
+  }, [speakText]);
 
   const sendMessage = useCallback(async (messageText?: string) => {
     const text = (messageText || input).trim();
     if (!text || isLoading) return;
     setInput('');
+    if (isListening) stopListening();
     const userMsg: Message = { role: 'user', content: text, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
@@ -338,13 +569,16 @@ export const AIChatBot: React.FC = memo(() => {
       console.error('Chat error:', error);
       setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Sorry, I encountered an error. Please try again.', timestamp: new Date() }]);
     } finally { setIsLoading(false); }
-  }, [input, isLoading, messages, streamChat]);
+  }, [input, isLoading, messages, streamChat, isListening, stopListening]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const clearChat = useCallback(() => setMessages([]), []);
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    window.speechSynthesis.cancel();
+  }, []);
 
   const regenerateLastResponse = useCallback(async () => {
     if (messages.length < 2 || isLoading) return;
@@ -422,11 +656,11 @@ export const AIChatBot: React.FC = memo(() => {
             <div className="relative overflow-hidden shrink-0">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/8 to-primary/10" />
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-              
+
               <div className="relative flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <motion.div 
+                    <motion.div
                       className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/20 flex items-center justify-center"
                       whileHover={{ rotate: 5, scale: 1.05 }}
                     >
@@ -445,11 +679,28 @@ export const AIChatBot: React.FC = memo(() => {
                       <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[hsl(var(--success))] inline-block" />
                         Online • Gemini Flash
+                        {autoVoiceReply && <Volume2 className="w-3 h-3 text-primary ml-1" />}
                       </p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5">
+                  {/* Auto voice reply toggle */}
+                  {!isMinimized && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn("w-7 h-7", autoVoiceReply ? "text-primary" : "text-muted-foreground")}
+                      onClick={() => {
+                        setAutoVoiceReply(!autoVoiceReply);
+                        toast.success(autoVoiceReply ? 'Voice reply OFF' : 'Voice reply ON 🔊');
+                        if (autoVoiceReply) window.speechSynthesis.cancel();
+                      }}
+                      title={autoVoiceReply ? 'Disable voice replies' : 'Enable voice replies'}
+                    >
+                      {autoVoiceReply ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                    </Button>
+                  )}
                   {hasMessages && !isMinimized && (
                     <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-destructive" onClick={clearChat} title="Clear chat">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -463,7 +714,7 @@ export const AIChatBot: React.FC = memo(() => {
                   <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground" onClick={() => setIsMinimized(!isMinimized)}>
                     {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
                   </Button>
-                  <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-destructive" onClick={() => setIsOpen(false)}>
+                  <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-destructive" onClick={() => { setIsOpen(false); window.speechSynthesis.cancel(); }}>
                     <X className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -488,7 +739,7 @@ export const AIChatBot: React.FC = memo(() => {
                           </motion.div>
                           <motion.div className="absolute -inset-3 rounded-3xl border border-primary/10" animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0, 0.3] }} transition={{ duration: 2.5, repeat: Infinity }} />
                         </div>
-                        
+
                         <div>
                           <h3 className="text-lg font-bold text-foreground mb-1">Hey! I'm PushDex AI 👋</h3>
                           <p className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
@@ -498,11 +749,11 @@ export const AIChatBot: React.FC = memo(() => {
 
                         {/* Capability pills */}
                         <div className="flex flex-wrap items-center justify-center gap-1.5 text-[10px] text-muted-foreground px-2">
-                          {['🧠 DeFi Expert', '📊 Analytics', '🔧 Troubleshoot', '🌍 Multi-lang'].map((cap) => (
+                          {['🧠 DeFi Expert', '📊 Analytics', '🎤 Voice Input', '🔊 Voice Reply', '🌍 Multi-lang'].map((cap) => (
                             <span key={cap} className="px-2 py-1 rounded-full bg-secondary/60 border border-border/30">{cap}</span>
                           ))}
                         </div>
-                        
+
                         {/* Quick prompts grid */}
                         <div className="grid grid-cols-2 gap-1.5 px-1">
                           {QUICK_PROMPTS.map((prompt) => (
@@ -559,6 +810,7 @@ export const AIChatBot: React.FC = memo(() => {
                             {msg.role === 'assistant' && !msg.isStreaming && msg.content && (
                               <div className="flex items-center gap-1 ml-1">
                                 <CopyButton text={msg.content} />
+                                <TTSButton text={msg.content} />
                                 {idx === messages.length - 1 && (
                                   <button onClick={regenerateLastResponse} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted/50" title="Regenerate">
                                     <RefreshCw className="w-3 h-3 text-muted-foreground" />
@@ -587,15 +839,15 @@ export const AIChatBot: React.FC = memo(() => {
                         </motion.div>
                       ))}
                     </AnimatePresence>
-                    
+
                     {/* Typing indicator */}
                     {isLoading && messages[messages.length - 1]?.role !== 'assistant' && <TypingIndicator />}
 
                     {/* Suggested follow-ups */}
                     {!isLoading && hasMessages && lastAssistantMsg && !lastAssistantMsg.isStreaming && suggestedFollowUps.length > 0 && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 5 }} 
-                        animate={{ opacity: 1, y: 0 }} 
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
                         className="flex flex-wrap gap-1.5 pt-2 pl-10"
                       >
@@ -611,10 +863,61 @@ export const AIChatBot: React.FC = memo(() => {
                         ))}
                       </motion.div>
                     )}
-                    
+
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
+
+                {/* Voice Recording Overlay */}
+                <AnimatePresence>
+                  {isListening && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="absolute bottom-[120px] left-3 right-3 z-10"
+                    >
+                      <div className="bg-card/95 backdrop-blur-xl border border-primary/30 rounded-2xl p-4 shadow-2xl shadow-primary/10">
+                        <div className="flex items-center gap-3 mb-3">
+                          <motion.div
+                            className="w-10 h-10 rounded-full bg-destructive/15 border border-destructive/30 flex items-center justify-center"
+                            animate={{ scale: [1, 1.1 + volume * 0.3, 1] }}
+                            transition={{ duration: 0.3, repeat: Infinity }}
+                          >
+                            <Mic className="w-5 h-5 text-destructive" />
+                          </motion.div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground">Listening...</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {transcript || 'Speak now...'}
+                            </p>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="w-8 h-8 text-destructive hover:bg-destructive/10"
+                            onClick={stopListening}
+                          >
+                            <Square className="w-4 h-4 fill-current" />
+                          </Button>
+                        </div>
+                        {/* Volume bars */}
+                        <div className="flex gap-0.5 items-end h-6 justify-center">
+                          {Array.from({ length: 20 }).map((_, i) => (
+                            <motion.div
+                              key={i}
+                              className="w-1 rounded-full bg-primary"
+                              animate={{
+                                height: Math.max(4, volume * 24 * (0.5 + Math.random() * 0.5)),
+                              }}
+                              transition={{ duration: 0.1 }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Input */}
                 <div className="shrink-0 p-3 border-t border-border/30 bg-gradient-to-t from-card/80 to-card/40 backdrop-blur-sm">
@@ -630,7 +933,7 @@ export const AIChatBot: React.FC = memo(() => {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Ask me anything about DeFi..."
+                        placeholder={isListening ? "Listening..." : "Ask me anything about DeFi..."}
                         rows={1}
                         className={cn(
                           "w-full resize-none rounded-xl px-4 py-2.5 text-sm",
@@ -638,7 +941,8 @@ export const AIChatBot: React.FC = memo(() => {
                           "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40",
                           "placeholder:text-muted-foreground/40",
                           "transition-all duration-200",
-                          "max-h-[100px] scrollbar-hide"
+                          "max-h-[100px] scrollbar-hide",
+                          isListening && "border-primary/50 ring-2 ring-primary/20"
                         )}
                         disabled={isLoading}
                         style={{ minHeight: '42px' }}
@@ -649,6 +953,34 @@ export const AIChatBot: React.FC = memo(() => {
                         }}
                       />
                     </div>
+
+                    {/* Mic button */}
+                    {voiceSupported && (
+                      <motion.div whileTap={{ scale: 0.9 }}>
+                        <Button
+                          onClick={isListening ? stopListening : startListening}
+                          disabled={isLoading}
+                          size="icon"
+                          variant="ghost"
+                          className={cn(
+                            "shrink-0 w-10 h-10 rounded-xl transition-all duration-300",
+                            isListening
+                              ? "bg-destructive/15 text-destructive border border-destructive/30 hover:bg-destructive/25"
+                              : "bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                          )}
+                          title={isListening ? "Stop recording" : "Voice input"}
+                        >
+                          {isListening ? (
+                            <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
+                              <MicOff className="w-4 h-4" />
+                            </motion.div>
+                          ) : (
+                            <Mic className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </motion.div>
+                    )}
+
                     <motion.div whileTap={{ scale: 0.9 }}>
                       <Button
                         onClick={() => sendMessage()}
@@ -666,7 +998,7 @@ export const AIChatBot: React.FC = memo(() => {
                     </motion.div>
                   </div>
                   <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
-                    PushDex AI may make mistakes • Verify important info
+                    🎤 Voice input • 🔊 Voice reply • PushDex AI may make mistakes
                   </p>
                 </div>
               </>
