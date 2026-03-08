@@ -73,16 +73,16 @@ const Launchpad = () => {
   const isFactoryDeployed = CONTRACTS.TOKEN_FACTORY && CONTRACTS.TOKEN_FACTORY.length > 0;
   const isFormValid = tokenName.trim() && tokenSymbol.trim() && totalSupply && parseFloat(totalSupply) > 0;
 
-  // Load user's previously created tokens
+  // Load all deployed tokens (contract doesn't have per-creator filter)
   useEffect(() => {
     const loadMyTokens = async () => {
       if (!signer || !address || !isFactoryDeployed) return;
       try {
         const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
-        const tokens = await factory.getTokensByCreator(address);
-        setMyTokens(tokens);
+        const allTokens: string[] = await factory.getAllTokens();
+        setMyTokens(allTokens);
       } catch (e) {
-        console.error('Failed to load user tokens:', e);
+        console.error('Failed to load tokens:', e);
       }
     };
     loadMyTokens();
@@ -95,7 +95,7 @@ const Launchpad = () => {
       return;
     }
     if (!isFactoryDeployed) {
-      toast.error('TokenFactory contract belum di-deploy. Silakan deploy contracts/TokenFactory.sol terlebih dahulu.');
+      toast.error('TokenFactory contract belum di-deploy.');
       return;
     }
 
@@ -106,11 +106,11 @@ const Launchpad = () => {
       const decimals = parseInt(tokenDecimals) || 18;
       const supply = ethers.parseUnits(totalSupply, decimals);
 
-      // Call TokenFactory.createToken()
+      // Call TokenFactory.createToken(name, symbol, supply, decimals)
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
-      const tx = await factory.createToken(tokenName, tokenSymbol, decimals, supply);
+      const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals);
       const receipt = await tx.wait();
 
       // Parse TokenCreated event to get the new token address
@@ -119,7 +119,7 @@ const Launchpad = () => {
         try {
           const parsed = factory.interface.parseLog(log);
           if (parsed?.name === 'TokenCreated') {
-            tokenAddress = parsed.args[0]; // first indexed arg = token address
+            tokenAddress = parsed.args[0]; // token address
             break;
           }
         } catch { /* skip non-factory logs */ }
@@ -597,6 +597,38 @@ const Launchpad = () => {
                     <Rocket className="w-4 h-4" />
                     Launch Another Token
                   </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Deployed Tokens List */}
+          {myTokens.length > 0 && step === 'configure' && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-primary" />
+                    Deployed Tokens ({myTokens.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {myTokens.map((tokenAddr, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-mono text-xs">#{i + 1}</Badge>
+                        <code className="text-xs font-mono">{tokenAddr.slice(0, 10)}...{tokenAddr.slice(-8)}</code>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => copyToClipboard(tokenAddr)} className="text-muted-foreground hover:text-foreground transition-colors">
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <a href={`${BLOCK_EXPLORER}/address/${tokenAddr}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </CardContent>
               </Card>
             </motion.div>

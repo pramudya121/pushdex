@@ -13,7 +13,7 @@ export const CONTRACTS = {
   MULTICALL: "0x98cA063a7066Ae68B395ad49B9f05F2Df510d6B5",
   FARMING: "0x45eb2C9405A5C07288B8B22343C9a5eA67405579",
   STAKING: "0xAb40694cA2Cf9DdfD5235109505D1970C48Ce2aA",
-  TOKEN_FACTORY: "" as string, // Deploy contracts/TokenFactory.sol and paste address here
+  TOKEN_FACTORY: "0xdD0464b47A9cFd33179FA4C83A1ffb8de5062742",
 } as const;
 
 export const TOKENS = {
