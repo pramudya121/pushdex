@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { TokenExplorer } from '@/components/TokenExplorer';
 
 interface DeployedToken {
   address: string;
