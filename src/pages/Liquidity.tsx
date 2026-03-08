@@ -224,6 +224,7 @@ const Liquidity = () => {
       toast.loading(isNewPool ? 'Creating pool...' : 'Adding liquidity...', { id: 'add' });
       await tx.wait();
       toast.success(isNewPool ? 'Pool created!' : 'Liquidity added!', { id: 'add' });
+      if (address) markActionVerified(address, 'add_liquidity');
       setAmountA(''); setAmountB('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {
