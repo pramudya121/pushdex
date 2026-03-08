@@ -492,15 +492,58 @@ const SmartContractsSection = ({ copiedContract, copyAddress }: { copiedContract
   </div>
 );
 
+const TOKEN_LOGOS: Record<string, string> = {
+  PC: '/tokens/pc.png',
+  WPC: '/tokens/wpc.png',
+  ETH: '/tokens/eth.png',
+  BNB: '/tokens/bnb.png',
+  PSDX: '/tokens/psdx.png',
+  LINK: '/tokens/link.png',
+  HYPE: '/tokens/hype.png',
+  ZEC: '/tokens/zec.png',
+  SUI: '/tokens/sui.png',
+  UNI: '/tokens/uni.png',
+  OKB: '/tokens/okb.png',
+};
+
+const TOKEN_NAMES: Record<string, string> = {
+  PC: 'Push Coin',
+  WPC: 'Wrapped Push Coin',
+  ETH: 'Ethereum',
+  BNB: 'BNB',
+  PSDX: 'PushDex Token',
+  LINK: 'Chainlink',
+  HYPE: 'Hype Token',
+  ZEC: 'Zcash',
+  SUI: 'Sui',
+  UNI: 'Uniswap',
+  OKB: 'OKB',
+};
+
 const SupportedTokensSection = ({ copiedContract, copyAddress }: { copiedContract: string | null; copyAddress: (addr: string, name: string) => void }) => (
   <div className="space-y-6">
     <h2 className="text-2xl font-bold">Supported Tokens</h2>
-    <div className="space-y-3">
+    <p className="text-muted-foreground text-sm">All tokens available for trading on PUSHDEX</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {Object.entries(TOKENS).map(([name, address]) => (
-        <Card key={name} className="p-4 bg-secondary/40 border-border/30">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-semibold text-sm">{name}</span>
-            <div className="flex items-center gap-1">
+        <Card key={name} className="p-4 bg-secondary/40 border-border/30 hover:border-primary/30 transition-colors group">
+          <div className="flex items-center gap-3 mb-2.5">
+            <div className="w-10 h-10 rounded-full bg-secondary/80 border border-border/40 overflow-hidden flex items-center justify-center shrink-0 group-hover:border-primary/30 transition-colors">
+              <img
+                src={TOKEN_LOGOS[name] || '/placeholder.svg'}
+                alt={`${name} logo`}
+                className="w-7 h-7 object-contain"
+                loading="lazy"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm">{name}</span>
+                <span className="text-xs text-muted-foreground">{TOKEN_NAMES[name]}</span>
+              </div>
+              <div className="font-mono text-[10px] text-muted-foreground truncate">{address}</div>
+            </div>
+            <div className="flex items-center gap-0.5 shrink-0">
               <button onClick={() => copyAddress(address, name)} className="p-1.5 rounded hover:bg-muted transition-colors">
                 {copiedContract === name ? <Check className="w-3.5 h-3.5 text-[hsl(var(--success))]" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
               </button>
@@ -509,7 +552,6 @@ const SupportedTokensSection = ({ copiedContract, copyAddress }: { copiedContrac
               </a>
             </div>
           </div>
-          <div className="font-mono text-xs text-muted-foreground break-all">{address}</div>
         </Card>
       ))}
     </div>
