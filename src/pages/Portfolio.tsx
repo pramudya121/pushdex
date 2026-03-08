@@ -769,7 +769,7 @@ const Portfolio = () => {
                               <div className="font-semibold">{parseFloat(token.balance).toFixed(4)}</div>
                               <div className="flex items-center justify-end gap-2 text-sm">
                                 <span className="text-muted-foreground">${token.usdValue.toFixed(2)}</span>
-                                <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                                   {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                                   {Math.abs(token.change24h).toFixed(2)}%
                                 </span>
