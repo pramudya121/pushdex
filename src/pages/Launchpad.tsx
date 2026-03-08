@@ -73,16 +73,16 @@ const Launchpad = () => {
   const isFactoryDeployed = CONTRACTS.TOKEN_FACTORY && CONTRACTS.TOKEN_FACTORY.length > 0;
   const isFormValid = tokenName.trim() && tokenSymbol.trim() && totalSupply && parseFloat(totalSupply) > 0;
 
-  // Load user's previously created tokens
+  // Load all deployed tokens (contract doesn't have per-creator filter)
   useEffect(() => {
     const loadMyTokens = async () => {
       if (!signer || !address || !isFactoryDeployed) return;
       try {
         const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
-        const tokens = await factory.getTokensByCreator(address);
-        setMyTokens(tokens);
+        const allTokens: string[] = await factory.getAllTokens();
+        setMyTokens(allTokens);
       } catch (e) {
-        console.error('Failed to load user tokens:', e);
+        console.error('Failed to load tokens:', e);
       }
     };
     loadMyTokens();
@@ -95,7 +95,7 @@ const Launchpad = () => {
       return;
     }
     if (!isFactoryDeployed) {
-      toast.error('TokenFactory contract belum di-deploy. Silakan deploy contracts/TokenFactory.sol terlebih dahulu.');
+      toast.error('TokenFactory contract belum di-deploy.');
       return;
     }
 
@@ -106,11 +106,11 @@ const Launchpad = () => {
       const decimals = parseInt(tokenDecimals) || 18;
       const supply = ethers.parseUnits(totalSupply, decimals);
 
-      // Call TokenFactory.createToken()
+      // Call TokenFactory.createToken(name, symbol, supply, decimals)
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
-      const tx = await factory.createToken(tokenName, tokenSymbol, decimals, supply);
+      const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals);
       const receipt = await tx.wait();
 
       // Parse TokenCreated event to get the new token address
@@ -119,7 +119,7 @@ const Launchpad = () => {
         try {
           const parsed = factory.interface.parseLog(log);
           if (parsed?.name === 'TokenCreated') {
-            tokenAddress = parsed.args[0]; // first indexed arg = token address
+            tokenAddress = parsed.args[0]; // token address
             break;
           }
         } catch { /* skip non-factory logs */ }
