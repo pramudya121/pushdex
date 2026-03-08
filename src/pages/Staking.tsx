@@ -136,8 +136,8 @@ const Staking: React.FC = memo(() => {
           <GlowingStarsBackgroundCard className="h-full">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Coins className="w-5 h-5 text-blue-500" />
+                <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <Coins className="w-5 h-5 text-accent" />
                 </div>
               </div>
               <div className="text-2xl font-bold">
