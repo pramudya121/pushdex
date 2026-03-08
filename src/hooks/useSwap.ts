@@ -105,7 +105,7 @@ export const useSwap = () => {
     checkApproval();
   }, [checkApproval]);
 
-  // Get quote
+  // Get quote with multi-hop support
   const getQuote = useCallback(async (amountIn: string) => {
     if (!amountIn || parseFloat(amountIn) === 0) {
       setState(prev => ({ ...prev, amountOut: '', priceImpact: 0, error: null }));
@@ -117,7 +117,6 @@ export const useSwap = () => {
     try {
       const amountInWei = parseAmount(amountIn, state.tokenIn.decimals);
       
-      // Build path
       const tokenInAddress = state.tokenIn.address === ethers.ZeroAddress 
         ? CONTRACTS.WETH 
         : state.tokenIn.address;
@@ -125,17 +124,42 @@ export const useSwap = () => {
         ? CONTRACTS.WETH 
         : state.tokenOut.address;
 
-      const path = [tokenInAddress, tokenOutAddress];
+      // Try direct path first
+      let path = [tokenInAddress, tokenOutAddress];
+      let amounts = await getAmountsOut(amountInWei, path);
       
-      const amounts = await getAmountsOut(amountInWei, path);
+      // If direct path fails, try through WETH
+      if (!amounts && tokenInAddress !== CONTRACTS.WETH && tokenOutAddress !== CONTRACTS.WETH) {
+        path = [tokenInAddress, CONTRACTS.WETH, tokenOutAddress];
+        amounts = await getAmountsOut(amountInWei, path);
+      }
       
       if (amounts && amounts.length > 1) {
         const amountOut = formatAmount(amounts[amounts.length - 1], state.tokenOut.decimals);
+        
+        // Calculate real price impact from reserves
+        let priceImpact = 0;
+        try {
+          const pairAddr = await getPairAddress(path[0], path[1]);
+          if (pairAddr) {
+            const reserves = await getReserves(pairAddr);
+            if (reserves) {
+              const [resIn, resOut] = reserves.token0.toLowerCase() === path[0].toLowerCase()
+                ? [reserves.reserve0, reserves.reserve1]
+                : [reserves.reserve1, reserves.reserve0];
+              priceImpact = calculatePriceImpact(amountInWei, amounts[1], resIn, resOut);
+            }
+          }
+        } catch {
+          // Use fallback price impact
+          priceImpact = 0.1;
+        }
+        
         setState(prev => ({ 
           ...prev, 
           amountOut, 
           isLoading: false,
-          priceImpact: 0.1, // Simplified for now
+          priceImpact,
         }));
       } else {
         setState(prev => ({ 
@@ -146,7 +170,6 @@ export const useSwap = () => {
         }));
       }
     } catch (error: any) {
-      // Silently handle quote failure
       setState(prev => ({ 
         ...prev, 
         amountOut: '', 
