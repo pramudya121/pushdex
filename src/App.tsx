@@ -101,6 +101,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin" element={<PageTransition><Admin /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
         <Route path="/airdrop" element={<PageTransition><Airdrop /></PageTransition>} />
+        <Route path="/launchpad" element={<PageTransition><Launchpad /></PageTransition>} />
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>

@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { path: '/farming', label: 'Farming', icon: Leaf },
   { path: '/staking', label: 'Staking', icon: Coins },
   { path: '/airdrop', label: 'Airdrop', icon: Gift },
+  { path: '/launchpad', label: 'Launch', icon: Rocket },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/portfolio', label: 'Portfolio', icon: Wallet },
   { path: '/docs', label: 'Docs', icon: BookOpen },
