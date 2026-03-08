@@ -209,6 +209,30 @@ const Airdrop: React.FC = () => {
           <>
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
+
+            {/* Connect X/Twitter Banner */}
+            {!twitterConnected && (
+              <Card className="glass-card max-w-2xl mx-auto mb-8 sm:mb-10 border-blue-500/20 bg-blue-500/5">
+                <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="p-3 rounded-xl bg-blue-500/10">
+                    <Twitter className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="font-semibold text-sm sm:text-base">Connect X/Twitter</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Follow @pushdex on X to unlock social tasks and earn bonus points</p>
+                  </div>
+                  <Button onClick={handleConnectTwitter} className="gap-2 bg-blue-500 hover:bg-blue-600 text-white">
+                    <Twitter className="w-4 h-4" /> Connect X
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+            {twitterConnected && (
+              <div className="max-w-2xl mx-auto mb-4 flex items-center gap-2 text-sm text-green-400">
+                <CheckCircle className="w-4 h-4" /> X/Twitter connected — social tasks unlocked!
+              </div>
+            )}
+
             <AirdropReferral walletAddress={address} isConnected={isConnected} />
           </>
         )}
