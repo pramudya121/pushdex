@@ -7,11 +7,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
-import { Gift, Zap, Link as LinkIcon, Trophy, Twitter, CheckCircle, Settings } from 'lucide-react';
+import { Gift, Zap, Link as LinkIcon, Trophy, Twitter, CheckCircle, Settings, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfettiExplosion } from '@/components/airdrop/ConfettiExplosion';
+import { ClaimRewardAnimation } from '@/components/airdrop/ClaimRewardAnimation';
 
 import { AirdropTaskCard } from '@/components/airdrop/AirdropTaskCard';
 import { AirdropStatsBar } from '@/components/airdrop/AirdropStatsBar';
