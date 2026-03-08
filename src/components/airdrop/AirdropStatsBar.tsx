@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star, Trophy, Target } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { TierBadge } from './TierBadge';
 
 interface Props {
   myPoints: number;
@@ -10,12 +11,11 @@ interface Props {
   totalTasks: number;
 }
 
-const AnimatedNumber: React.FC<{ value: number; suffix?: string }> = ({ value, suffix }) => {
+const AnimatedNumber: React.FC<{ value: number }> = ({ value }) => {
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
     if (value === 0) { setDisplay(0); return; }
-    const duration = 800;
     const steps = 20;
     const increment = value / steps;
     let current = 0;
@@ -27,16 +27,16 @@ const AnimatedNumber: React.FC<{ value: number; suffix?: string }> = ({ value, s
       } else {
         setDisplay(Math.floor(current));
       }
-    }, duration / steps);
+    }, 40);
     return () => clearInterval(timer);
   }, [value]);
 
-  return <>{display}{suffix || ''}</>;
+  return <>{display}</>;
 };
 
 const stats = [
   { key: 'points', icon: Star, label: 'Points', color: 'text-yellow-400', bgColor: 'bg-yellow-400/10', borderColor: 'border-yellow-400/20' },
-  { key: 'rank', icon: Trophy, label: 'Rank', color: 'text-primary', bgColor: 'bg-primary/10', borderColor: 'border-primary/20' },
+  { key: 'tier', icon: Trophy, label: 'Tier', color: 'text-primary', bgColor: 'bg-primary/10', borderColor: 'border-primary/20' },
   { key: 'done', icon: Target, label: 'Completed', color: 'text-success', bgColor: 'bg-success/10', borderColor: 'border-success/20' },
 ] as const;
 
@@ -54,15 +54,25 @@ export const AirdropStatsBar: React.FC<Props> = ({ myPoints, myRank, myCompleted
           >
             <Card className={`glass-card text-center hover:border-primary/20 transition-all duration-300 hover:scale-[1.02] ${s.borderColor}`}>
               <CardContent className="p-4 sm:pt-6">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${s.bgColor} flex items-center justify-center mx-auto mb-2`}>
-                  <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${s.color}`} />
-                </div>
-                <div className="text-2xl sm:text-3xl font-bold tabular-nums">
-                  {s.key === 'points' ? <AnimatedNumber value={myPoints} /> :
-                   s.key === 'rank' ? (typeof myRank === 'number' ? `#${myRank}` : myRank) :
-                   <><AnimatedNumber value={myCompleted} />/{totalTasks}</>}
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">{s.label}</div>
+                {s.key === 'tier' ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <TierBadge points={myPoints} size="md" showProgress />
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                      Rank {typeof myRank === 'number' ? `#${myRank}` : myRank}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl ${s.bgColor} flex items-center justify-center mx-auto mb-2`}>
+                      <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${s.color}`} />
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-bold tabular-nums">
+                      {s.key === 'points' ? <AnimatedNumber value={myPoints} /> :
+                       <><AnimatedNumber value={myCompleted} />/{totalTasks}</>}
+                    </div>
+                    <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">{s.label}</div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </motion.div>
