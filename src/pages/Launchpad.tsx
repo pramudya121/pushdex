@@ -618,35 +618,10 @@ const Launchpad = () => {
             </motion.div>
           )}
 
-          {/* Deployed Tokens List */}
-          {myTokens.length > 0 && step === 'configure' && (
+          {/* Token Explorer */}
+          {step === 'configure' && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-primary" />
-                    Deployed Tokens ({myTokens.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {myTokens.map((tokenAddr, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="font-mono text-xs">#{i + 1}</Badge>
-                        <code className="text-xs font-mono">{tokenAddr.slice(0, 10)}...{tokenAddr.slice(-8)}</code>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={() => copyToClipboard(tokenAddr)} className="text-muted-foreground hover:text-foreground transition-colors">
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <a href={`${BLOCK_EXPLORER}/address/${tokenAddr}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              <TokenExplorer refreshTrigger={explorerRefresh} />
             </motion.div>
           )}
 
