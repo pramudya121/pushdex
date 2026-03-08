@@ -155,6 +155,7 @@ const Launchpad = () => {
         totalSupply,
         txHash: tx.hash,
       };
+      setDeployedToken(deployed);
       setExplorerRefresh((prev) => prev + 1);
       setStep('deployed');
 

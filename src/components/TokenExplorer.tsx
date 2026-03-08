@@ -215,7 +215,7 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
         </Card>
         <Card className="glass-card">
           <CardContent className="p-4 text-center">
-            <Shield className="w-5 h-5 text-green-500 mx-auto mb-1" />
+            <Shield className="w-5 h-5 text-emerald-500 dark:text-emerald-400 mx-auto mb-1" />
             <p className="text-2xl font-bold">ERC20</p>
             <p className="text-xs text-muted-foreground">Standard</p>
           </CardContent>
