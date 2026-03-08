@@ -22,6 +22,7 @@ import { AirdropReferral } from '@/components/airdrop/AirdropReferral';
 import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
 import { AirdropAchievements } from '@/components/airdrop/AirdropAchievements';
+import { DailyCheckIn } from '@/components/airdrop/DailyCheckIn';
 import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
 import { isAdminWallet } from '@/config/admin';
 import {
@@ -290,6 +291,7 @@ const Airdrop: React.FC = () => {
           <>
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
+            <DailyCheckIn walletAddress={address} isConnected={isConnected} />
 
             {/* Achievement Badges */}
             <div className="max-w-2xl mx-auto mb-8 sm:mb-10">
