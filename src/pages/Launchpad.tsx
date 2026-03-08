@@ -74,20 +74,7 @@ const Launchpad = () => {
   const isFactoryDeployed = CONTRACTS.TOKEN_FACTORY && CONTRACTS.TOKEN_FACTORY.length > 0;
   const isFormValid = tokenName.trim() && tokenSymbol.trim() && totalSupply && parseFloat(totalSupply) > 0;
 
-  // Load all deployed tokens (contract doesn't have per-creator filter)
-  useEffect(() => {
-    const loadMyTokens = async () => {
-      if (!signer || !address || !isFactoryDeployed) return;
-      try {
-        const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
-        const allTokens: string[] = await factory.getAllTokens();
-        setMyTokens(allTokens);
-      } catch (e) {
-        console.error('Failed to load tokens:', e);
-      }
-    };
-    loadMyTokens();
-  }, [signer, address, isFactoryDeployed]);
+  // Trigger explorer refresh after deploy
 
   const handleDeploy = useCallback(async () => {
     if (!signer || !address) return;
