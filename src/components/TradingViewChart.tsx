@@ -132,7 +132,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
     setShowIndicators(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const renderTooltip = useCallback(({ active, payload, label }: any) => {
     if (!active || !payload?.[0]) return null;
     const d = payload[0].payload;
     
@@ -163,7 +163,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
         </div>
       </div>
     );
-  };
+  }, []);
 
   return (
     <Card className={`glass-card overflow-hidden ${className}`}>
