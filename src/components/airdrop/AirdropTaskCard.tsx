@@ -14,6 +14,10 @@ import {
   Loader2,
   Twitter,
   Lock,
+  Heart,
+  Repeat2,
+  MessageCircle,
+  Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { isActionVerified, AirdropAction } from '@/lib/airdropTracker';
@@ -44,6 +48,13 @@ const getActionIcon = (action: string) => {
     case 'remove_liquidity': return <Droplets className="w-5 h-5" />;
     case 'farming': return <Leaf className="w-5 h-5" />;
     case 'staking': return <Coins className="w-5 h-5" />;
+    // Social actions
+    case 'follow_twitter': return <Twitter className="w-5 h-5" />;
+    case 'retweet': return <Repeat2 className="w-5 h-5" />;
+    case 'like_tweet': return <Heart className="w-5 h-5" />;
+    case 'join_telegram': return <MessageCircle className="w-5 h-5" />;
+    case 'join_discord': return <Users className="w-5 h-5" />;
+    case 'social': return <Twitter className="w-5 h-5" />;
     default: return <LinkIcon className="w-5 h-5" />;
   }
 };
@@ -54,6 +65,11 @@ const ACTION_LABELS: Record<string, string> = {
   remove_liquidity: 'Go to Liquidity',
   farming: 'Go to Farming',
   staking: 'Go to Staking',
+  follow_twitter: 'Follow on X',
+  retweet: 'Retweet',
+  like_tweet: 'Like Tweet',
+  join_telegram: 'Join Telegram',
+  join_discord: 'Join Discord',
 };
 
 interface Props {
