@@ -104,19 +104,42 @@ const Launchpad = () => {
 
     try {
       const decimals = parseInt(tokenDecimals) || 18;
-      // Pass raw supply number - contract handles decimals internally
-      const supply = ethers.parseUnits(totalSupply, 0);
+      // Use full supply with decimals applied (standard ERC20)
+      const supply = ethers.parseUnits(totalSupply, decimals);
 
-      // Call TokenFactory.createToken(name, symbol, supply, decimals)
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
-      console.log('Creating token with params:', { name: tokenName, symbol: tokenSymbol, supply: supply.toString(), decimals });
+      // Verify contract is accessible first
+      try {
+        const totalCount = await factory.totalTokens();
+        console.log('TokenFactory accessible, total tokens deployed:', totalCount.toString());
+      } catch (verifyErr) {
+        console.error('Cannot reach TokenFactory contract:', verifyErr);
+        toast.error('Cannot reach TokenFactory contract. Check network connection.', { id: 'deploy' });
+        setStep('configure');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Encode the function call manually to verify selector
+      const calldata = factory.interface.encodeFunctionData('createToken', [tokenName, tokenSymbol, supply, decimals]);
+      console.log('Encoded calldata:', calldata);
+      console.log('Function selector:', calldata.slice(0, 10));
+      console.log('Creating token with params:', { 
+        name: tokenName, 
+        symbol: tokenSymbol, 
+        supply: supply.toString(), 
+        supplyHex: '0x' + supply.toString(16),
+        decimals 
+      });
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
       const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals, {
-        gasLimit: 5000000n,
+        gasLimit: 8000000n,
       });
+      console.log('TX sent:', tx.hash);
       const receipt = await tx.wait();
+      console.log('TX confirmed, status:', receipt.status);
 
       // Parse TokenCreated event to get the new token address
       let tokenAddress = '';
