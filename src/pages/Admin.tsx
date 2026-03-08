@@ -255,11 +255,20 @@ const AirdropAdmin: React.FC = () => {
 
   useEffect(() => { fetchTasks(); }, []);
 
+  const callAdminApi = async (action: string, task: any) => {
+    const response = await supabase.functions.invoke('admin-tasks', {
+      body: { action, wallet_address: address, task },
+    });
+    if (response.error) throw new Error(response.error.message);
+    if (response.data?.error) throw new Error(response.data.error);
+    return response.data;
+  };
+
   const handleAddTask = async () => {
     if (!newTitle.trim()) { toast.error('Title is required'); return; }
     setIsAdding(true);
     try {
-      const { error } = await supabase.from('airdrop_tasks').insert({
+      await callAdminApi('create_task', {
         title: newTitle,
         description: newDesc,
         type: newType,
@@ -268,7 +277,6 @@ const AirdropAdmin: React.FC = () => {
         link: newLink || null,
         active: true,
       });
-      if (error) throw error;
       toast.success('Task added!');
       setNewTitle(''); setNewDesc(''); setNewLink('');
       fetchTasks();
@@ -278,15 +286,23 @@ const AirdropAdmin: React.FC = () => {
   };
 
   const handleToggleActive = async (id: string, active: boolean) => {
-    await supabase.from('airdrop_tasks').update({ active: !active }).eq('id', id);
-    fetchTasks();
+    try {
+      await callAdminApi('update_task', { id, active: !active });
+      fetchTasks();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update task');
+    }
   };
 
   const handleDeleteTask = async (id: string) => {
     if (!confirm('Delete this task? This will also remove all completions.')) return;
-    await supabase.from('airdrop_tasks').delete().eq('id', id);
-    toast.success('Task deleted');
-    fetchTasks();
+    try {
+      await callAdminApi('delete_task', { id });
+      toast.success('Task deleted');
+      fetchTasks();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete task');
+    }
   };
 
   return (
