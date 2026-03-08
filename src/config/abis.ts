@@ -764,14 +764,14 @@ export const STAKING_ABI = [
   },
 ] as const;
 
-// Token Factory ABI
+// Token Factory ABI - matches contracts/TokenFactory.sol
 export const TOKEN_FACTORY_ABI = [
   {
     inputs: [
-      { internalType: "string", name: "name", type: "string" },
-      { internalType: "string", name: "symbol", type: "string" },
-      { internalType: "uint256", name: "supply", type: "uint256" },
-      { internalType: "uint8", name: "decimals", type: "uint8" },
+      { internalType: "string", name: "_name", type: "string" },
+      { internalType: "string", name: "_symbol", type: "string" },
+      { internalType: "uint8", name: "_decimals", type: "uint8" },
+      { internalType: "uint256", name: "_totalSupply", type: "uint256" },
     ],
     name: "createToken",
     outputs: [{ internalType: "address", name: "", type: "address" }],
@@ -781,35 +781,15 @@ export const TOKEN_FACTORY_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: false, internalType: "address", name: "token", type: "address" },
-      { indexed: false, internalType: "address", name: "owner", type: "address" },
+      { indexed: true, internalType: "address", name: "token", type: "address" },
+      { indexed: true, internalType: "address", name: "creator", type: "address" },
       { indexed: false, internalType: "string", name: "name", type: "string" },
       { indexed: false, internalType: "string", name: "symbol", type: "string" },
-      { indexed: false, internalType: "uint256", name: "supply", type: "uint256" },
+      { indexed: false, internalType: "uint8", name: "decimals", type: "uint8" },
+      { indexed: false, internalType: "uint256", name: "totalSupply", type: "uint256" },
     ],
     name: "TokenCreated",
     type: "event",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    name: "allTokens",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getAllTokens",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "totalTokens",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
   },
   {
     inputs: [],

@@ -99,7 +99,7 @@ const Launchpad = () => {
 
       // Verify contract is accessible first
       try {
-        const totalCount = await factory.totalTokens();
+        const totalCount = await factory.getDeployedTokensCount();
         console.log('TokenFactory accessible, total tokens deployed:', totalCount.toString());
       } catch (verifyErr) {
         console.error('Cannot reach TokenFactory contract:', verifyErr);
@@ -109,21 +109,18 @@ const Launchpad = () => {
         return;
       }
 
-      // Encode the function call manually to verify selector
-      const calldata = factory.interface.encodeFunctionData('createToken', [tokenName, tokenSymbol, supply, decimals]);
-      console.log('Encoded calldata:', calldata);
-      console.log('Function selector:', calldata.slice(0, 10));
+      // Contract signature: createToken(string _name, string _symbol, uint8 _decimals, uint256 _totalSupply)
+      const supplyWithDecimals = ethers.parseUnits(totalSupply, decimals);
       console.log('Creating token with params:', { 
         name: tokenName, 
         symbol: tokenSymbol, 
-        supply: supply.toString(), 
-        supplyHex: '0x' + supply.toString(16),
-        decimals 
+        decimals,
+        totalSupply: supplyWithDecimals.toString(),
       });
 
       toast.loading('Deploying token via TokenFactory...', { id: 'deploy' });
-      const tx = await factory.createToken(tokenName, tokenSymbol, supply, decimals, {
-        gasLimit: 8000000n,
+      const tx = await factory.createToken(tokenName, tokenSymbol, decimals, supplyWithDecimals, {
+        gasLimit: 3000000n,
       });
       console.log('TX sent:', tx.hash);
       const receipt = await tx.wait();
