@@ -96,7 +96,7 @@ const StatCard = memo(({ stat, index }: { stat: any; index: number }) => (
         <div className="p-2.5 rounded-xl bg-primary/10">
           <stat.icon className="w-5 h-5 text-primary" />
         </div>
-        <div className={`flex items-center gap-1 text-sm font-medium ${stat.positive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={`flex items-center gap-1 text-sm font-medium ${stat.positive ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
           {stat.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
           {stat.change}
         </div>

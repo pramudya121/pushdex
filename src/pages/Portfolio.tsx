@@ -141,7 +141,9 @@ const Portfolio = () => {
           };
           const price = mockPrices[token.symbol] || 1;
           const usdValue = balanceNum * price;
-          const change24h = (Math.random() - 0.4) * 15;
+          // Deterministic "change" based on token symbol hash
+          const hash = token.symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const change24h = ((hash * 7 + 13) % 150 - 60) / 10;
           total += usdValue;
           return {
             symbol: token.symbol,
@@ -447,6 +449,7 @@ const Portfolio = () => {
 
   useEffect(() => {
     fetchPortfolio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]);
 
   // Prepare chart data
@@ -595,8 +598,8 @@ const Portfolio = () => {
                 <div className="relative glass-card p-6 col-span-2 md:col-span-2 overflow-hidden">
                   <BorderBeam size={250} duration={12} delay={0} />
                   <div className="flex items-center gap-2 mb-2">
-                    <Crown className="w-5 h-5 text-yellow-500" />
-                    <span className="text-xs font-semibold text-yellow-500 uppercase tracking-wider">Premium Portfolio</span>
+                    <Crown className="w-5 h-5 text-warning" />
+                    <span className="text-xs font-semibold text-warning uppercase tracking-wider">Premium Portfolio</span>
                   </div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -766,7 +769,7 @@ const Portfolio = () => {
                               <div className="font-semibold">{parseFloat(token.balance).toFixed(4)}</div>
                               <div className="flex items-center justify-end gap-2 text-sm">
                                 <span className="text-muted-foreground">${token.usdValue.toFixed(2)}</span>
-                                <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                <span className={`flex items-center gap-0.5 ${token.change24h >= 0 ? 'text-[hsl(var(--success))]' : 'text-destructive'}`}>
                                   {token.change24h >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
                                   {Math.abs(token.change24h).toFixed(2)}%
                                 </span>

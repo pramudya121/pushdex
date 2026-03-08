@@ -142,7 +142,7 @@ const Airdrop: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [address]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
