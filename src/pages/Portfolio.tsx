@@ -141,7 +141,9 @@ const Portfolio = () => {
           };
           const price = mockPrices[token.symbol] || 1;
           const usdValue = balanceNum * price;
-          const change24h = (Math.random() - 0.4) * 15;
+          // Deterministic "change" based on token symbol hash
+          const hash = token.symbol.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+          const change24h = ((hash * 7 + 13) % 150 - 60) / 10;
           total += usdValue;
           return {
             symbol: token.symbol,
