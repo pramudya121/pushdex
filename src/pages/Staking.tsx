@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { WaveBackground } from '@/components/WaveBackground';
@@ -34,6 +34,7 @@ import {
 import { ethers } from 'ethers';
 import { Link } from 'react-router-dom';
 import { BLOCK_EXPLORER, CONTRACTS } from '@/config/contracts';
+import { isAdminWallet } from '@/config/admin';
 import {
   Select,
   SelectContent,
@@ -42,8 +43,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const Staking: React.FC = () => {
-  const { isConnected, connect } = useWallet();
+const Staking: React.FC = memo(() => {
+  const { isConnected, connect, address } = useWallet();
   const {
     pools,
     isLoading,
@@ -199,12 +200,14 @@ const Staking: React.FC = () => {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
-            <Link to="/admin">
-              <Button variant="outline" size="sm">
-                <Shield className="w-4 h-4 mr-2" />
-                Admin
-              </Button>
-            </Link>
+            {isAdminWallet(address) && (
+              <Link to="/admin">
+                <Button variant="outline" size="sm">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin
+                </Button>
+              </Link>
+            )}
           </div>
           
           <div className="flex items-center gap-2">
@@ -395,6 +398,8 @@ const Staking: React.FC = () => {
       <Footer />
     </div>
   );
-};
+});
+
+Staking.displayName = 'Staking';
 
 export default Staking;

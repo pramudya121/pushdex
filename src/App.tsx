@@ -11,6 +11,7 @@ import { SkipLink, LiveRegion } from "@/components/AccessibleSkipLink";
 import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "@/components/PageTransition";
 import { WolfLogo } from "@/components/WolfLogo";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Lazy load pages for better performance
 const Home = lazy(() => import("./pages/Home"));
@@ -55,14 +56,28 @@ const PageLoader = () => (
 );
 
 // Animated Routes component
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'PUSHDEX — DEX on Push Chain',
+  '/swap': 'Swap Tokens | PUSHDEX',
+  '/liquidity': 'Liquidity | PUSHDEX',
+  '/pools': 'Pools | PUSHDEX',
+  '/pools/create': 'Create Pool | PUSHDEX',
+  '/analytics': 'Analytics | PUSHDEX',
+  '/portfolio': 'Portfolio | PUSHDEX',
+  '/history': 'History | PUSHDEX',
+  '/farming': 'Farming | PUSHDEX',
+  '/staking': 'Staking | PUSHDEX',
+  '/docs': 'Documentation | PUSHDEX',
+  '/airdrop': 'Airdrop | PUSHDEX',
+  '/settings': 'Settings | PUSHDEX',
+  '/admin': 'Admin | PUSHDEX',
+};
+
 const AnimatedRoutes = () => {
   const location = useLocation();
 
-  // Announce page changes to screen readers
   useEffect(() => {
-    const pageTitle = document.title;
-    const announcement = `Navigated to ${pageTitle}`;
-    // The live region will announce this
+    document.title = PAGE_TITLES[location.pathname] || 'PUSHDEX — DEX on Push Chain';
   }, [location.pathname]);
 
   return (
@@ -91,27 +106,29 @@ const AnimatedRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <PushChainProvider>
-      <TooltipProvider delayDuration={200}>
-        {/* Accessibility: Skip Link */}
-        <SkipLink href="#main-content" />
-        
-        {/* Screen reader announcements */}
-        <LiveRegion message="" mode="polite" />
-        
-        <Toaster />
-        <Sonner position="top-right" theme="dark" richColors closeButton />
-        <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <AnimatedRoutes />
-          </Suspense>
-          {/* AI ChatBot - Available on all pages */}
-          <AIChatBot />
-        </BrowserRouter>
-      </TooltipProvider>
-    </PushChainProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <PushChainProvider>
+        <TooltipProvider delayDuration={200}>
+          {/* Accessibility: Skip Link */}
+          <SkipLink href="#main-content" />
+          
+          {/* Screen reader announcements */}
+          <LiveRegion message="" mode="polite" />
+          
+          <Toaster />
+          <Sonner position="top-right" theme="dark" richColors closeButton />
+          <BrowserRouter>
+            <Suspense fallback={<PageLoader />}>
+              <AnimatedRoutes />
+            </Suspense>
+            {/* AI ChatBot - Available on all pages */}
+            <AIChatBot />
+          </BrowserRouter>
+        </TooltipProvider>
+      </PushChainProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
