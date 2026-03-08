@@ -124,6 +124,16 @@ const Airdrop: React.FC = () => {
           }))
           .sort((a, b) => b.total_points - a.total_points);
         sorted.forEach((e, i) => e.rank = i + 1);
+        
+        // Rank-up notification
+        if (address) {
+          const myEntry = sorted.find(e => e.wallet_address === address.toLowerCase());
+          if (myEntry && prevRankRef.current !== null && myEntry.rank < prevRankRef.current) {
+            toast.success(`🎉 You moved up to rank #${myEntry.rank}!`, { duration: 5000 });
+          }
+          if (myEntry) prevRankRef.current = myEntry.rank;
+        }
+        
         setLeaderboard(sorted);
       }
     } catch {
