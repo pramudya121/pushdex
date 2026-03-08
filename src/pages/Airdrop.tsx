@@ -291,6 +291,7 @@ const Airdrop: React.FC = () => {
           <>
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
+            <DailyCheckIn walletAddress={address} isConnected={isConnected} />
 
             {/* Achievement Badges */}
             <div className="max-w-2xl mx-auto mb-8 sm:mb-10">
