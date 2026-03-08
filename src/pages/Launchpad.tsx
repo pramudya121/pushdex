@@ -69,7 +69,7 @@ const Launchpad = () => {
   const [deployedToken, setDeployedToken] = useState<DeployedToken | null>(null);
   const [pairCreated, setPairCreated] = useState<PairCreated | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [myTokens, setMyTokens] = useState<string[]>([]);
+  const [explorerRefresh, setExplorerRefresh] = useState(0);
 
   const isFactoryDeployed = CONTRACTS.TOKEN_FACTORY && CONTRACTS.TOKEN_FACTORY.length > 0;
   const isFormValid = tokenName.trim() && tokenSymbol.trim() && totalSupply && parseFloat(totalSupply) > 0;
