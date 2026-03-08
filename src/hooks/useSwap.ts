@@ -6,11 +6,13 @@ import { ROUTER_ABI, ERC20_ABI } from '@/config/abis';
 import {
   getAmountsOut,
   getPairAddress,
+  getReserves,
   getTokenBalance,
   getTokenAllowance,
   parseAmount,
   formatAmount,
   calculateMinimumReceived,
+  calculatePriceImpact,
   getDeadline,
 } from '@/lib/dex';
 import { getStoredSettings } from '@/hooks/useSettings';
@@ -105,7 +107,7 @@ export const useSwap = () => {
     checkApproval();
   }, [checkApproval]);
 
-  // Get quote
+  // Get quote with multi-hop support
   const getQuote = useCallback(async (amountIn: string) => {
     if (!amountIn || parseFloat(amountIn) === 0) {
       setState(prev => ({ ...prev, amountOut: '', priceImpact: 0, error: null }));
@@ -117,7 +119,6 @@ export const useSwap = () => {
     try {
       const amountInWei = parseAmount(amountIn, state.tokenIn.decimals);
       
-      // Build path
       const tokenInAddress = state.tokenIn.address === ethers.ZeroAddress 
         ? CONTRACTS.WETH 
         : state.tokenIn.address;
@@ -125,17 +126,42 @@ export const useSwap = () => {
         ? CONTRACTS.WETH 
         : state.tokenOut.address;
 
-      const path = [tokenInAddress, tokenOutAddress];
+      // Try direct path first
+      let path = [tokenInAddress, tokenOutAddress];
+      let amounts = await getAmountsOut(amountInWei, path);
       
-      const amounts = await getAmountsOut(amountInWei, path);
+      // If direct path fails, try through WETH
+      if (!amounts && tokenInAddress !== CONTRACTS.WETH && tokenOutAddress !== CONTRACTS.WETH) {
+        path = [tokenInAddress, CONTRACTS.WETH, tokenOutAddress];
+        amounts = await getAmountsOut(amountInWei, path);
+      }
       
       if (amounts && amounts.length > 1) {
         const amountOut = formatAmount(amounts[amounts.length - 1], state.tokenOut.decimals);
+        
+        // Calculate real price impact from reserves
+        let priceImpact = 0;
+        try {
+          const pairAddr = await getPairAddress(path[0], path[1]);
+          if (pairAddr) {
+            const reserves = await getReserves(pairAddr);
+            if (reserves) {
+              const [resIn, resOut] = reserves.token0.toLowerCase() === path[0].toLowerCase()
+                ? [reserves.reserve0, reserves.reserve1]
+                : [reserves.reserve1, reserves.reserve0];
+              priceImpact = calculatePriceImpact(amountInWei, amounts[1], resIn, resOut);
+            }
+          }
+        } catch {
+          // Use fallback price impact
+          priceImpact = 0.1;
+        }
+        
         setState(prev => ({ 
           ...prev, 
           amountOut, 
           isLoading: false,
-          priceImpact: 0.1, // Simplified for now
+          priceImpact,
         }));
       } else {
         setState(prev => ({ 
@@ -146,7 +172,6 @@ export const useSwap = () => {
         }));
       }
     } catch (error: any) {
-      // Silently handle quote failure
       setState(prev => ({ 
         ...prev, 
         amountOut: '', 
@@ -277,38 +302,31 @@ export const useSwap = () => {
 
       const tokenInAddress = isNativeIn ? CONTRACTS.WETH : state.tokenIn.address;
       const tokenOutAddress = isNativeOut ? CONTRACTS.WETH : state.tokenOut.address;
-      const path = [tokenInAddress, tokenOutAddress];
+      
+      // Build path - try direct first, fallback to multi-hop through WETH
+      let path = [tokenInAddress, tokenOutAddress];
+      const directAmounts = await getAmountsOut(amountIn, path);
+      if (!directAmounts && tokenInAddress !== CONTRACTS.WETH && tokenOutAddress !== CONTRACTS.WETH) {
+        path = [tokenInAddress, CONTRACTS.WETH, tokenOutAddress];
+      }
 
       let tx;
+      const gasLimit = path.length > 2 ? 500000n : 300000n;
 
       if (isNativeIn) {
-        // Swap native PC for tokens
         tx = await router.swapExactETHForTokens(
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { value: amountIn, gasLimit: 300000n }
+          amountOutMin, path, address, deadline,
+          { value: amountIn, gasLimit }
         );
       } else if (isNativeOut) {
-        // Swap tokens for native PC
         tx = await router.swapExactTokensForETH(
-          amountIn,
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { gasLimit: 300000n }
+          amountIn, amountOutMin, path, address, deadline,
+          { gasLimit }
         );
       } else {
-        // Swap tokens for tokens
         tx = await router.swapExactTokensForTokens(
-          amountIn,
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { gasLimit: 300000n }
+          amountIn, amountOutMin, path, address, deadline,
+          { gasLimit }
         );
       }
 
