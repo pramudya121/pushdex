@@ -64,10 +64,32 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
       const p = provider || readProvider;
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, p);
 
-      const count = await factory.totalTokens();
-      setTotalCount(Number(count));
+      // Try different function names for compatibility with deployed contract
+      let count = 0;
+      try {
+        count = Number(await factory.getDeployedTokensCount());
+      } catch {
+        try {
+          count = Number(await factory.totalTokens());
+        } catch {
+          console.warn('Could not get token count from factory');
+        }
+      }
+      setTotalCount(count);
 
-      const allAddresses: string[] = await factory.getAllTokens();
+      // Try getAllTokens first, fallback to reading deployedTokens array
+      let allAddresses: string[] = [];
+      try {
+        allAddresses = await factory.getAllTokens();
+      } catch {
+        // Fallback: read deployedTokens one by one
+        for (let i = 0; i < count; i++) {
+          try {
+            const addr = await factory.deployedTokens(i);
+            allAddresses.push(addr);
+          } catch { break; }
+        }
+      }
 
       // Fetch details for each token
       const details: TokenDetail[] = await Promise.all(
