@@ -48,7 +48,7 @@ export const StakeCard: React.FC<StakeCardProps> = ({
   isUnstaking,
   isClaiming,
 }) => {
-  const { isConnected } = useWallet();
+  const { isConnected, address } = useWallet();
   const [isExpanded, setIsExpanded] = useState(false);
   const [stakeAmount, setStakeAmount] = useState('');
   const [tokenBalance, setTokenBalance] = useState('0');

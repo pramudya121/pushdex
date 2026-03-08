@@ -145,6 +145,7 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
     const success = await onStake(pool.pid, stakeAmount);
     if (success) {
       setStakeAmount('');
+      if (address) markActionVerified(address, 'farming');
       onRefresh();
       const balance = await getLpBalance(pool.lpToken);
       setLpBalance(balance);
