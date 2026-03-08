@@ -260,7 +260,11 @@ const Airdrop: React.FC = () => {
             <AirdropStatsBar myPoints={myPoints} myRank={myRank} myCompleted={myCompleted} totalTasks={tasks.length} />
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
 
-            {/* Connect X/Twitter Banner */}
+            {/* Achievement Badges */}
+            <div className="max-w-2xl mx-auto mb-8 sm:mb-10">
+              <AirdropAchievements completedCount={myCompleted} totalTasks={tasks.length} />
+            </div>
+
             {!twitterConnected && (
               <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}>
                 <Card className="glass-card max-w-2xl mx-auto mb-8 sm:mb-10 border-primary/20 bg-primary/5">
