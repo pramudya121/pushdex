@@ -104,8 +104,8 @@ const Launchpad = () => {
 
     try {
       const decimals = parseInt(tokenDecimals) || 18;
-      // Use full supply with decimals applied (standard ERC20)
-      const supply = ethers.parseUnits(totalSupply, decimals);
+      // Pass raw supply as BigInt - contract handles decimals multiplication internally
+      const supply = BigInt(totalSupply);
 
       const factory = new ethers.Contract(CONTRACTS.TOKEN_FACTORY, TOKEN_FACTORY_ABI, signer);
 
