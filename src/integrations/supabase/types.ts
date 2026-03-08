@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      airdrop_claim_log: {
+        Row: {
+          attempted_at: string
+          id: string
+          success: boolean
+          wallet_address: string
+        }
+        Insert: {
+          attempted_at?: string
+          id?: string
+          success?: boolean
+          wallet_address: string
+        }
+        Update: {
+          attempted_at?: string
+          id?: string
+          success?: boolean
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       airdrop_completions: {
         Row: {
           completed_at: string

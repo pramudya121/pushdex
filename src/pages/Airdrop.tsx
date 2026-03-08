@@ -7,11 +7,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion } from 'framer-motion';
-import { Gift, Zap, Link as LinkIcon, Trophy, Twitter, CheckCircle, Settings } from 'lucide-react';
+import { Gift, Zap, Link as LinkIcon, Trophy, Twitter, CheckCircle, Settings, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ConfettiExplosion } from '@/components/airdrop/ConfettiExplosion';
+import { ClaimRewardAnimation } from '@/components/airdrop/ClaimRewardAnimation';
 
 import { AirdropTaskCard } from '@/components/airdrop/AirdropTaskCard';
 import { AirdropStatsBar } from '@/components/airdrop/AirdropStatsBar';
@@ -71,6 +73,8 @@ const Airdrop: React.FC = () => {
   const [tab, setTab] = useState('quests');
   const [twitterConnected, setTwitterState] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [rewardAnim, setRewardAnim] = useState<{ points: number; show: boolean }>({ points: 0, show: false });
   const [showTwitterConfirm, setShowTwitterConfirm] = useState(false);
 
   // Check twitter connection status
@@ -174,18 +178,38 @@ const Airdrop: React.FC = () => {
 
     setClaiming(task.id);
     try {
-      const { error } = await supabase.from('airdrop_completions').insert({
-        wallet_address: address.toLowerCase(),
-        task_id: task.id,
-        tx_hash: null,
+      const response = await supabase.functions.invoke('claim-airdrop', {
+        body: { wallet_address: address, task_id: task.id },
       });
 
-      if (error) {
-        if (error.code === '23505') toast.info('Task already completed!');
-        else throw error;
+      if (response.error) {
+        const msg = response.error.message || 'Failed to claim';
+        if (msg.includes('Rate limited')) {
+          toast.error('Too many claims! Please wait a moment.');
+        } else if (msg.includes('already completed')) {
+          toast.info('Task already completed!');
+        } else {
+          throw new Error(msg);
+        }
       } else {
-        toast.success(`+${task.points} points! Task completed 🎉`);
-        await fetchData();
+        // Parse response data
+        const data = response.data;
+        if (data?.error) {
+          if (data.already_completed) {
+            toast.info('Task already completed!');
+          } else if (data.error.includes('Rate limited')) {
+            toast.error('Too many claims! Please wait a moment.');
+          } else {
+            toast.error(data.error);
+          }
+        } else {
+          // Success! Show animations
+          setShowConfetti(true);
+          setRewardAnim({ points: task.points, show: true });
+          toast.success(`+${task.points} points! Task completed 🎉`);
+          setTimeout(() => setRewardAnim({ points: 0, show: false }), 2000);
+          await fetchData();
+        }
       }
     } catch {
       toast.error('Failed to claim task');
@@ -230,26 +254,33 @@ const Airdrop: React.FC = () => {
     <div className="min-h-screen bg-background">
       <WaveBackground />
       <Header />
+      <ConfettiExplosion active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      <ClaimRewardAnimation points={rewardAnim.points} show={rewardAnim.show} />
 
       <main id="main-content" className="container mx-auto px-4 pt-24 pb-28 sm:pb-16 relative z-10">
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
-            <Gift className="w-4 h-4 text-primary" />
+            <Gift className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-sm font-medium text-primary">Airdrop Campaign</span>
           </div>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-foreground via-primary to-foreground/70 bg-clip-text text-transparent">
             PushDex Airdrop
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-4">
+          <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-3">
             Complete quests to earn points. On-chain tasks = 2 pts, Social tasks = 1 pt.
           </p>
-          {/* Admin Panel Link - only for admin wallets */}
-          {isAdminWallet(address) && (
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
-              <Settings className="w-3.5 h-3.5" /> Admin Panel
-            </Button>
-          )}
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-surface/50 px-3 py-1.5 rounded-full border border-border/30">
+              <Shield className="w-3 h-3 text-success" />
+              Anti-cheat protected
+            </div>
+            {isAdminWallet(address) && (
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
+                <Settings className="w-3.5 h-3.5" /> Admin Panel
+              </Button>
+            )}
+          </div>
         </motion.div>
 
         {/* Empty state if not connected */}
