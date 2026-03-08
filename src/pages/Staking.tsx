@@ -42,8 +42,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const Staking: React.FC = () => {
-  const { isConnected, connect } = useWallet();
+const Staking: React.FC = memo(() => {
+  const { isConnected, connect, address } = useWallet();
   const {
     pools,
     isLoading,
