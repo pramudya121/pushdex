@@ -235,6 +235,7 @@ const AirdropAnalytics: React.FC = () => {
 
 // Airdrop Admin Component
 const AirdropAdmin: React.FC = () => {
+  const { address } = useWallet();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTitle, setNewTitle] = useState('');
