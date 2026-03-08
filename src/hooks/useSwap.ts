@@ -302,38 +302,31 @@ export const useSwap = () => {
 
       const tokenInAddress = isNativeIn ? CONTRACTS.WETH : state.tokenIn.address;
       const tokenOutAddress = isNativeOut ? CONTRACTS.WETH : state.tokenOut.address;
-      const path = [tokenInAddress, tokenOutAddress];
+      
+      // Build path - try direct first, fallback to multi-hop through WETH
+      let path = [tokenInAddress, tokenOutAddress];
+      const directAmounts = await getAmountsOut(amountIn, path);
+      if (!directAmounts && tokenInAddress !== CONTRACTS.WETH && tokenOutAddress !== CONTRACTS.WETH) {
+        path = [tokenInAddress, CONTRACTS.WETH, tokenOutAddress];
+      }
 
       let tx;
+      const gasLimit = path.length > 2 ? 500000n : 300000n;
 
       if (isNativeIn) {
-        // Swap native PC for tokens
         tx = await router.swapExactETHForTokens(
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { value: amountIn, gasLimit: 300000n }
+          amountOutMin, path, address, deadline,
+          { value: amountIn, gasLimit }
         );
       } else if (isNativeOut) {
-        // Swap tokens for native PC
         tx = await router.swapExactTokensForETH(
-          amountIn,
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { gasLimit: 300000n }
+          amountIn, amountOutMin, path, address, deadline,
+          { gasLimit }
         );
       } else {
-        // Swap tokens for tokens
         tx = await router.swapExactTokensForTokens(
-          amountIn,
-          amountOutMin,
-          path,
-          address,
-          deadline,
-          { gasLimit: 300000n }
+          amountIn, amountOutMin, path, address, deadline,
+          { gasLimit }
         );
       }
 
