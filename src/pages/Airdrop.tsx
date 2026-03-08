@@ -20,6 +20,17 @@ import { AirdropReferral } from '@/components/airdrop/AirdropReferral';
 import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
 import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
+import { isAdminWallet } from '@/config/admin';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface AirdropTask {
   id: string;
@@ -58,6 +69,7 @@ const Airdrop: React.FC = () => {
   const [tab, setTab] = useState('quests');
   const [twitterConnected, setTwitterState] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [showTwitterConfirm, setShowTwitterConfirm] = useState(false);
 
   // Check twitter connection status
   useEffect(() => {
@@ -122,6 +134,17 @@ const Airdrop: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Realtime subscription for live leaderboard
+  useEffect(() => {
+    const channel = supabase
+      .channel('airdrop-completions-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'airdrop_completions' }, () => {
+        fetchData();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchData]);
+
   const isTaskCompleted = (taskId: string) => {
     if (!address) return false;
     return completions.some(c => c.task_id === taskId && c.wallet_address.toLowerCase() === address.toLowerCase());
@@ -164,12 +187,17 @@ const Airdrop: React.FC = () => {
       toast.error('Connect your wallet first');
       return;
     }
-    // Open Twitter follow page, then mark as connected
-    const twitterUrl = 'https://x.com/pushdex';
-    const popup = window.open(twitterUrl, '_blank', 'noopener,noreferrer');
-    // Mark connected after opening (user confirms by clicking Connect X)
+    // Open Twitter follow page
+    window.open('https://x.com/pushdex', '_blank', 'noopener,noreferrer');
+    // Show confirmation dialog
+    setShowTwitterConfirm(true);
+  };
+
+  const confirmTwitterConnection = () => {
+    if (!address) return;
     setTwitterConnected(address);
     setTwitterState(true);
+    setShowTwitterConfirm(false);
     toast.success('X/Twitter connected! You can now claim social tasks 🐦');
   };
 
@@ -204,10 +232,12 @@ const Airdrop: React.FC = () => {
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-4">
             Complete quests to earn points. On-chain tasks = 2 pts, Social tasks = 1 pt.
           </p>
-          {/* Admin Panel Link */}
-          <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
-            <Settings className="w-3.5 h-3.5" /> Admin Panel
-          </Button>
+          {/* Admin Panel Link - only for admin wallets */}
+          {isAdminWallet(address) && (
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
+              <Settings className="w-3.5 h-3.5" /> Admin Panel
+            </Button>
+          )}
         </motion.div>
 
         {/* Empty state if not connected */}
@@ -326,6 +356,26 @@ const Airdrop: React.FC = () => {
       </main>
 
       <Footer />
+
+      {/* Twitter Confirmation Dialog */}
+      <AlertDialog open={showTwitterConfirm} onOpenChange={setShowTwitterConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Twitter className="w-5 h-5 text-blue-400" /> Confirm X/Twitter Connection
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Have you followed @pushdex on X/Twitter? Click confirm to unlock social tasks and earn bonus points.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not Yet</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmTwitterConnection}>
+              Yes, I Followed ✓
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

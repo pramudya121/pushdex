@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { WaveBackground } from '@/components/WaveBackground';
 import { useWallet } from '@/contexts/WalletContext';
+import { isAdminWallet } from '@/config/admin';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -892,6 +893,28 @@ const Admin: React.FC = () => {
                 <h3 className="text-xl font-semibold mb-2">Connect Your Wallet</h3>
                 <p className="text-muted-foreground">
                   Connect your wallet to access admin functions
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAdminWallet(address)) {
+    return (
+      <div className="min-h-screen bg-background wave-bg">
+        <WaveBackground />
+        <Header />
+        <main className="container mx-auto px-4 pt-24 pb-12 relative z-10">
+          <Card className="glass-card max-w-md mx-auto animate-fade-in">
+            <CardContent className="py-12">
+              <div className="text-center">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-destructive" />
+                <h3 className="text-xl font-semibold mb-2">Access Denied</h3>
+                <p className="text-muted-foreground">
+                  Your wallet is not authorized to access the admin panel.
                 </p>
               </div>
             </CardContent>
