@@ -156,7 +156,7 @@ const Pools = memo(() => {
       <WaveBackground />
       <Header />
       
-      <main className="relative z-10 pt-32 md:pt-24 pb-20 px-4">
+      <main className="relative z-10 pt-32 md:pt-24 pb-28 sm:pb-16 px-4">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <HeroSection
