@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Crown, Medal, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getTier } from '@/lib/tierSystem';
+import { TierBadge } from './TierBadge';
 
 interface LeaderboardEntry {
   wallet_address: string;
@@ -12,9 +14,9 @@ interface LeaderboardEntry {
 }
 
 const PODIUM_CONFIG = [
-  { order: 'order-1', height: 'h-24 sm:h-28', bg: 'from-muted/40 to-muted/10', border: 'border-muted-foreground/20', icon: <Medal className="w-7 h-7 text-muted-foreground" />, label: '2nd', mt: 'mt-4 sm:mt-6' },
-  { order: 'order-0 sm:order-1', height: 'h-28 sm:h-32', bg: 'from-yellow-500/20 to-yellow-500/5', border: 'border-yellow-500/30', icon: <Crown className="w-8 h-8 text-yellow-400" />, label: '1st', mt: '' },
-  { order: 'order-2', height: 'h-20 sm:h-24', bg: 'from-amber-700/20 to-amber-700/5', border: 'border-amber-600/20', icon: <Medal className="w-6 h-6 text-amber-600" />, label: '3rd', mt: 'mt-8 sm:mt-10' },
+  { order: 'order-1', bg: 'from-muted/40 to-muted/10', border: 'border-muted-foreground/20', icon: <Medal className="w-7 h-7 text-muted-foreground" />, mt: 'mt-4 sm:mt-6' },
+  { order: 'order-0 sm:order-1', bg: 'from-yellow-500/20 to-yellow-500/5', border: 'border-yellow-500/30', icon: <Crown className="w-8 h-8 text-yellow-400" />, mt: '' },
+  { order: 'order-2', bg: 'from-amber-700/20 to-amber-700/5', border: 'border-amber-600/20', icon: <Medal className="w-6 h-6 text-amber-600" />, mt: 'mt-8 sm:mt-10' },
 ];
 
 const formatAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -52,7 +54,6 @@ export const AirdropLeaderboard: React.FC<Props> = ({ leaderboard, loading, addr
               className={cfg.order + ' ' + cfg.mt}
             >
               <Card className={`glass-card text-center p-3 sm:p-5 bg-gradient-to-b ${cfg.bg} ${cfg.border} hover:scale-[1.03] transition-all duration-300 relative overflow-hidden ${isMe ? 'ring-1 ring-primary/40' : ''}`}>
-                {/* Glow for 1st place */}
                 {col === 1 && (
                   <div className="absolute inset-0 bg-gradient-to-t from-yellow-500/5 to-transparent" />
                 )}
@@ -71,7 +72,11 @@ export const AirdropLeaderboard: React.FC<Props> = ({ leaderboard, loading, addr
                   <div className={`text-xl sm:text-2xl font-bold tabular-nums ${col === 1 ? 'text-yellow-400' : 'text-foreground'}`}>
                     {e.total_points}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-muted-foreground">{e.tasks_completed} tasks</div>
+                  {/* Tier Badge */}
+                  <div className="mt-1.5 flex justify-center">
+                    <TierBadge points={e.total_points} size="sm" />
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-muted-foreground mt-1">{e.tasks_completed} tasks</div>
                 </div>
               </Card>
             </motion.div>
@@ -105,9 +110,14 @@ export const AirdropLeaderboard: React.FC<Props> = ({ leaderboard, loading, addr
             <div className="w-8 sm:w-10 text-center">
               <span className="text-muted-foreground font-mono text-xs sm:text-sm font-medium">#{entry.rank}</span>
             </div>
-            <div className="flex-1 font-mono text-xs sm:text-sm truncate">
-              {formatAddress(entry.wallet_address)}
-              {isMe && <Badge className="ml-2 text-[10px]" variant="secondary">You</Badge>}
+            <div className="flex-1 min-w-0">
+              <div className="font-mono text-xs sm:text-sm truncate">
+                {formatAddress(entry.wallet_address)}
+                {isMe && <Badge className="ml-2 text-[10px]" variant="secondary">You</Badge>}
+              </div>
+              <div className="mt-1">
+                <TierBadge points={entry.total_points} size="sm" />
+              </div>
             </div>
             <div className="text-right shrink-0">
               <div className="font-bold text-sm tabular-nums">{entry.total_points} <span className="text-muted-foreground text-xs">pts</span></div>
