@@ -245,17 +245,17 @@ export const TokenExplorer: React.FC<TokenExplorerProps> = ({ refreshTrigger }) 
     toast.success('Copied!');
   };
 
-  const filteredTokens = tokens.filter((t) => {
-    const matchesSearch =
-      !searchQuery ||
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.address.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab = activeTab === 'all' || (activeTab === 'mine' && address && t.owner.toLowerCase() === address.toLowerCase());
-    return matchesSearch && matchesTab;
-  });
+  const filteredTokens = React.useMemo(() => {
+    const source = activeTab === 'mine' ? myCreatedTokens : tokens;
+    return source.filter((t) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return t.name.toLowerCase().includes(q) || t.symbol.toLowerCase().includes(q) || t.address.toLowerCase().includes(q);
+    });
+  }, [tokens, myCreatedTokens, activeTab, searchQuery]);
 
-  const myTokensCount = tokens.filter((t) => address && t.owner.toLowerCase() === address?.toLowerCase()).length;
+  const myTokensCount = myCreatedTokens.length;
+  const isListLoading = activeTab === 'mine' ? loadingMine : loading;
 
   return (
     <div className="space-y-6">
