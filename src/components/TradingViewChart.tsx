@@ -277,7 +277,7 @@ export const TradingViewChart = memo(({ tokenSymbol = 'ETH', className = '' }: T
                 tickLine={false}
                 hide
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={renderTooltip} />
               
               {/* Volume Bars */}
               {showIndicators.volume && (

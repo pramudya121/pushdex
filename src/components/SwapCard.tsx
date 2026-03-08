@@ -473,7 +473,7 @@ export const SwapCard: React.FC = () => {
               <Input
                 type="number"
                 placeholder="0.0"
-                value={isWrapUnwrap ? amountIn : amountOut}
+                value={isWrapUnwrap ? amountIn : (amountOut ? parseFloat(amountOut).toFixed(6) : '')}
                 readOnly
                 className={cn(
                   "border-0 bg-transparent text-2xl font-semibold p-0 h-auto focus-visible:ring-0 transition-all duration-300",
