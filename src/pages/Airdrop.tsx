@@ -232,10 +232,12 @@ const Airdrop: React.FC = () => {
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-4">
             Complete quests to earn points. On-chain tasks = 2 pts, Social tasks = 1 pt.
           </p>
-          {/* Admin Panel Link */}
-          <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
-            <Settings className="w-3.5 h-3.5" /> Admin Panel
-          </Button>
+          {/* Admin Panel Link - only for admin wallets */}
+          {isAdminWallet(address) && (
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs">
+              <Settings className="w-3.5 h-3.5" /> Admin Panel
+            </Button>
+          )}
         </motion.div>
 
         {/* Empty state if not connected */}
