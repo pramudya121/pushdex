@@ -23,7 +23,7 @@ import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
 import { AirdropAchievements } from '@/components/airdrop/AirdropAchievements';
 import { DailyCheckIn } from '@/components/airdrop/DailyCheckIn';
-import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
+import { isTwitterConnected, setTwitterConnected, getVerifiedTxHash, AirdropAction } from '@/lib/airdropTracker';
 import { isAdminWallet } from '@/config/admin';
 import {
   AlertDialog,
