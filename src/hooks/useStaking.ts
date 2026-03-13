@@ -271,7 +271,7 @@ export const useStaking = () => {
       } else {
         toast.error(errorMessage || 'Failed to stake');
       }
-      return false;
+      return { success: false };
     } finally {
       setIsStaking(false);
     }
