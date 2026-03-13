@@ -42,7 +42,7 @@ interface FarmCardProps {
   pool: PoolInfo;
   rewardTokenSymbol: string;
   rewardTokenLogo: string;
-  onStake: (pid: number, amount: string) => Promise<boolean>;
+  onStake: (pid: number, amount: string) => Promise<boolean | { success: boolean; txHash?: string }>;
   onUnstake: (pid: number, amount: string) => Promise<boolean>;
   onHarvest: (pid: number) => Promise<boolean>;
   onEmergencyWithdraw: (pid: number) => Promise<boolean>;
