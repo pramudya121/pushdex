@@ -81,10 +81,12 @@ export const StakeCard: React.FC<StakeCardProps> = ({
 
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
-    const success = await onStake(pool.id, stakeAmount);
+    const result = await onStake(pool.id, stakeAmount);
+    const success = typeof result === 'object' ? result.success : result;
+    const txHash = typeof result === 'object' ? result.txHash : undefined;
     if (success) {
       setStakeAmount('');
-      if (address) markActionVerified(address, 'staking');
+      if (address && txHash) markActionVerified(address, 'staking', txHash);
       onRefresh();
     }
   };
