@@ -96,11 +96,14 @@ export const AirdropTaskCard: React.FC<Props> = ({
     }
   };
 
-  // On-chain: claim only after verified successful tx
+  // On-chain: claim only after verified successful tx with valid txHash
   // Social: claim only after twitter connected
   const isOnchainVerified = task.type === 'onchain' && walletAddress
     ? isActionVerified(walletAddress, task.action as AirdropAction)
     : false;
+  const verifiedTxHash = task.type === 'onchain' && walletAddress
+    ? getVerifiedTxHash(walletAddress, task.action as AirdropAction)
+    : null;
 
   const canClaim = task.type === 'onchain' ? isOnchainVerified : twitterConnected;
 
