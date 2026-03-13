@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { wallet_address, task_id } = await req.json();
+    const { wallet_address, task_id, tx_hash } = await req.json();
 
     // Validate inputs
     if (!wallet_address || !task_id) {
@@ -47,7 +47,6 @@ Deno.serve(async (req) => {
       .gte("attempted_at", windowStart);
 
     if ((recentClaims || 0) >= MAX_CLAIMS_PER_WINDOW) {
-      // Log failed attempt
       await supabase.from("airdrop_claim_log").insert({ wallet_address: wallet, success: false });
       return new Response(JSON.stringify({ error: "Rate limited. Please wait before claiming again." }), {
         status: 429,
@@ -70,7 +69,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check duplicate
+    // --- ANTI-CHEAT: On-chain tasks REQUIRE a valid tx_hash ---
+    if (task.type === "onchain") {
+      if (!tx_hash || typeof tx_hash !== "string") {
+        await supabase.from("airdrop_claim_log").insert({ wallet_address: wallet, success: false });
+        return new Response(JSON.stringify({ error: "On-chain tasks require a valid transaction hash. Complete the transaction first." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Validate tx_hash format (0x + 64 hex chars)
+      if (!/^0x[a-f0-9]{64}$/i.test(tx_hash.trim())) {
+        await supabase.from("airdrop_claim_log").insert({ wallet_address: wallet, success: false });
+        return new Response(JSON.stringify({ error: "Invalid transaction hash format." }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if this tx_hash was already used by anyone
+      const { data: existingTx } = await supabase
+        .from("airdrop_completions")
+        .select("id")
+        .eq("tx_hash", tx_hash.trim().toLowerCase())
+        .limit(1);
+
+      if (existingTx && existingTx.length > 0) {
+        await supabase.from("airdrop_claim_log").insert({ wallet_address: wallet, success: false });
+        return new Response(JSON.stringify({ error: "This transaction hash has already been used for a claim." }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Check duplicate completion
     const { data: existing } = await supabase
       .from("airdrop_completions")
       .select("id")
@@ -85,11 +119,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Insert completion
-    const { error: insertError } = await supabase.from("airdrop_completions").insert({
+    // Insert completion with tx_hash for on-chain tasks
+    const insertData: Record<string, string> = {
       wallet_address: wallet,
       task_id: task_id,
-    });
+    };
+    if (task.type === "onchain" && tx_hash) {
+      insertData.tx_hash = tx_hash.trim().toLowerCase();
+    }
+
+    const { error: insertError } = await supabase.from("airdrop_completions").insert(insertData);
 
     if (insertError) {
       if (insertError.code === "23505") {

@@ -5,7 +5,7 @@ export type AirdropAction = 'swap' | 'add_liquidity' | 'remove_liquidity' | 'far
 
 interface VerifiedAction {
   action: AirdropAction;
-  txHash?: string;
+  txHash: string;
   timestamp: number;
   wallet: string;
 }
@@ -20,10 +20,25 @@ export const getVerifiedActions = (wallet: string): VerifiedAction[] => {
 };
 
 export const isActionVerified = (wallet: string, action: AirdropAction): boolean => {
-  return getVerifiedActions(wallet).some(a => a.action === action);
+  return getVerifiedActions(wallet).some(a => a.action === action && !!a.txHash);
 };
 
-export const markActionVerified = (wallet: string, action: AirdropAction, txHash?: string) => {
+/** Get the tx hash for a verified action */
+export const getVerifiedTxHash = (wallet: string, action: AirdropAction): string | null => {
+  const actions = getVerifiedActions(wallet);
+  const found = actions.find(a => a.action === action && !!a.txHash);
+  return found?.txHash || null;
+};
+
+/**
+ * Mark an on-chain action as verified. txHash is REQUIRED.
+ * Without a valid tx hash the action will NOT be stored.
+ */
+export const markActionVerified = (wallet: string, action: AirdropAction, txHash: string) => {
+  if (!txHash || !/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+    console.warn('markActionVerified: invalid or missing txHash, skipping');
+    return;
+  }
   try {
     const all: VerifiedAction[] = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     // Don't duplicate
@@ -31,7 +46,7 @@ export const markActionVerified = (wallet: string, action: AirdropAction, txHash
     all.push({ action, txHash, timestamp: Date.now(), wallet: wallet.toLowerCase() });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     // Dispatch event so airdrop page can react
-    window.dispatchEvent(new CustomEvent('airdrop-action-verified', { detail: { action, wallet } }));
+    window.dispatchEvent(new CustomEvent('airdrop-action-verified', { detail: { action, wallet, txHash } }));
   } catch {
     // silent
   }

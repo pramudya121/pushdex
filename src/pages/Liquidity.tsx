@@ -255,9 +255,9 @@ const Liquidity = () => {
         tx = await router.removeLiquidity(tokenA.address, tokenB.address, lpAmountWei, 0, 0, address, txDeadline);
       }
       toast.loading('Removing liquidity...', { id: 'remove' });
-      await tx.wait();
+      const removeReceipt = await tx.wait();
       toast.success('Liquidity removed!', { id: 'remove' });
-      if (address) markActionVerified(address, 'remove_liquidity');
+      if (address && removeReceipt?.hash) markActionVerified(address, 'remove_liquidity', removeReceipt.hash);
       setRemoveAmount('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {
