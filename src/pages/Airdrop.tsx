@@ -62,6 +62,8 @@ interface LeaderboardEntry {
   rank: number;
 }
 
+const DAILY_RESET_MS = 24 * 60 * 60 * 1000;
+
 const Airdrop: React.FC = () => {
   const { address, isConnected } = useWallet();
   const navigate = useNavigate();
@@ -78,14 +80,12 @@ const Airdrop: React.FC = () => {
   const [rewardAnim, setRewardAnim] = useState<{ points: number; show: boolean }>({ points: 0, show: false });
   const [showTwitterConfirm, setShowTwitterConfirm] = useState(false);
 
-  // Check twitter connection status
   useEffect(() => {
     if (address) {
       setTwitterState(isTwitterConnected(address));
     }
   }, [address]);
 
-  // Listen for verified action events to re-render
   useEffect(() => {
     const handleVerified = () => forceUpdate(n => n + 1);
     const handleTwitter = () => {
@@ -131,7 +131,6 @@ const Airdrop: React.FC = () => {
           .sort((a, b) => b.total_points - a.total_points);
         sorted.forEach((e, i) => e.rank = i + 1);
         
-        // Rank-up notification
         if (address) {
           const myEntry = sorted.find(e => e.wallet_address === address.toLowerCase());
           if (myEntry && prevRankRef.current !== null && myEntry.rank < prevRankRef.current) {
@@ -151,7 +150,6 @@ const Airdrop: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Realtime subscription for live leaderboard
   useEffect(() => {
     const channel = supabase
       .channel('airdrop-completions-realtime')
@@ -162,9 +160,33 @@ const Airdrop: React.FC = () => {
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
-  const isTaskCompleted = (taskId: string) => {
+  /** Check if an on-chain task was completed within the last 24h */
+  const isTaskCompletedToday = (task: AirdropTask) => {
     if (!address) return false;
-    return completions.some(c => c.task_id === taskId && c.wallet_address.toLowerCase() === address.toLowerCase());
+    const walletCompletions = completions.filter(
+      c => c.task_id === task.id && c.wallet_address.toLowerCase() === address.toLowerCase()
+    );
+    if (walletCompletions.length === 0) return false;
+    
+    if (task.type === 'onchain') {
+      // Check if any completion is within 24h
+      const now = Date.now();
+      return walletCompletions.some(c => {
+        const completedAt = new Date(c.completed_at).getTime();
+        return (now - completedAt) < DAILY_RESET_MS;
+      });
+    }
+    // Social tasks: one-time
+    return true;
+  };
+
+  /** Get the last completion time for countdown display */
+  const getLastCompletionTime = (taskId: string): string | null => {
+    if (!address) return null;
+    const walletCompletions = completions
+      .filter(c => c.task_id === taskId && c.wallet_address.toLowerCase() === address.toLowerCase())
+      .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
+    return walletCompletions[0]?.completed_at || null;
   };
 
   const handleClaimTask = async (task: AirdropTask) => {
@@ -172,14 +194,17 @@ const Airdrop: React.FC = () => {
       toast.error('Please connect your wallet first');
       return;
     }
-    if (isTaskCompleted(task.id)) {
-      toast.info('Task already completed!');
+    if (isTaskCompletedToday(task)) {
+      if (task.type === 'onchain') {
+        toast.info('Task already completed today. Come back in 24 hours!');
+      } else {
+        toast.info('Task already completed!');
+      }
       return;
     }
 
     setClaiming(task.id);
     try {
-      // For on-chain tasks, get the verified tx hash
       let txHash: string | undefined;
       if (task.type === 'onchain' && address) {
         txHash = getVerifiedTxHash(address, task.action as AirdropAction) || undefined;
@@ -204,10 +229,11 @@ const Airdrop: React.FC = () => {
           throw new Error(msg);
         }
       } else {
-        // Parse response data
         const data = response.data;
         if (data?.error) {
-          if (data.already_completed) {
+          if (data.already_completed && data.daily_reset) {
+            toast.info('Task already completed today. Come back in 24 hours! ⏰');
+          } else if (data.already_completed) {
             toast.info('Task already completed!');
           } else if (data.error.includes('Rate limited')) {
             toast.error('Too many claims! Please wait a moment.');
@@ -215,7 +241,6 @@ const Airdrop: React.FC = () => {
             toast.error(data.error);
           }
         } else {
-          // Success! Show animations
           setShowConfetti(true);
           setRewardAnim({ points: task.points, show: true });
           toast.success(`+${task.points} points! Task completed 🎉`);
@@ -235,9 +260,7 @@ const Airdrop: React.FC = () => {
       toast.error('Connect your wallet first');
       return;
     }
-    // Open Twitter follow page
     window.open('https://x.com/pushdex', '_blank', 'noopener,noreferrer');
-    // Show confirmation dialog
     setShowTwitterConfirm(true);
   };
 
@@ -280,7 +303,7 @@ const Airdrop: React.FC = () => {
             PushDex Airdrop
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto mb-3">
-            Complete quests to earn points. On-chain tasks = 2 pts, Social tasks = 1 pt.
+            Complete quests to earn points. On-chain tasks reset daily (every 24h) — come back every day to earn more!
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-surface/50 px-3 py-1.5 rounded-full border border-border/30">
@@ -295,7 +318,6 @@ const Airdrop: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Empty state if not connected */}
         {!isConnected && <AirdropEmptyState isConnected={isConnected} />}
 
         {isConnected && (
@@ -304,7 +326,6 @@ const Airdrop: React.FC = () => {
             <AirdropProgressCountdown completed={myCompleted} total={tasks.length} />
             <DailyCheckIn walletAddress={address} isConnected={isConnected} />
 
-            {/* Achievement Badges */}
             <div className="max-w-2xl mx-auto mb-8 sm:mb-10">
               <AirdropAchievements completedCount={myCompleted} totalTasks={tasks.length} />
             </div>
@@ -337,7 +358,6 @@ const Airdrop: React.FC = () => {
           </>
         )}
 
-        {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab} className="max-w-4xl mx-auto">
           <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-6 sm:mb-8">
             <TabsTrigger value="quests" className="gap-1.5 text-xs sm:text-sm">
@@ -355,7 +375,7 @@ const Airdrop: React.FC = () => {
             <div className="space-y-4">
               <h2 className="text-lg sm:text-xl font-semibold flex items-center gap-2">
                 <Zap className="w-5 h-5 text-primary" /> On-Chain Tasks
-                <Badge variant="secondary" className="ml-2 text-xs">2 pts each</Badge>
+                <Badge variant="secondary" className="ml-2 text-xs">2 pts each · Resets daily</Badge>
               </h2>
               {loading ? (
                 <div className="text-center py-12 text-muted-foreground">Loading tasks...</div>
@@ -368,12 +388,13 @@ const Airdrop: React.FC = () => {
                       key={task.id}
                       task={task}
                       index={i}
-                      completed={isTaskCompleted(task.id)}
+                      completed={isTaskCompletedToday(task)}
                       claiming={claiming === task.id}
                       walletAddress={address}
                       twitterConnected={twitterConnected}
                       onClaim={handleClaimTask}
                       onConnectTwitter={handleConnectTwitter}
+                      lastCompletedAt={getLastCompletionTime(task.id)}
                     />
                   ))}
                 </div>
@@ -398,7 +419,7 @@ const Airdrop: React.FC = () => {
                       key={task.id}
                       task={task}
                       index={i}
-                      completed={isTaskCompleted(task.id)}
+                      completed={isTaskCompletedToday(task)}
                       claiming={claiming === task.id}
                       walletAddress={address}
                       twitterConnected={twitterConnected}
@@ -419,7 +440,6 @@ const Airdrop: React.FC = () => {
 
       <Footer />
 
-      {/* Twitter Confirmation Dialog */}
       <AlertDialog open={showTwitterConfirm} onOpenChange={setShowTwitterConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

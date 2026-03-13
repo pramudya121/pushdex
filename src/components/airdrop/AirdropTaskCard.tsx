@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,8 @@ import {
   Repeat2,
   MessageCircle,
   Users,
+  Clock,
+  RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { isActionVerified, getVerifiedTxHash, AirdropAction } from '@/lib/airdropTracker';
@@ -48,7 +50,6 @@ const getActionIcon = (action: string) => {
     case 'remove_liquidity': return <Droplets className="w-5 h-5" />;
     case 'farming': return <Leaf className="w-5 h-5" />;
     case 'staking': return <Coins className="w-5 h-5" />;
-    // Social actions
     case 'follow_twitter': return <Twitter className="w-5 h-5" />;
     case 'retweet': return <Repeat2 className="w-5 h-5" />;
     case 'like_tweet': return <Heart className="w-5 h-5" />;
@@ -72,6 +73,16 @@ const ACTION_LABELS: Record<string, string> = {
   join_discord: 'Join Discord',
 };
 
+const DAILY_RESET_MS = 24 * 60 * 60 * 1000;
+
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return '00:00:00';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 interface Props {
   task: AirdropTask;
   index: number;
@@ -81,12 +92,41 @@ interface Props {
   twitterConnected: boolean;
   onClaim: (task: AirdropTask) => void;
   onConnectTwitter: () => void;
+  lastCompletedAt?: string | null;
 }
 
 export const AirdropTaskCard: React.FC<Props> = ({
-  task, index, completed, claiming, walletAddress, twitterConnected, onClaim, onConnectTwitter,
+  task, index, completed, claiming, walletAddress, twitterConnected, onClaim, onConnectTwitter, lastCompletedAt,
 }) => {
   const navigate = useNavigate();
+  const [countdown, setCountdown] = useState('');
+  const [resetReady, setResetReady] = useState(false);
+
+  // Countdown timer for on-chain tasks completed today
+  useEffect(() => {
+    if (task.type !== 'onchain' || !completed || !lastCompletedAt) {
+      setCountdown('');
+      setResetReady(false);
+      return;
+    }
+
+    const update = () => {
+      const completedTime = new Date(lastCompletedAt).getTime();
+      const resetAt = completedTime + DAILY_RESET_MS;
+      const remaining = resetAt - Date.now();
+      if (remaining <= 0) {
+        setCountdown('');
+        setResetReady(true);
+      } else {
+        setCountdown(formatCountdown(remaining));
+        setResetReady(false);
+      }
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [task.type, completed, lastCompletedAt]);
 
   const handleGoToTask = () => {
     if (task.type === 'onchain' && ACTION_ROUTES[task.action]) {
@@ -96,8 +136,6 @@ export const AirdropTaskCard: React.FC<Props> = ({
     }
   };
 
-  // On-chain: claim only after verified successful tx with valid txHash
-  // Social: claim only after twitter connected
   const isOnchainVerified = task.type === 'onchain' && walletAddress
     ? isActionVerified(walletAddress, task.action as AirdropAction)
     : false;
@@ -106,8 +144,10 @@ export const AirdropTaskCard: React.FC<Props> = ({
     : null;
 
   const canClaim = task.type === 'onchain' ? isOnchainVerified : twitterConnected;
-
   const isSocial = task.type === 'social';
+
+  // If completed today but reset is ready, treat as not completed
+  const effectiveCompleted = completed && !resetReady;
 
   return (
     <motion.div
@@ -115,12 +155,12 @@ export const AirdropTaskCard: React.FC<Props> = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <Card className={`glass-card transition-all ${completed ? 'border-success/30 bg-success/5' : 'hover:border-primary/30'}`}>
+      <Card className={`glass-card transition-all ${effectiveCompleted ? 'border-success/30 bg-success/5' : 'hover:border-primary/30'}`}>
         <CardContent className="p-4 sm:p-5">
           <div className="flex items-start gap-3 sm:gap-4">
             {/* Icon */}
-            <div className={`p-2.5 sm:p-3 rounded-xl shrink-0 ${completed ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
-              {completed ? <CheckCircle className="w-5 h-5" /> : getActionIcon(task.action)}
+            <div className={`p-2.5 sm:p-3 rounded-xl shrink-0 ${effectiveCompleted ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
+              {effectiveCompleted ? <CheckCircle className="w-5 h-5" /> : getActionIcon(task.action)}
             </div>
 
             {/* Content */}
@@ -128,49 +168,60 @@ export const AirdropTaskCard: React.FC<Props> = ({
               <div className="font-semibold text-sm sm:text-base">{task.title}</div>
               <div className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{task.description}</div>
 
-              {/* Status hint */}
-              {!completed && task.type === 'onchain' && !isOnchainVerified && (
+              {/* Status hints */}
+              {!effectiveCompleted && task.type === 'onchain' && !isOnchainVerified && !resetReady && (
                 <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
                   <Lock className="w-3 h-3" />
                   <span>Complete a successful on-chain transaction to unlock claim</span>
                 </div>
               )}
-              {!completed && task.type === 'onchain' && isOnchainVerified && verifiedTxHash && (
+              {!effectiveCompleted && task.type === 'onchain' && isOnchainVerified && verifiedTxHash && (
                 <div className="flex items-center gap-1.5 mt-2 text-[11px] text-success">
                   <CheckCircle className="w-3 h-3" />
                   <span>Tx verified: {verifiedTxHash.slice(0, 10)}…{verifiedTxHash.slice(-6)}</span>
                 </div>
               )}
-              {!completed && isSocial && !twitterConnected && (
+              {resetReady && task.type === 'onchain' && (
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] text-primary">
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Daily reset! Complete the task again to earn more points</span>
+                </div>
+              )}
+              {!effectiveCompleted && isSocial && !twitterConnected && (
                 <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
                   <Twitter className="w-3 h-3" />
                   <span>Connect your X account to unlock social tasks</span>
                 </div>
               )}
 
+              {/* Countdown for completed on-chain tasks */}
+              {effectiveCompleted && task.type === 'onchain' && countdown && (
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>Resets in <span className="font-mono text-foreground">{countdown}</span></span>
+                </div>
+              )}
+
               {/* Mobile buttons */}
               <div className="flex flex-wrap items-center gap-2 mt-3 sm:hidden">
                 <Badge variant="outline" className="text-primary border-primary/30 text-xs">
-                  +{task.points} pts
+                  +{task.points} pts{task.type === 'onchain' ? '/day' : ''}
                 </Badge>
 
-                {/* Social: Connect X button */}
-                {!completed && isSocial && !twitterConnected && (
+                {!effectiveCompleted && isSocial && !twitterConnected && (
                   <Button size="sm" variant="outline" onClick={onConnectTwitter} className="gap-1 h-8 text-xs px-2">
                     <Twitter className="w-3 h-3" /> Connect X
                   </Button>
                 )}
 
-                {/* Go to task button */}
-                {!completed && (
+                {!effectiveCompleted && (
                   <Button size="sm" variant="outline" onClick={handleGoToTask} className="gap-1 h-8 text-xs px-2">
                     <ArrowRight className="w-3 h-3" />
                     {task.type === 'onchain' ? ACTION_LABELS[task.action] || 'Go' : task.link ? 'Visit' : 'Go'}
                   </Button>
                 )}
 
-                {/* Claim / Done */}
-                {completed ? (
+                {effectiveCompleted ? (
                   <Badge className="bg-success/20 text-success border-success/30 text-xs">Done ✓</Badge>
                 ) : canClaim ? (
                   <Button size="sm" onClick={() => onClaim(task)} disabled={claiming} className="h-8 text-xs">
@@ -183,27 +234,29 @@ export const AirdropTaskCard: React.FC<Props> = ({
             {/* Desktop buttons */}
             <div className="hidden sm:flex items-center gap-3 shrink-0">
               <Badge variant="outline" className="text-primary border-primary/30">
-                +{task.points} pts
+                +{task.points} pts{task.type === 'onchain' ? '/day' : ''}
               </Badge>
 
-              {/* Social: Connect X */}
-              {!completed && isSocial && !twitterConnected && (
+              {!effectiveCompleted && isSocial && !twitterConnected && (
                 <Button size="sm" variant="outline" onClick={onConnectTwitter} className="gap-1.5">
                   <Twitter className="w-3.5 h-3.5" /> Connect X
                 </Button>
               )}
 
-              {/* Go to task */}
-              {!completed && (
+              {!effectiveCompleted && (
                 <Button size="sm" variant="outline" onClick={handleGoToTask} className="gap-1.5">
                   <ArrowRight className="w-3.5 h-3.5" />
                   {task.type === 'onchain' ? ACTION_LABELS[task.action] || 'Go' : task.link ? 'Visit Link' : 'Go'}
                 </Button>
               )}
 
-              {/* Claim / Done */}
-              {completed ? (
-                <Badge className="bg-success/20 text-success border-success/30">Done ✓</Badge>
+              {effectiveCompleted ? (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-success/20 text-success border-success/30">Done ✓</Badge>
+                  {countdown && (
+                    <span className="text-xs text-muted-foreground font-mono">{countdown}</span>
+                  )}
+                </div>
               ) : canClaim ? (
                 <Button size="sm" onClick={() => onClaim(task)} disabled={claiming}>
                   {claiming ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Claiming...</> : 'Claim Points'}
