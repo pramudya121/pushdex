@@ -230,9 +230,9 @@ const Liquidity = () => {
         tx = await router.addLiquidity(tokenA.address, tokenB.address, amountAWei, amountBWei, amountAMin, amountBMin, address, txDeadline);
       }
       toast.loading(isNewPool ? 'Creating pool...' : 'Adding liquidity...', { id: 'add' });
-      await tx.wait();
+      const addReceipt = await tx.wait();
       toast.success(isNewPool ? 'Pool created!' : 'Liquidity added!', { id: 'add' });
-      if (address) markActionVerified(address, 'add_liquidity');
+      if (address && addReceipt?.hash) markActionVerified(address, 'add_liquidity', addReceipt.hash);
       setAmountA(''); setAmountB('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {
