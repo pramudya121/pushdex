@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { isActionVerified, AirdropAction } from '@/lib/airdropTracker';
+import { isActionVerified, getVerifiedTxHash, AirdropAction } from '@/lib/airdropTracker';
 
 interface AirdropTask {
   id: string;
