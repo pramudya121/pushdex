@@ -253,14 +253,14 @@ export const useStaking = () => {
       const tx = isNativeToken 
         ? await contract.stake(poolId, amountWei, { value: amountWei, gasLimit: 300000n })
         : await contract.stake(poolId, amountWei, { gasLimit: 300000n });
-      await tx.wait();
+      const receipt = await tx.wait();
       
       toast.success(`Successfully staked ${amount} ${pool.tokenSymbol}!`);
       
       // Update pool data immediately after successful stake
       await fetchPools();
       
-      return true;
+      return { success: true, txHash: tx.hash as string };
     } catch (error: any) {
       // Handle "Already staking" error from contract
       const errorMessage = error.reason || error.message || '';
