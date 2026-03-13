@@ -25,7 +25,7 @@ import {
 
 interface StakeCardProps {
   pool: StakingPoolInfo;
-  onStake: (poolId: number, amount: string) => Promise<boolean>;
+  onStake: (poolId: number, amount: string) => Promise<boolean | { success: boolean; txHash?: string }>;
   onUnstake: (poolId: number) => Promise<boolean>;
   onClaim: (poolId: number) => Promise<boolean>;
   getTokenBalance: (tokenAddress: string) => Promise<string>;
