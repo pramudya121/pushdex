@@ -132,7 +132,13 @@ export const AirdropTaskCard: React.FC<Props> = ({
               {!completed && task.type === 'onchain' && !isOnchainVerified && (
                 <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
                   <Lock className="w-3 h-3" />
-                  <span>Complete a successful transaction to unlock claim</span>
+                  <span>Complete a successful on-chain transaction to unlock claim</span>
+                </div>
+              )}
+              {!completed && task.type === 'onchain' && isOnchainVerified && verifiedTxHash && (
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] text-success">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Tx verified: {verifiedTxHash.slice(0, 10)}…{verifiedTxHash.slice(-6)}</span>
                 </div>
               )}
               {!completed && isSocial && !twitterConnected && (
