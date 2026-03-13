@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { isActionVerified, AirdropAction } from '@/lib/airdropTracker';
+import { isActionVerified, getVerifiedTxHash, AirdropAction } from '@/lib/airdropTracker';
 
 interface AirdropTask {
   id: string;
@@ -96,11 +96,14 @@ export const AirdropTaskCard: React.FC<Props> = ({
     }
   };
 
-  // On-chain: claim only after verified successful tx
+  // On-chain: claim only after verified successful tx with valid txHash
   // Social: claim only after twitter connected
   const isOnchainVerified = task.type === 'onchain' && walletAddress
     ? isActionVerified(walletAddress, task.action as AirdropAction)
     : false;
+  const verifiedTxHash = task.type === 'onchain' && walletAddress
+    ? getVerifiedTxHash(walletAddress, task.action as AirdropAction)
+    : null;
 
   const canClaim = task.type === 'onchain' ? isOnchainVerified : twitterConnected;
 
@@ -129,7 +132,13 @@ export const AirdropTaskCard: React.FC<Props> = ({
               {!completed && task.type === 'onchain' && !isOnchainVerified && (
                 <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
                   <Lock className="w-3 h-3" />
-                  <span>Complete a successful transaction to unlock claim</span>
+                  <span>Complete a successful on-chain transaction to unlock claim</span>
+                </div>
+              )}
+              {!completed && task.type === 'onchain' && isOnchainVerified && verifiedTxHash && (
+                <div className="flex items-center gap-1.5 mt-2 text-[11px] text-success">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Tx verified: {verifiedTxHash.slice(0, 10)}…{verifiedTxHash.slice(-6)}</span>
                 </div>
               )}
               {!completed && isSocial && !twitterConnected && (

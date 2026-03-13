@@ -42,7 +42,7 @@ interface FarmCardProps {
   pool: PoolInfo;
   rewardTokenSymbol: string;
   rewardTokenLogo: string;
-  onStake: (pid: number, amount: string) => Promise<boolean>;
+  onStake: (pid: number, amount: string) => Promise<boolean | { success: boolean; txHash?: string }>;
   onUnstake: (pid: number, amount: string) => Promise<boolean>;
   onHarvest: (pid: number) => Promise<boolean>;
   onEmergencyWithdraw: (pid: number) => Promise<boolean>;
@@ -142,10 +142,12 @@ export const FarmCard: React.FC<FarmCardProps> = memo(({
 
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
-    const success = await onStake(pool.pid, stakeAmount);
+    const result = await onStake(pool.pid, stakeAmount);
+    const success = typeof result === 'object' ? result.success : result;
+    const txHash = typeof result === 'object' ? result.txHash : undefined;
     if (success) {
       setStakeAmount('');
-      if (address) markActionVerified(address, 'farming');
+      if (address && txHash) markActionVerified(address, 'farming', txHash);
       onRefresh();
       const balance = await getLpBalance(pool.lpToken);
       setLpBalance(balance);

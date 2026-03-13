@@ -222,9 +222,11 @@ export const SwapCard: React.FC = () => {
     setTxStatus('confirming');
     try {
       setTxStatus('pending');
-      await swap();
+      const receipt = await swap();
       setTxStatus('success');
-      if (address) markActionVerified(address, 'swap');
+      if (address && receipt?.hash) {
+        markActionVerified(address, 'swap', receipt.hash);
+      }
     } catch (err: any) {
       setTxStatus('error');
       setTxError(err.reason || err.message || 'Transaction failed');

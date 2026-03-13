@@ -25,7 +25,7 @@ import {
 
 interface StakeCardProps {
   pool: StakingPoolInfo;
-  onStake: (poolId: number, amount: string) => Promise<boolean>;
+  onStake: (poolId: number, amount: string) => Promise<boolean | { success: boolean; txHash?: string }>;
   onUnstake: (poolId: number) => Promise<boolean>;
   onClaim: (poolId: number) => Promise<boolean>;
   getTokenBalance: (tokenAddress: string) => Promise<string>;
@@ -81,10 +81,12 @@ export const StakeCard: React.FC<StakeCardProps> = ({
 
   const handleStake = async () => {
     if (!stakeAmount || parseFloat(stakeAmount) <= 0) return;
-    const success = await onStake(pool.id, stakeAmount);
+    const result = await onStake(pool.id, stakeAmount);
+    const success = typeof result === 'object' ? result.success : result;
+    const txHash = typeof result === 'object' ? result.txHash : undefined;
     if (success) {
       setStakeAmount('');
-      if (address) markActionVerified(address, 'staking');
+      if (address && txHash) markActionVerified(address, 'staking', txHash);
       onRefresh();
     }
   };

@@ -230,9 +230,9 @@ const Liquidity = () => {
         tx = await router.addLiquidity(tokenA.address, tokenB.address, amountAWei, amountBWei, amountAMin, amountBMin, address, txDeadline);
       }
       toast.loading(isNewPool ? 'Creating pool...' : 'Adding liquidity...', { id: 'add' });
-      await tx.wait();
+      const addReceipt = await tx.wait();
       toast.success(isNewPool ? 'Pool created!' : 'Liquidity added!', { id: 'add' });
-      if (address) markActionVerified(address, 'add_liquidity');
+      if (address && addReceipt?.hash) markActionVerified(address, 'add_liquidity', addReceipt.hash);
       setAmountA(''); setAmountB('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {
@@ -255,9 +255,9 @@ const Liquidity = () => {
         tx = await router.removeLiquidity(tokenA.address, tokenB.address, lpAmountWei, 0, 0, address, txDeadline);
       }
       toast.loading('Removing liquidity...', { id: 'remove' });
-      await tx.wait();
+      const removeReceipt = await tx.wait();
       toast.success('Liquidity removed!', { id: 'remove' });
-      if (address) markActionVerified(address, 'remove_liquidity');
+      if (address && removeReceipt?.hash) markActionVerified(address, 'remove_liquidity', removeReceipt.hash);
       setRemoveAmount('');
       fetchPairInfo(); fetchBalances();
     } catch (error: any) {

@@ -421,7 +421,7 @@ export const useFarming = () => {
         
         toast.success('Successfully staked!');
         await fetchPools();
-        return true;
+        return { success: true, txHash: tx.hash as string };
         
       } catch (depositError: any) {
         console.error('Deposit error:', depositError);

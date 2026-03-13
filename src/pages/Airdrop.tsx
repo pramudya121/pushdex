@@ -23,7 +23,7 @@ import { AirdropLeaderboard } from '@/components/airdrop/AirdropLeaderboard';
 import { AirdropEmptyState } from '@/components/airdrop/AirdropEmptyState';
 import { AirdropAchievements } from '@/components/airdrop/AirdropAchievements';
 import { DailyCheckIn } from '@/components/airdrop/DailyCheckIn';
-import { isTwitterConnected, setTwitterConnected } from '@/lib/airdropTracker';
+import { isTwitterConnected, setTwitterConnected, getVerifiedTxHash, AirdropAction } from '@/lib/airdropTracker';
 import { isAdminWallet } from '@/config/admin';
 import {
   AlertDialog,
@@ -179,8 +179,19 @@ const Airdrop: React.FC = () => {
 
     setClaiming(task.id);
     try {
+      // For on-chain tasks, get the verified tx hash
+      let txHash: string | undefined;
+      if (task.type === 'onchain' && address) {
+        txHash = getVerifiedTxHash(address, task.action as AirdropAction) || undefined;
+        if (!txHash) {
+          toast.error('No verified transaction found. Complete the on-chain action first.');
+          setClaiming(null);
+          return;
+        }
+      }
+
       const response = await supabase.functions.invoke('claim-airdrop', {
-        body: { wallet_address: address, task_id: task.id },
+        body: { wallet_address: address, task_id: task.id, tx_hash: txHash },
       });
 
       if (response.error) {
